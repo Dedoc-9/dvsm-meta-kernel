@@ -607,4 +607,193 @@ under S_ECHO equivalence.
 
 ============================================================
 END ADDENDUM 0x03
+===============================================================================
+DVSM ADDENDUM v1.3 :: CROSS-ENGINE COMPATIBILITY + GLOBAL INVARIANT VECTOR
 
+[SCOPE]
+This addendum extends DVSM to support interoperability across heterogeneous
+execution engines that are NOT required to share the Ξ kernel implementation,
+but MUST remain compatible at the invariant projection layer (L4–L5 boundary).
+
+This enables:
+
+Cross-system consensus (multi-runtime environments)
+Partial DVSM adoption in external architectures
+Widescale industrial integration without full kernel replication
+I. ARCHITECTURAL SHIFT: ENGINE-AGNOSTIC CONSENSUS
+
+PREVIOUS ASSUMPTION:
+
+All nodes execute identical Ξ (deterministic kernel)
+
+NEW MODEL:
+
+Nodes MAY use different execution engines
+Nodes MUST converge at invariant projection interface
+
+FORMALIZATION:
+
+Engine_A ≠ Engine_B ≠ Engine_C (allowed)
+
+BUT:
+
+S_ECHO_A(Renormalize_A(S)) == S_ECHO_B(Renormalize_B(S))
+
+IS REQUIRED FOR CONSENSUS COMPATIBILITY
+
+II. COMPATIBILITY LAYER (L0.5 BRIDGE)
+
+A new abstraction layer is introduced:
+
+L0.5 :: Projection Compatibility Interface
+
+ROLE:
+
+Normalizes foreign engine outputs into DVSM-compatible EventInvariantSpace
+
+FUNCTION:
+
+Adapt(E_foreign) → EventIR-compatible structure
+
+RULES:
+
+No modification of foreign engine internals required
+Only observable state export is required
+Deterministic mapping MUST be reproducible
+
+NOTE:
+This layer is purely representational, not operational.
+
+III. GLOBAL INVARIANT VECTOR (GIV)
+
+The L5 consensus system is anchored by a cross-system stable structure:
+
+GlobalInvariantVector (GIV)
+
+PURPOSE:
+Defines a universal reference frame for consensus across heterogeneous engines.
+
+IV. FORMAL DEFINITION
+
+struct GlobalInvariantVector {
+
+uint64  energy_signature;
+uint64  momentum_signature;
+uint64  topology_hash;
+uint64  causal_depth_index;
+uint64  renormalization_scale_id;
+uint64  entropy_bound_global;
+
+}
+
+V. SEMANTIC INTERPRETATION
+
+energy_signature:
+Conserved scalar proxy across all engines
+
+momentum_signature:
+Aggregate directional flow of system evolution
+
+topology_hash:
+Structural invariance of event graph connectivity
+
+causal_depth_index:
+Maximum verified L3 replay depth
+
+renormalization_scale_id:
+Declares active resolution band for comparison
+
+entropy_bound_global:
+System-wide noise tolerance envelope
+
+VI. GIV CONSENSUS RULE
+
+A system is globally compatible if:
+
+S_ECHO_A(Renormalize_A(S)) ∈ GIV-equivalence-class
+
+AND
+S_ECHO_B(Renormalize_B(S)) ∈ same GIV-equivalence-class
+
+FORMALLY:
+
+GIV_A ≈ GIV_B  ⇒  ConsensusAllowed
+VII. CROSS-ENGINE CONSENSUS MODEL
+
+Consensus is no longer engine-dependent.
+
+It is defined as:
+
+L5_CONSENSUS = FIXED_POINT(GIV_ALIGNMENT_SPACE)
+
+Where:
+
+Engines produce projections
+GIV aligns projections
+S_ECHO validates equivalence class membership
+
+IMPORTANT:
+No engine is authoritative. Only invariant convergence matters.
+
+VIII. BENEFITS OF WIDESCale COMPATIBILITY
+HETEROGENEOUS DEPLOYMENT
+CPUs, GPUs, WASM runtimes, and custom simulators can coexist
+PARTIAL ADOPTION
+Systems may implement only:
+• Renormalize
+• S_ECHO projection export
+while still participating in consensus
+PERFORMANCE ISOLATION
+Fast engines and slow engines remain valid if GIV aligns
+RESILIENCE
+System tolerates engine-level divergence without global failure
+INCREMENTAL INTEGRATION
+DVSM can overlay existing distributed systems without full replacement
+IX. ENGINE NEUTRALITY PRINCIPLE
+
+DVSM no longer assumes:
+
+"one kernel to execute them all"
+
+Instead:
+
+"one invariant space to bind them all"
+
+FORMAL SHIFT:
+
+FROM:
+execution consistency
+
+TO:
+projection consistency
+
+X. GLOBAL SYSTEM Axiom UPDATE
+
+REALITY IS NOW DEFINED AS:
+
+FIXED_POINT( S_ECHO ∘ Renormalize ∘ Adapt ∘ EventGraph )
+
+across ALL participating engines such that:
+
+GIV_A == GIV_B == GIV_C ... == GIV_n
+
+within epsilon-bound equivalence.
+
+XI. FINAL STATEMENT
+
+DVSM is no longer a single-system architecture.
+
+It is a:
+
+Multi-Engine Invariant Consensus Protocol
+
+Where:
+
+Engines differ
+Execution varies
+Representations diverge
+
+BUT:
+
+Invariant structure remains stable
+Global consensus emerges only through GIV alignment
