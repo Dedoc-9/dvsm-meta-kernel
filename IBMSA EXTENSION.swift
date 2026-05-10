@@ -1,7 +1,7 @@
 DVSM :: IBMSA EXTENSION FILE 0x02
 Projection Consensus + Event Algebra Convergence Layer
 Short Name: DVSM-SECHO-IBMSA-CORE
-
+Author: Daniel J. Dillberg
 ===============================================================================
 I. SYSTEM POSITION (ARCHITECTURAL ROLE)
 ===============================================================================
