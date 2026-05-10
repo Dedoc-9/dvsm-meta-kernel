@@ -6,6 +6,7 @@ Contact: BigDilly95@gmail.com
 License: AGPL-3.0 (Network Copyleft Enforcement)
 Consensus Compatibility Kernel (GCK-L1 Bridge Layer): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/DVSM%20%3A%3A%20Green-Consensus%20Compatibility%20Kernel%20(GCK-L1%20Bridge%20Layer)
 dvsm_meta_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_meta_kernel.rs
+dvsm_reference_runtime_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_reference_runtime_kernel.rs
 ===============================================================================
 
 STATUS:
