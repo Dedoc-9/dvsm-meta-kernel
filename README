@@ -3,6 +3,7 @@ DVSM :: CONVERGENT DETERMINISTIC CONSENSUS ENGINE
 Unified Simulation + Consensus + Verification Runtime
 Whitepaper / Reference Architecture (Single-File Edition)
 Author: Daniel J. Dillberg
+Contact: BigDilly95@gmail.com
 ===============================================================================
 
 CLASSIFICATION:
@@ -41,6 +42,85 @@ The architecture prioritizes:
 2. Divergence detection via state hashing
 3. Consensus-driven finality rather than local truth
 4. Rollback-based correction rather than mutation repair
+
+--------------------------------------------------------------------------------
+ABSTRACT — ENGINE SUMMARY (DVSM v∞ CORE)
+--------------------------------------------------------------------------------
+
+DVSM defines a deterministic, multi-engine execution substrate in which all
+computation is reduced to embedding-consistent state evolution:
+
+    Φ(state) → ℝⁿ
+
+Correctness is not assumed locally; it is enforced globally through
+cross-engine embedding equivalence and causal convergence.
+
+--------------------------------------------------------------------------------
+FOUR PRIMARY ENGINES
+--------------------------------------------------------------------------------
+
+1. L1 — EXECUTION KERNEL ENGINE (Ξ)
+   Deterministic fixed-point simulation layer (ECS + physics + commands)
+   → Produces raw state evolution S(t+1)
+
+2. L3 — CAUSAL ORDER ENGINE (TOTAL ORDER BROADCAST)
+   Deterministic sequencing of all inputs and events
+   → Ensures identical execution order across all nodes
+
+3. L4/L4.5 — VERIFICATION & CAUSAL ANCHOR ENGINE
+   Formal proof gating + replay-based reconstruction system
+   → Validates state correctness and enables deterministic rollback
+
+4. L5 — CONSENSUS / ATTRACTOR ENGINE
+   Dual-lane convergence system (live trajectory + predicted attractor)
+   → Determines finality through convergence stability, not voting alone
+
+--------------------------------------------------------------------------------
+FINAL SYSTEM SPECIFICATION (DVSM_SUPERIOR_KERNEL.rs)
+--------------------------------------------------------------------------------
+
+STATE EVOLUTION:
+
+    S(t+1) = Ξ(S(t), INPUT(t))
+
+GLOBAL TRUTH FUNCTION:
+
+    TRUTH = S_ECHO(S)  ∈ embedding space Φ
+
+FINALITY CONDITION:
+
+    Φ(L1) = Φ(L3) = Φ(L4/L4.5) = Φ(L5)
+
+AND
+
+    ||divergence|| ≤ ε
+
+AND
+
+    consensus convergence is stable (attractor lock achieved)
+
+--------------------------------------------------------------------------------
+SYSTEM GUARANTEE MODEL
+--------------------------------------------------------------------------------
+
+- Deterministic execution across CPU / SIMD / WASM targets
+- Bitwise identical replay and reconstruction
+- Byzantine-resistant state agreement via embedding convergence
+- Rollback via causal re-synthesis, not snapshot trust
+- Execution validity defined by cross-engine geometric equivalence
+
+--------------------------------------------------------------------------------
+CORE PRINCIPLE
+
+The system does not resolve computation by trust, probability, or authority.
+
+It resolves computation by:
+
+    geometric agreement across independent deterministic engines
+
+--------------------------------------------------------------------------------
+END ABSTRACT
+--------------------------------------------------------------------------------
 
 ===============================================================================
 CORE DESIGN PHILOSOPHY ("CONVERGENCE MODEL")
