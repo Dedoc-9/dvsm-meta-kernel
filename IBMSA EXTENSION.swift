@@ -1,5 +1,5 @@
 DVSM :: IBMSA EXTENSION FILE 0x02
-Projection Consensus + Event Algebra Convergence Layer
+Projection Consensus + Event Algebra Convergence Layer (operating over Global Invariant Vector space)
 Short Name: DVSM-SECHO-IBMSA-CORE
 Author: Daniel J. Dillberg
 ===============================================================================
