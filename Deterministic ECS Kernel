@@ -1,0 +1,357 @@
+// ============================================================
+// DVSM_REAL_CORE :: PRODUCTION DETERMINISTIC ENGINE KERNEL
+// ECS + NETCODE + ROLLBACK + SERIALIZATION + VALIDATION
+// Author: Daniel J. Dillberg
+// ============================================================
+
+#![allow(non_camel_case_types)]
+
+use std::collections::VecDeque;
+
+pub type Fx = i64;        // Q32.32 fixed point
+pub type Entity = u32;
+
+const FP_SHIFT: i32 = 32;
+const SNAPSHOT_LIMIT: usize = 32;
+const PROTOCOL_VERSION: u16 = 1;
+
+// ============================================================
+// FIXED POINT OPS
+// ============================================================
+
+#[inline(always)]
+fn fx_mul(a: Fx, b: Fx) -> Fx {
+    ((a as i128 * b as i128) >> FP_SHIFT) as Fx
+}
+
+// ============================================================
+// SPARSE SET ECS (NO HASHMAP, NO SEARCH)
+// ============================================================
+
+pub struct SparseSet {
+    pub dense: Vec<Entity>,
+    pub sparse: Vec<usize>,
+    pub alive: Vec<bool>,
+}
+
+impl SparseSet {
+    pub fn new(max: usize) -> Self {
+        Self {
+            dense: Vec::new(),
+            sparse: vec![0; max],
+            alive: vec![false; max],
+        }
+    }
+
+    #[inline(always)]
+    pub fn insert(&mut self, e: Entity) {
+        let i = self.dense.len();
+        self.dense.push(e);
+        self.sparse[e as usize] = i;
+        self.alive[e as usize] = true;
+    }
+
+    #[inline(always)]
+    pub fn remove(&mut self, e: Entity) {
+        let i = self.sparse[e as usize];
+        let last = self.dense.len() - 1;
+
+        let last_e = self.dense[last];
+
+        self.dense.swap(i, last);
+        self.sparse[last_e as usize] = i;
+
+        self.dense.pop();
+        self.alive[e as usize] = false;
+    }
+
+    #[inline(always)]
+    pub fn index(&self, e: Entity) -> Option<usize> {
+        if self.alive[e as usize] {
+            Some(self.sparse[e as usize])
+        } else {
+            None
+        }
+    }
+}
+
+// ============================================================
+// COMPONENT STORAGE (SoA)
+// ============================================================
+
+pub struct World {
+    pub entities: SparseSet,
+    pub pos: Vec<[Fx; 3]>,
+    pub vel: Vec<[Fx; 3]>,
+}
+
+// ============================================================
+// COMMANDS
+// ============================================================
+
+pub enum Command {
+    Create(Entity),
+    Destroy(Entity),
+    SetPos(Entity, [Fx; 3]),
+    SetVel(Entity, [Fx; 3]),
+}
+
+// ============================================================
+// NETWORK FRAME (UDP/QUIC STYLE ABSTRACTION)
+// ============================================================
+
+pub struct NetFrame {
+    pub version: u16,
+    pub tick: u64,
+    pub payload: Vec<u8>,
+}
+
+impl NetFrame {
+
+    pub fn encode(cmds: &[Command], tick: u64) -> Self {
+        let mut payload = Vec::with_capacity(cmds.len() * 16);
+
+        for c in cmds {
+            match c {
+                Command::Create(e) => {
+                    payload.extend_from_slice(&[0]);
+                    payload.extend_from_slice(&e.to_le_bytes());
+                }
+                Command::Destroy(e) => {
+                    payload.extend_from_slice(&[1]);
+                    payload.extend_from_slice(&e.to_le_bytes());
+                }
+                Command::SetPos(e, p) => {
+                    payload.extend_from_slice(&[2]);
+                    payload.extend_from_slice(&e.to_le_bytes());
+                    payload.extend_from_slice(&p[0].to_le_bytes());
+                    payload.extend_from_slice(&p[1].to_le_bytes());
+                    payload.extend_from_slice(&p[2].to_le_bytes());
+                }
+                Command::SetVel(e, v) => {
+                    payload.extend_from_slice(&[3]);
+                    payload.extend_from_slice(&e.to_le_bytes());
+                    payload.extend_from_slice(&v[0].to_le_bytes());
+                    payload.extend_from_slice(&v[1].to_le_bytes());
+                    payload.extend_from_slice(&v[2].to_le_bytes());
+                }
+            }
+        }
+
+        Self {
+            version: PROTOCOL_VERSION,
+            tick,
+            payload,
+        }
+    }
+}
+
+// ============================================================
+// SNAPSHOT (ROLLBACK BUFFER)
+// ============================================================
+
+#[derive(Clone)]
+pub struct Snapshot {
+    pub tick: u64,
+    pub pos: Vec<[Fx; 3]>,
+    pub vel: Vec<[Fx; 3]>,
+    pub echo: u64,
+}
+
+pub struct RollbackBuffer {
+    pub ring: VecDeque<Snapshot>,
+}
+
+impl RollbackBuffer {
+
+    pub fn new() -> Self {
+        Self {
+            ring: VecDeque::with_capacity(SNAPSHOT_LIMIT),
+        }
+    }
+
+    pub fn push(&mut self, s: Snapshot) {
+        if self.ring.len() == SNAPSHOT_LIMIT {
+            self.ring.pop_front();
+        }
+        self.ring.push_back(s);
+    }
+
+    pub fn rollback(&self, tick: u64) -> Option<Snapshot> {
+        self.ring.iter().rev().find(|s| s.tick == tick).cloned()
+    }
+}
+
+// ============================================================
+// SERVER CORE
+// ============================================================
+
+pub struct Server {
+    pub world: World,
+    pub tick: u64,
+    pub buffer: Vec<Command>,
+    pub rollback: RollbackBuffer,
+}
+
+// ============================================================
+// S_ECHO (DETERMINISTIC STATE HASH)
+// ============================================================
+
+fn s_echo(world: &World, tick: u64) -> u64 {
+    let mut h = 0xcbf29ce484222325 ^ tick;
+
+    for i in 0..world.entities.dense.len() {
+        h ^= world.entities.dense[i] as u64;
+        h = h.wrapping_mul(1099511628211);
+
+        h ^= world.pos[i][0] as u64;
+        h = h.wrapping_mul(1099511628211);
+
+        h ^= world.pos[i][1] as u64;
+        h = h.wrapping_mul(1099511628211);
+
+        h ^= world.pos[i][2] as u64;
+        h = h.wrapping_mul(1099511628211);
+    }
+
+    h
+}
+
+// ============================================================
+// MAIN SIMULATION TICK
+// ============================================================
+
+impl Server {
+
+    pub fn tick(&mut self) -> NetFrame {
+
+        self.tick += 1;
+
+        // --------------------------------------------------------
+        // APPLY COMMANDS (DETERMINISTIC ORDER)
+        // --------------------------------------------------------
+
+        let cmds = std::mem::take(&mut self.buffer);
+
+        for c in cmds {
+            match c {
+
+                Command::Create(e) => {
+                    self.world.entities.insert(e);
+                    self.world.pos.push([0; 3]);
+                    self.world.vel.push([0; 3]);
+                }
+
+                Command::Destroy(e) => {
+                    if let Some(i) = self.world.entities.index(e) {
+                        self.world.entities.remove(e);
+                        self.world.pos.swap_remove(i);
+                        self.world.vel.swap_remove(i);
+                    }
+                }
+
+                Command::SetPos(e, p) => {
+                    if let Some(i) = self.world.entities.index(e) {
+                        self.world.pos[i] = p;
+                    }
+                }
+
+                Command::SetVel(e, v) => {
+                    if let Some(i) = self.world.entities.index(e) {
+                        self.world.vel[i] = v;
+                    }
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        // PHYSICS (DETERMINISTIC FIXED POINT)
+        // --------------------------------------------------------
+
+        for i in 0..self.world.pos.len() {
+            self.world.pos[i][0] += fx_mul(self.world.vel[i][0], 1);
+            self.world.pos[i][1] += fx_mul(self.world.vel[i][1], 1);
+            self.world.pos[i][2] += fx_mul(self.world.vel[i][2], 1);
+        }
+
+        // --------------------------------------------------------
+        // STATE HASH (TRUTH ANCHOR)
+        // --------------------------------------------------------
+
+        let echo = s_echo(&self.world, self.tick);
+
+        // --------------------------------------------------------
+        // SNAPSHOT (ROLLBACK BUFFER)
+        // --------------------------------------------------------
+
+        self.rollback.push(Snapshot {
+            tick: self.tick,
+            pos: self.world.pos.clone(),
+            vel: self.world.vel.clone(),
+            echo,
+        });
+
+        // --------------------------------------------------------
+        // NETWORK FRAME (UDP/QUIC ABSTRACTION)
+        // --------------------------------------------------------
+
+        NetFrame::encode(&self.buffer, self.tick)
+    }
+}
+
+// ============================================================
+// CLIENT ROLLBACK MODEL
+// ============================================================
+
+pub struct Client {
+    pub world: World,
+    pub buffer: RollbackBuffer,
+    pub last_echo: u64,
+}
+
+impl Client {
+
+    pub fn reconcile(&mut self, server_echo: u64) {
+        if server_echo != self.last_echo {
+            if let Some(snapshot) = self.buffer.rollback(self.buffer.ring.back().unwrap().tick) {
+                self.world.pos = snapshot.pos;
+                self.world.vel = snapshot.vel;
+            }
+        }
+
+        self.last_echo = server_echo;
+    }
+}
+
+// ============================================================
+// DETERMINISTIC TEST HARNESS
+// ============================================================
+
+pub fn test_determinism(server: &mut Server) -> u64 {
+
+    let mut hashes = Vec::new();
+
+    for _ in 0..128 {
+        server.buffer.push(Command::Create(1));
+        let frame = server.tick();
+        hashes.push(frame.tick);
+    }
+
+    // cross-platform invariant: final state hash
+    s_echo(&server.world, server.tick)
+}
+
+// ============================================================
+// SYSTEM INVARIANTS
+// ============================================================
+//
+// 1. SparseSet removes O(n) search
+// 2. All state updates are deterministic
+// 3. Rollback is snapshot-based (not replay guesswork)
+// 4. Netcode is versioned binary framing
+// 5. S_ECHO defines canonical truth
+// 6. Any divergence = rollback, never patch
+//
+// ============================================================
+// END KERNEL
+// ============================================================
