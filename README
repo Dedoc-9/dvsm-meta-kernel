@@ -15,7 +15,169 @@ NXT THEORY KERNEL (advanced for deploy): https://github.com/Dedoc-9/dvsm-meta-ke
     + DVSM_CKITL_GENESIS (MIT-CKITL: cross-kernel invariant translation bootstrap layer)
     + CMST_MASTER_ARCHIVE (MIT-CMST: cross-manifold synchronization final authority layer)
 ===============================================================================
+UNIFIED MODULE REGISTRY + INTERLAYER EXECUTION SPECIFICATION
+
+I. MODULE REGISTRY (CANONICAL COMPONENT SET)
+IBMSA Kernel (MIT-IBMSA: invariant multi-basin state architecture core)
+dvsm_genesis_l6_kernel.rs (MIT-L6: deterministic incentive execution kernel in Rust)
+Stable Waveform Truth (MIT-SWT: invariant identity projection field)
+Eμν_CORE.v1 (MIT-EINSTEIN: causal curvature tensor geometry layer)
+DVSM_CKITL_GENESIS (MIT-CKITL: cross-kernel invariant translation bridge)
+CMST_MASTER_ARCHIVE (MIT-CMST: global synchronization + Ω boundary alignment layer)
+
+II. SYSTEM MODEL (STACKLESS MANIFOLD ARCHITECTURE)
+DVSM–CMST is not a layered stack.
+It is a coupled causal manifold where each module transforms invariant state:
+
+L6_KERNEL → execution substrate
+Eμν_CORE → causal geometry encoding
+SWT → invariant truth projection
+IBMSA → consensus basin formation
+CKITL → cross-system translation
+CMST → global Ω synchronization
+III. CORE SYSTEM FLOWS
+
+1. CAUSAL FLOW (Ξ FLOW)
+
+Origin: dvsm_genesis_l6_kernel.rs
+
+Function:
+Executes deterministic event transitions
+Produces raw causal sequence evolution
+
+Flow:
+L6_KERNEL → Eμν_CORE → IBMSA
+
+Meaning:
+Local execution reality
+Deterministic state evolution
+Energy-driven computation
+
+2. INVARIANT FLOW (S_ECHO FIELD)
+
+Origin: Stable Waveform Truth (SWT)
+
+Function:
+Converts raw state into invariant identity class
+Eliminates microstate noise and hardware variance
+
+Flow:
+L6_KERNEL → SWT → IBMSA → CKITL
+
+Meaning:
+Truth = equivalence class, not raw state
+Cross-node identity stability
+Hardware-agnostic invariance
+
+3. GLOBAL SYNCHRONIZATION FLOW (Ω FIELD)
+
+Origin: CMST_MASTER_ARCHIVE
+
+Function:
+Aligns all nodes across manifold topology
+Resolves Liquid/Frozen boundary divergence
+
+Flow:
+CKITL → CMST → GLOBAL Ω BOUNDARY → ALL SYSTEMS
+
+Meaning:
+Global coherence enforcement
+Fork prevention across distributed kernels
+Unified reality stabilization
+IV. SYSTEM INTERACTION GRAPH
+
+                 CMST MASTER ARCHIVE
+            (Global Ω Synchronization Layer)
+                         │
+         ┌───────────────┴───────────────┐
+         │                               │
+       CKITL                         IBMSA KERNEL
+ (Cross-System Translation)     (Consensus Basin Field)
+         │                               │
+         └───────────────┬───────────────┘
+                         │
+                      SWT
+           (Invariant Truth Projection)
+                         │
+                    Eμν_CORE.v1
+             (Causal Geometry Layer)
+                         │
+                dvsm_genesis_l6_kernel.rs
+               (Deterministic Execution)
+
+V. EXECUTION PIPELINE (FULL SYSTEM FLOW)
+
+STEP 1 — EXECUTION (L6_KERNEL)
+Deterministic event generation
+Produces causal event stream
+STEP 2 — GEOMETRIC ENCODING (Eμν_CORE)
+Maps events into curvature-based structure
+Defines causal relationships
+STEP 3 — TRUTH NORMALIZATION (SWT)
+Projects state into invariant identity space
+Removes noise and hardware drift
+STEP 4 — CONSENSUS FORMATION (IBMSA)
+Aggregates invariants into multi-basin stability fields
+No single truth; only stable regions
+STEP 5 — CROSS-KERNEL TRANSLATION (CKITL)
+Converts invariants into external NXT-compatible formats
+Enables heterogeneous execution environments
+STEP 6 — GLOBAL SYNCHRONIZATION (CMST)
+Aligns Ω boundary across all nodes
+Resolves Liquid/Frozen execution divergence
+Produces global causal consistency
+
+VI. SYSTEM COMPOSITION LAW
+
+DVSM reality is defined as:
+
+TRUTH =
+CMST(
+  CKITL(
+    IBMSA(
+      SWT(
+        Eμν_CORE(
+          L6_KERNEL(E)
+        )
+      )
+    )
+  )
+)
+
+VII. FAILURE MODES
+IBMSA failure → fragmented consensus basins
+SWT failure → identity drift / unstable invariants
+CKITL failure → cross-system incompatibility
+CMST failure → global manifold desynchronization
+
+VIII. ARCHITECTURAL PRINCIPLE
+
+DVSM–CMST is not an execution engine.
+
+It is a self-stabilizing causal manifold system where:
+
+Execution generates structure
+Structure defines invariants
+Invariants define consensus fields
+Consensus is globally synchronized into reality
+IX. FINAL SYSTEM STATE
+
+When stable:
+
+L6 produces deterministic causal flow
+Eμν_CORE encodes causal geometry
+SWT stabilizes invariant truth
+IBMSA forms multi-basin consensus fields
+CKITL enables cross-system portability
+CMST enforces global Ω alignment
+X. FINAL DECLARATION
+
+DVSM–CMST defines:
+
+A deterministic system where reality is the invariant closure of distributed causal computation under global synchronization.
+
 // NOTE: NXT THEORY KERNEL
+//
 //  What was actually fixed (important, non-rhetorical):
 //
 // - Made S_ECHO a functor over invariant space (not a raw hash)
@@ -222,11 +384,7 @@ PRIMARY SYSTEM PROPERTIES:
 // not memory comparison or probabilistic similarity.
 //
 // ============================================================================
-// END SECTION
-// ============================================================================
-
-// ============================================================================
-// I. CORE AXIOM (REFINED ENGINEERING INTERPRETATION)
+// I. CORE AXIOM (REFINED ENGINEERING INTERPRETATION) (Pre NXT Logic Below)
 // ============================================================================
 //
 // The DVSM system is grounded in a single invariance principle governing
