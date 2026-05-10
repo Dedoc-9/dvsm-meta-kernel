@@ -472,5 +472,109 @@ READY FOR:
     NEXT_KERNEL_TRANSITION / IMPLEMENTATION / RUNTIME EMULATION
 
 ================================================================================
+SWFT ↔ NXT INTEGRATION BRIDGE v1
+================================================================================
+
+PURPOSE
+--------------------------------------------------------------------------------
+Defines how the SWFT portability layer integrates with NXT-compatible runtimes,
+engines, and deterministic execution environments.
+
+================================================================================
+CORE RELATIONSHIP
+================================================================================
+
+SWFT is not a replacement for NXT.
+
+SWFT acts as:
+    the invariant transport + replay manifold layer
+
+NXT acts as:
+    the execution/runtime substrate
+
+Relationship:
+
+    NXT executes
+    SWFT stabilizes
+
+================================================================================
+PIPELINE
+================================================================================
+
+    SOURCE MANIFOLD
+            ↓
+      EVENTIR GENERATION
+            ↓
+      S_ECHO BINDING
+            ↓
+        GIV ANCHOR
+            ↓
+        SWFT PACKAGE
+            ↓
+    NXT RUNTIME IMPORT
+            ↓
+      L3 CAUSAL REPLAY
+            ↓
+      Ξ EXECUTION KERNEL
+            ↓
+      L5 CONVERGENCE
+            ↓
+      OPTIONAL L6 PERSISTENCE
+
+================================================================================
+NXT COMPATIBILITY REQUIREMENTS
+================================================================================
+
+A NXT-compatible runtime must provide:
+
+- deterministic event sequencing
+- replay-accessible execution history
+- invariant projection interface
+- canonical serialization support
+- stable causal ordering layer
+
+OPTIONAL:
+- L6 incentive/workproof integration
+- GIV acceleration support
+- L9 spectral stability monitoring
+
+================================================================================
+PORTABILITY MODEL
+================================================================================
+
+SWFT allows:
+- replay portability
+- consensus portability
+- invariant portability
+- cross-hardware execution portability
+
+without requiring:
+- identical engines
+- identical memory layout
+- identical rendering/runtime stack
+
+================================================================================
+FINAL INTERPRETATION
+================================================================================
+
+NXT provides:
+    execution continuity
+
+SWFT provides:
+    invariant continuity
+
+Together:
+    they form a portable deterministic convergence manifold.
+
+================================================================================
+STATUS
+================================================================================
+
+SWFT_NXT_BRIDGE:
+    STABLE
+    PORTABLE
+    READY_FOR_RUNTIME_BINDING
+
+================================================================================
 END OF SPECIFICATION
 ================================================================================
