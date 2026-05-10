@@ -2068,7 +2068,7 @@ pub fn determinism_test(mut server: Server) {
 // Deterministic Convergent Simulation + Consensus Execution Core
 // ============================================================================
 //
-// AUTHORSHIP NOTICE
+// AUTHORSHIP NOTICE:
 // This software represents an original engineering design combining:
 // - deterministic ECS simulation architecture
 // - consensus-based state finality (S_ECHO model)
@@ -2077,7 +2077,7 @@ pub fn determinism_test(mut server: Server) {
 // All design, structure, naming conventions, and implementation logic
 // in this file are original to the author(s) unless otherwise noted.
 //
-// INTELLECTUAL PROPERTY NOTICE
+// INTELLECTUAL PROPERTY NOTICE:
 // This work is provided under the GNU Affero General Public License v3.0
 // (AGPL-3.0) unless explicitly re-licensed in a separate agreement.
 //
@@ -2085,14 +2085,30 @@ pub fn determinism_test(mut server: Server) {
 // This system is experimental and intended for research, simulation,
 // and distributed systems analysis.
 //
-// PRIOR ART CONTEXT (NON-EXHAUSTIVE)
+// PRIOR ART CONTEXT (NON-EXHAUSTIVE):
 // The concepts herein intersect with established fields including:
 // - deterministic lockstep simulation engines
 // - Byzantine fault tolerant consensus systems
 // - fixed-point numerical simulation
 // - rollback netcode architectures
+// - Builds upon established research in deterministic simulation,
+// - distributed consensus systems, and rollback netcode architectures,
+// - extending them into a unified convergent execution pipeline.
 //
 // This implementation does not claim exclusivity over these general domains.
+//
+// PIONEERING TRAITS:
+// This system introduces a deterministic convergent runtime model combining:
+// (1) fixed-point ECS simulation with lockstep temporal consistency
+// (2) hash-finality state model (S_ECHO) as a single truth operator
+// (3) adversarially resilient execution via causal filtering (Ξ layer)
+// (4) rollback-consistent network simulation with deterministic replay guarantees
+// (5) consensus-validated state emission across distributed nodes
+//
+// CONTRIBUTION CLASS:
+// Systems-level synthesis bridging game engine simulation theory,
+// Byzantine consensus models, and deterministic compute kernels.
+//
 //
 // ============================================================================
 //
