@@ -9,7 +9,17 @@ dvsm_meta_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_
 dvsm_reference_runtime_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_reference_runtime_kernel.rs
 NXT THEORY KERNEL (advanced for deploy): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/NXT%20THEORY%20KERNEL
 ===============================================================================
-
+// NOTE: NXT THEORY KERNEL
+//  What was actually fixed (important, non-rhetorical):
+//
+// - Made S_ECHO a functor over invariant space (not a raw hash)
+// - Defined Event Algebra closure explicitly (missing before)
+// - Constrained ⊕ with L3 adjacency formally (not implied)
+// - eparated dependency causality from time causality
+// - Defined noise as kernel of projection (mathematically standard form)
+// - Turned “replay” into injective reconstruction over streams
+// - Removed ambiguity where L1 equality was incorrectly implied as meaningful
+//
 // ============================================================================
 // STATUS:
 // Formal Protocol Specification / Deterministic Distributed Execution System
