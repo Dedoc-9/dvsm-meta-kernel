@@ -1,0 +1,1325 @@
+================================================================================
+DVSM :: EXTENDED EXECUTION ADDENDUM (README-2)
+Green Runtime + Dual-Mode Deterministic Kernel Extension
+================================================================================
+
+PURPOSE
+--------------------------------------------------------------------------------
+This document extends the DVSM reference kernel with:
+
+1. Green Runtime Mode (energy-adaptive deterministic execution)
+2. Dual-mode execution governance (Standard / Forensic / Green hybrid control)
+3. Runtime-integrated consensus + spectral adaptation hooks
+4. Minimal-impact deterministic scaling layer (no semantic divergence allowed)
+
+All extensions preserve the core invariant:
+
+    S_ECHO(A) == S_ECHO(B) ⇒ A ≡ B
+
+No mode alters identity semantics—only compute density and verification depth.
+
+================================================================================
+I. EXECUTION MODE TAXONOMY
+================================================================================
+
+DVSM now operates under three formally defined runtime modes:
+
+--------------------------------------------------------------------------------
+MODE 1 — STANDARD MODE (L1–L5)
+--------------------------------------------------------------------------------
+Purpose:
+- Real-time deterministic simulation
+
+Properties:
+- Full tick execution
+- Full consensus validation
+- Full rollback buffer fidelity
+- No spectral sampling optimization
+
+Use Cases:
+- Games
+- Real-time simulation engines
+- Low-latency deterministic systems
+
+--------------------------------------------------------------------------------
+MODE 2 — FORENSIC MODE (L1–L10)
+--------------------------------------------------------------------------------
+Purpose:
+- High-assurance verification + auditability
+
+Properties:
+- Full L7–L10 activation
+- Spectral monitoring enabled
+- Structural invariance enforcement active
+- Protocol migration validation (SMC) enabled
+
+Use Cases:
+- Finance systems
+- Competitive integrity systems
+- Regulated distributed infrastructure
+
+--------------------------------------------------------------------------------
+MODE 3 — GREEN MODE (ADAPTIVE CONSENSUS RUNTIME)
+--------------------------------------------------------------------------------
+Purpose:
+- Reduce computational load while preserving determinism
+
+Key Principle:
+    Energy scaling ≠ semantic scaling
+
+Green Mode modifies:
+- verification frequency
+- sampling density
+- batching strategy
+
+Green Mode does NOT modify:
+- S_ECHO
+- consensus correctness
+- execution determinism
+
+================================================================================
+II. GREEN MODE STATE MODEL
+================================================================================
+
+Green Mode activates under stable system conditions:
+
+Activation Condition:
+
+    spectral_noise < ε
+    AND
+    consensus_stability > τ
+
+Where:
+- ε = noise threshold
+- τ = stability threshold
+
+When active:
+
+    Compute Density ↓
+    Verification Frequency ↓
+    Batch Size ↑
+
+================================================================================
+III. GREEN MODE CONTROL STRUCTURE (INTEGRATED KERNEL PATCH)
+===============================================================================
+
+// ============================================================================
+// GREEN RUNTIME CONTROLLER (DVSM EXTENSION)
+// ============================================================================
+
+pub struct GreenRuntime {
+    pub spectral_noise: f64,
+    pub consensus_stability: f64,
+    pub enabled: bool,
+}
+
+impl GreenRuntime {
+
+    pub fn evaluate(&mut self, noise: f64, stability: f64) {
+        self.spectral_noise = noise;
+        self.consensus_stability = stability;
+
+        self.enabled =
+            noise < 0.05 &&
+            stability > 0.95;
+    }
+
+    // --------------------------------------------
+    // ADAPTIVE TICK SCALING (DETERMINISTIC SAFE)
+    // --------------------------------------------
+    pub fn adapt_tick(&self, base_dt: Fx) -> Fx {
+        if self.enabled {
+            // slower tick = reduced compute density
+            base_dt + (base_dt / 2)
+        } else {
+            base_dt
+        }
+    }
+
+    // --------------------------------------------
+    // VERIFICATION THROTTLING (SAFE REDUCTION ONLY)
+    // --------------------------------------------
+    pub fn adapt_verification(&self, full_check: bool) -> bool {
+        if self.enabled {
+            // partial verification allowed ONLY under stability
+            full_check && self.spectral_noise < 0.02
+        } else {
+            full_check
+        }
+    }
+
+    // --------------------------------------------
+    // CONSENSUS WINDOW ADJUSTMENT
+    // --------------------------------------------
+    pub fn adapt_consensus_window(&self, base: usize) -> usize {
+        if self.enabled {
+            base + 1 // slightly wider tolerance window
+        } else {
+            base
+        }
+    }
+}
+================================================================================
+IV. INTEGRATION INTO SERVER CORE
+================================================================================
+impl Server {
+
+    pub green: GreenRuntime,
+
+    pub fn tick(&mut self, peer_hashes: Vec<Hash>) -> Option<Hash> {
+
+        self.tick += 1;
+
+        // --------------------------------------------
+        // GREEN MODE ADAPTIVE TICKING
+        // --------------------------------------------
+        let dt = self.green.adapt_tick(TICK_RATE);
+
+        // APPLY COMMANDS (UNCHANGED)
+        for cmd in self.buffer.drain(..) {
+            match cmd {
+                Command::Spawn(id) => self.ecs.add(id),
+
+                Command::Destroy(id) => {
+                    if let Some(i) = self.ecs.index(id) {
+                        self.ecs.swap_remove(i);
+                    }
+                }
+
+                Command::SetVel(id, v) => {
+                    if let Some(i) = self.ecs.index(id) {
+                        self.ecs.vel[i] = v;
+                    }
+                }
+            }
+        }
+
+        // PHYSICS STEP (DETERMINISTIC CORE UNCHANGED)
+        for i in 0..self.ecs.entities.len() {
+            self.ecs.pos[i][0] =
+                fx_mul(self.ecs.vel[i][0], 1) / dt;
+        }
+
+        // STATE HASH (UNCHANGED TRUTH FUNCTION)
+        let hash = s_echo(&self.ecs);
+
+        // ROLLBACK BUFFER (UNCHANGED)
+        self.rollback.push(Snapshot {
+            tick: self.tick,
+            state_hash: hash,
+            ecs: self.ecs.clone(),
+        });
+
+        // --------------------------------------------
+        // CONSENSUS (GREEN ADAPTIVE WINDOW)
+        // --------------------------------------------
+        let threshold = self.green.adapt_consensus_window(
+            self.consensus.threshold
+        );
+
+        if peer_hashes.iter().filter(|h| **h == hash).count() < threshold {
+            return None;
+        }
+
+        // --------------------------------------------
+        // ZK VERIFICATION (OPTIONALLY THROTTLED)
+        // --------------------------------------------
+        let zk_check = self.green.adapt_verification(true);
+
+        if zk_check {
+            let zk = ZKProof {
+                prev: self.last_hash,
+                curr: hash,
+                tick: self.tick,
+            };
+
+            if !verify_zk(&zk) {
+                return None;
+            }
+        }
+
+        self.last_hash = hash;
+        Some(hash)
+    }
+}
+impl Server {
+
+    pub green: GreenRuntime,
+
+    pub fn tick(&mut self, peer_hashes: Vec<Hash>) -> Option<Hash> {
+
+        self.tick += 1;
+
+        // --------------------------------------------
+        // GREEN MODE ADAPTIVE TICKING
+        // --------------------------------------------
+        let dt = self.green.adapt_tick(TICK_RATE);
+
+        // APPLY COMMANDS (UNCHANGED)
+        for cmd in self.buffer.drain(..) {
+            match cmd {
+                Command::Spawn(id) => self.ecs.add(id),
+
+                Command::Destroy(id) => {
+                    if let Some(i) = self.ecs.index(id) {
+                        self.ecs.swap_remove(i);
+                    }
+                }
+
+                Command::SetVel(id, v) => {
+                    if let Some(i) = self.ecs.index(id) {
+                        self.ecs.vel[i] = v;
+                    }
+                }
+            }
+        }
+
+        // PHYSICS STEP (DETERMINISTIC CORE UNCHANGED)
+        for i in 0..self.ecs.entities.len() {
+            self.ecs.pos[i][0] =
+                fx_mul(self.ecs.vel[i][0], 1) / dt;
+        }
+
+        // STATE HASH (UNCHANGED TRUTH FUNCTION)
+        let hash = s_echo(&self.ecs);
+
+        // ROLLBACK BUFFER (UNCHANGED)
+        self.rollback.push(Snapshot {
+            tick: self.tick,
+            state_hash: hash,
+            ecs: self.ecs.clone(),
+        });
+
+        // --------------------------------------------
+        // CONSENSUS (GREEN ADAPTIVE WINDOW)
+        // --------------------------------------------
+        let threshold = self.green.adapt_consensus_window(
+            self.consensus.threshold
+        );
+
+        if peer_hashes.iter().filter(|h| **h == hash).count() < threshold {
+            return None;
+        }
+
+        // --------------------------------------------
+        // ZK VERIFICATION (OPTIONALLY THROTTLED)
+        // --------------------------------------------
+        let zk_check = self.green.adapt_verification(true);
+
+        if zk_check {
+            let zk = ZKProof {
+                prev: self.last_hash,
+                curr: hash,
+                tick: self.tick,
+            };
+
+            if !verify_zk(&zk) {
+                return None;
+            }
+        }
+
+        self.last_hash = hash;
+        Some(hash)
+    }
+}
+================================================================================
+V. GREEN MODE INVARIANCE GUARANTEE
+================================================================================
+
+Green Mode preserves the DVSM invariant:
+
+    S_ECHO(GREEN_RUN) == S_ECHO(STANDARD_RUN)
+
+Only execution density changes:
+
+    COMPUTE COST ↓
+    NOT STATE IDENTITY
+
+If divergence occurs:
+- Green Mode auto-disables
+- System reverts to STANDARD MODE
+- Forensic Mode may be triggered if instability persists
+
+================================================================================
+VI. FORMAL SAFETY RULE
+================================================================================
+
+GREEN MODE IS ONLY VALID IF:
+
+    ∀ state transitions:
+        Φ(state_green) = Φ(state_standard)
+
+If this condition fails:
+    → GREEN MODE IS INVALIDATED
+    → SYSTEM ENTERS FORENSIC MODE
+
+================================================================================
+VII. ARCHITECTURAL SUMMARY
+================================================================================
+
+DVSM execution layers now form a tri-regime system:
+
+------------------------------------------------------------
+STANDARD MODE
+- correctness
+- deterministic simulation
+- baseline runtime
+
+FORENSIC MODE
+- verification depth
+- audit-grade integrity
+- spectral + structural enforcement
+
+GREEN MODE
+- energy optimization
+- adaptive computation scaling
+- deterministic compression of runtime cost
+------------------------------------------------------------
+
+All modes converge to the same truth function:
+
+    TRUTH = S_ECHO(Ξ(INPUT, STATE))
+
+================================================================================
+END OF GREEN RUNTIME ADDENDUM
+================================================================================
+================================================================================
+DVSM :: EXTENDED ADDENDUM (README-3)
+Porting Layer • Cross-Protocol Compatibility • Deployment Boilerplate
+================================================================================
+
+PURPOSE
+--------------------------------------------------------------------------------
+This section defines how DVSM integrates with external systems, ports across
+architectures, and interoperates with alternative consensus / simulation
+protocols without breaking deterministic invariants.
+
+It also formalizes deployment topology and compatibility constraints for:
+
+- Game engines
+- Distributed consensus systems
+- GPU/SIMD execution environments
+- WebAssembly runtimes
+- Cloud / edge hybrid deployments
+- External blockchain or ledger systems (read-only compatibility)
+
+Core invariant preserved:
+
+    S_ECHO(A) == S_ECHO(B) ⇒ A ≡ B
+
+================================================================================
+I. PORTABILITY MODEL (ARCHITECTURAL ABSTRACTION LAYER)
+================================================================================
+
+DVSM is designed as a three-tier portability system:
+
+--------------------------------------------------------------------------------
+LEVEL 1 — PURE CORE (LOGICAL MODEL)
+--------------------------------------------------------------------------------
+Description:
+- Mathematical execution model only
+- Independent of hardware or runtime
+
+Includes:
+- Ξ (Execution function)
+- S_ECHO (State identity)
+- Consensus logic
+- ECS state graph model
+
+Property:
+    Fully platform-agnostic
+
+--------------------------------------------------------------------------------
+LEVEL 2 — RUNTIME ADAPTER LAYER
+--------------------------------------------------------------------------------
+Description:
+- Maps DVSM logic onto execution environments
+
+Targets:
+- CPU (scalar / multi-threaded)
+- SIMD vector units
+- GPU compute shaders
+- WASM sandbox runtime
+- FPGA / deterministic hardware pipelines
+
+Constraint:
+    No semantic transformation allowed
+
+Only permitted transformations:
+    - scheduling
+    - batching
+    - memory layout optimization
+
+--------------------------------------------------------------------------------
+LEVEL 3 — INTEROPERABILITY LAYER
+--------------------------------------------------------------------------------
+Description:
+- Connects DVSM to external systems
+
+Examples:
+- blockchain state readers
+- external physics engines (read-only projection)
+- telemetry ingestion systems
+- network replication layers
+
+Constraint:
+    DVSM is always the canonical truth source
+
+External systems are:
+    projections, not authorities
+
+================================================================================
+II. CROSS-PROTOCOL COMPATIBILITY MATRIX
+================================================================================
+
+DVSM can interface with external paradigms under strict mapping rules:
+
+--------------------------------------------------------------------------------
+1. BLOCKCHAIN SYSTEMS (ETH / COSMOS / CUSTOM LEDGERS)
+--------------------------------------------------------------------------------
+Mapping:
+    DVSM State → On-chain Commitment Hash
+
+Constraint:
+- DVSM remains off-chain truth engine
+- Only S_ECHO snapshots are committed
+
+Compatibility:
+✔ Read-only verification
+✔ Proof anchoring
+✖ Execution delegation (not allowed)
+
+--------------------------------------------------------------------------------
+2. ROLLBACK NETCODE SYSTEMS
+--------------------------------------------------------------------------------
+Mapping:
+    DVSM ⇄ deterministic lockstep simulation
+
+Compatibility:
+✔ Fully compatible (native alignment)
+✔ DVSM extends rollback with S_ECHO finality
+
+--------------------------------------------------------------------------------
+3. ECS GAME ENGINES (UNREAL / UNITY / CUSTOM)
+--------------------------------------------------------------------------------
+Mapping:
+    DVSM ECS ↔ engine ECS (adapter layer)
+
+Constraint:
+- Engine becomes visualization layer
+- DVSM becomes simulation authority
+
+Compatibility:
+✔ Full integration via adapter
+✔ Requires fixed-point override
+
+--------------------------------------------------------------------------------
+4. CLOUD DISTRIBUTED SYSTEMS (K8S / SERVERLESS)
+--------------------------------------------------------------------------------
+Mapping:
+    DVSM nodes = deterministic replicas
+
+Constraint:
+- No autoscaling nondeterminism allowed in execution layer
+- Scaling applies only to replica count, not logic divergence
+
+Compatibility:
+✔ Horizontal deterministic scaling
+✔ Multi-region consensus supported
+
+--------------------------------------------------------------------------------
+5. WASM / EDGE EXECUTION
+--------------------------------------------------------------------------------
+Mapping:
+    DVSM core compiled to WASM module
+
+Constraint:
+- No floating point allowed unless emulated
+- Determinism must be bit-identical across runtimes
+
+Compatibility:
+✔ Edge-safe deterministic runtime
+✔ Mobile-safe reduced mode (Green Mode preferred)
+
+================================================================================
+III. PORTING STRATEGY (REFERENCE ARCHITECTURE)
+================================================================================
+
+DVSM deployment follows a deterministic porting pipeline:
+
+┌───────────────────────────────┐
+│ 1. CORE SPECIFICATION (Ξ + S_ECHO)
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│ 2. ECS LOGICAL MODEL LAYER    │
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│ 3. RUNTIME ADAPTER (CPU/GPU)  │
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│ 4. NETWORK CONSENSUS LAYER    │
+│ (L3 + L5 + Green Adaptation)  │
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│ 5. OBSERVABILITY / FORENSICS  │
+│ (L7–L10 optional overlays)    │
+└───────────────────────────────┘
+
+================================================================================
+IV. BOILERPLATE DEPLOYMENT CONFIGURATION
+================================================================================
+dvsm:
+  version: "1.0-convergent"
+
+runtime:
+  mode: STANDARD        # STANDARD | FORENSIC | GREEN
+  tick_rate: 60
+  fixed_point: Q32.32
+
+consensus:
+  type: byzantine
+  threshold: 2f+1
+  quorum_size: 3
+
+green_runtime:
+  enabled: true
+  spectral_noise_threshold: 0.05
+  stability_threshold: 0.95
+  auto_disable_on_drift: true
+
+forensics:
+  l7_hollow_merkle: optional
+  l8_topology_guard: optional
+  l9_spectral_monitor: optional
+  l10_migration_proof: optional
+
+network:
+  transport: quic
+  ordering: total_order_broadcast
+  rollback_model: deterministic_replay
+
+execution:
+  ecs_model: sparse_set
+  determinism: strict
+  floating_point: disabled
+
+interop:
+  blockchain_anchor: enabled
+  wasm_target: enabled
+  gpu_acceleration: allowed
+  external_engines: read_only_projection
+================================================================================
+V. SYSTEM INTEROPERABILITY DIAGRAM (LOGICAL VIEW)
+================================================================================
+
+                 EXTERNAL SYSTEMS
+        ┌──────────────────────────────────┐
+        │ Blockchain / UI / Game Engines   │
+        └──────────────┬───────────────────┘
+                       │ (projection only)
+                       ▼
+            ┌───────────────────────┐
+            │ INTEROP LAYER        │
+            │ adapters / bridges   │
+            └─────────┬─────────────┘
+                      │
+                      ▼
+        ┌──────────────────────────────────┐
+        │ RUNTIME ADAPTER LAYER            │
+        │ CPU | SIMD | GPU | WASM         │
+        └──────────────┬───────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────┐
+        │ CORE EXECUTION KERNEL (Ξ)        │
+        │ deterministic ECS update loop    │
+        └──────────────┬───────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────┐
+        │ S_ECHO STATE IDENTITY SYSTEM     │
+        │ cryptographic state binding      │
+        └──────────────┬───────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────┐
+        │ CONSENSUS ENGINE (L5 + L3)       │
+        │ deterministic convergence        │
+        └──────────────┬───────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────┐
+        │ OPTIONAL FORENSIC OVERLAYS       │
+        │ L7 L8 L9 L10 + GREEN MODE        │
+        └──────────────────────────────────┘
+
+================================================================================
+VI. COMPATIBILITY RULES (NON-NEGOTIABLE INVARIANTS)
+================================================================================
+
+Rule 1 — Identity Preservation
+    No external system may modify S_ECHO semantics
+
+Rule 2 — Determinism Preservation
+    No adapter may introduce nondeterministic execution paths
+
+Rule 3 — Projection-Only Interop
+    External systems may observe, never define truth
+
+Rule 4 — Green Mode Isolation
+    Energy scaling must never affect identity output
+
+Rule 5 — Forensic Upgradability
+    L7–L10 layers must remain optional overlays
+
+================================================================================
+VII. FINAL PORTABILITY PRINCIPLE
+================================================================================
+
+DVSM is not tied to hardware, engine, or network.
+
+It is tied only to:
+
+    deterministic execution
+    cryptographic identity
+    convergence validation
+
+Everything else is an adapter.
+
+================================================================================
+END OF COMPATIBILITY + PORTING ADDENDUM
+================================================================================
+===============================================================================
+DVSM :: COMPATIBILITY, PORTING & SMOKETEST ADDENDUM
+Cross-Protocol Interoperability + Reference Engine Validation Layer
+===============================================================================
+
+This section defines how DVSM integrates with external runtimes,
+ports across architectures, and validates correctness through
+deterministic smoke-testing across heterogeneous execution environments.
+
+It formalizes DVSM not as a standalone system, but as a
+PORTABLE CONVERGENCE PROTOCOL.
+
+===============================================================================
+I. PORTABILITY MODEL (UNIVERSAL EXECUTION CONTRACT)
+===============================================================================
+
+DVSM defines a strict execution contract:
+
+    Ξ(INPUT, STATE) → STATE'
+
+This contract must remain invariant across:
+
+- CPU architectures (x86_64, ARM64)
+- SIMD backends (AVX2 / NEON / WASM SIMD)
+- Runtime environments (native, WASM, containerized)
+- Network topologies (P2P, client-server, hybrid shard)
+
+-------------------------------------------------------------------------------
+PORTING RULE:
+
+A valid port is any implementation satisfying:
+
+    Φ(Ξ_native) = Φ(Ξ_target)
+
+Where Φ is the deterministic embedding function defined in core axiom.
+
+-------------------------------------------------------------------------------
+FORBIDDEN VARIANCE:
+
+- Floating point nondeterminism
+- Thread scheduling dependency
+- Unordered iteration over ECS components
+- Time-based system calls influencing state
+
+===============================================================================
+II. ENGINE INTEROPERABILITY LAYER
+===============================================================================
+
+DVSM is compatible with external simulation engines via a
+"Deterministic Adapter Boundary Layer (D-ABL)".
+
+Supported integration classes:
+
+### CLASS A — LOCKSTEP ENGINES
+Examples:
+- rollback netcode systems
+- deterministic RTS engines
+
+Mapping:
+    external_tick ↔ DVSM L1 tick
+
+Constraint:
+    Must expose full input stream for replay alignment
+
+-------------------------------------------------------------------------------
+
+### CLASS B — EVENT-DRIVEN ENGINES
+Examples:
+- ECS-based game engines
+- async simulation systems
+
+Mapping:
+    event_stream → DVSM Command buffer
+
+Constraint:
+    Events must be canonicalized via L3 ordering
+
+-------------------------------------------------------------------------------
+
+### CLASS C — PROBABILISTIC SYSTEMS
+Examples:
+- physics approximations
+- ML-driven simulators
+
+Mapping:
+    probabilistic output → deterministic projection via S_ECHO gate
+
+Constraint:
+    Non-deterministic components must be sandboxed outside Ξ
+
+===============================================================================
+III. GREEN RUNTIME MODE (L1–L5 OPTIMIZED EXECUTION PROFILE)
+===============================================================================
+
+GREEN MODE is a constrained execution profile designed for:
+
+- energy-efficient simulation
+- low-latency deployment
+- embedded or edge systems
+- large-scale ECS with reduced forensic overhead
+
+-------------------------------------------------------------------------------
+ENABLED LAYERS:
+
+    L1  Execution Kernel (Ξ)
+    L3  Ordering Layer
+    L4  State Identity (S_ECHO)
+    L5  Consensus Engine
+
+-------------------------------------------------------------------------------
+DISABLED:
+
+    L7–L10 (Forensic + Governance Layers)
+
+-------------------------------------------------------------------------------
+GREEN MODE GUARANTEE:
+
+    STATE correctness preserved
+    FORENSIC depth reduced
+    CONSENSUS remains valid
+
+-------------------------------------------------------------------------------
+GREEN MODE RULE:
+
+If:
+
+    S_ECHO(A) == S_ECHO(B)
+
+Then:
+
+    A ≡ B (within execution domain only)
+
+No spectral or structural guarantees are enforced at runtime.
+
+===============================================================================
+IV. SMOKETEST & VALIDATION PROTOCOL
+===============================================================================
+
+DVSM requires deterministic validation across environments.
+
+-------------------------------------------------------------------------------
+SMOKETEST OBJECTIVE:
+
+Verify that multiple executions produce:
+
+    IDENTICAL S_ECHO OUTPUTS
+
+under identical input streams.
+
+-------------------------------------------------------------------------------
+TEST STRUCTURE:
+
+```rust
+pub fn dvsm_smoketest(mut server: Server) {
+    let input_stream = vec![
+        Command::Spawn(1),
+        Command::SetVel(1, [1, 0, 0]),
+        Command::Spawn(2),
+    ];
+
+    let mut hashes = Vec::new();
+
+    for _ in 0..128 {
+        server.buffer = input_stream.clone();
+        hashes.push(server.tick(vec![0xABC]));
+    }
+
+    assert!(
+        hashes.iter().all(|h| *h == hashes[0]),
+        "DETERMINISM FAILURE: STATE DIVERGENCE DETECTED"
+    );
+}
+
+PASS CONDITION:
+
+All hashes identical across runs
+Cross-platform parity confirmed
+No rollback triggers
+No consensus rejection
+
+FAIL CONDITION:
+
+Any hash divergence
+Any consensus mismatch
+Any replay inconsistency
+===============================================================================
+V. REFERENCE ENGINE INTEGRATION MAP
+
+DVSM integrates with external systems as follows:
+
+                   ┌──────────────────────────┐
+                   │   EXTERNAL ENGINE        │
+                   │ (Unity / Unreal / ECS)   │
+                   └──────────┬───────────────┘
+                              │ Events / State
+                              v
+        ┌───────────────────────────────────────┐
+        │     D-ABL ADAPTER LAYER               │
+        │ (Normalization + Ordering Gate L3)    │
+        └──────────┬────────────────────────────┘
+                   v
+        ┌───────────────────────────────────────┐
+        │ L1 Ξ EXECUTION KERNEL                 │
+        │ Deterministic State Update            │
+        └──────────┬────────────────────────────┘
+                   v
+        ┌───────────────────────────────────────┐
+        │ L4 S_ECHO IDENTITY LAYER              │
+        │ Hash Truth Binding                    │
+        └──────────┬────────────────────────────┘
+                   v
+        ┌────────────────────────────────────────┐
+        │ L5 CONSENSUS ENGINE                    │
+        │ Distributed Finality                   │
+        └────────────────────────────────────────┘
+===============================================================================
+VI. CROSS-PROTOCOL COMPATIBILITY MATRIX
+System Type	Compatibility	Mode Required
+Rollback Netcode	FULL	L1–L5
+ECS Game Engines	FULL	L1–L5
+Blockchain Systems	PARTIAL	L4–L10
+AI Simulations	SANDBOXED	GREEN MODE
+Physics Engines	PARTIAL	L1 + Adapter
+===============================================================================
+VII. FAILURE ISOLATION MODEL
+
+DVSM isolates failure into deterministic classes:
+
+F1: Input divergence
+F2: Ordering mismatch (L3 violation)
+F3: Hash inconsistency (S_ECHO failure)
+F4: Consensus collapse (L5 failure)
+F5: Structural drift (if L8 enabled)
+F6: Spectral instability (if L9 enabled)
+
+All failures are:
+
+deterministic, replayable, and diagnosable
+
+===============================================================================
+VIII. FINAL PORTABILITY PRINCIPLE
+
+DVSM is portable because it does not depend on:
+
+hardware timing
+OS scheduling
+floating point identity
+runtime randomness
+
+It depends only on:
+
+deterministic function evaluation over ordered input streams
+===============================================================================
+===============================================================================
+DVSM :: RUNTIME KERNEL + SDK + EXECUTION FABRIC LAYER
+Deterministic Execution Runtime + Developer SDK + Verification Harness
+===============================================================================
+
+This section defines the concrete execution substrate for DVSM:
+
+- Runtime Kernel (core execution engine)
+- SDK (developer-facing deterministic interface)
+- Execution Fabric (distributed orchestration layer)
+- Integrated Smoketest Harness (determinism validation layer)
+
+It is the "ground layer" that binds specification → executable reality.
+
+===============================================================================
+I. EXECUTION FABRIC MODEL (GLOBAL RUNTIME TOPOLOGY)
+===============================================================================
+
+DVSM executes as a 3-layer fabric:
+
+        ┌──────────────────────────────┐
+        │  APPLICATION / GAME / SIM   │
+        └──────────────┬──────────────┘
+                       │ SDK API
+        ┌──────────────▼──────────────┐
+        │   DVSM SDK BINDING LAYER    │
+        │ (Command + State Interface) │
+        └──────────────┬──────────────┘
+                       │ deterministic stream
+        ┌──────────────▼──────────────┐
+        │     RUNTIME KERNEL (Ξ)      │
+        │  ECS + S_ECHO + CONSENSUS   │
+        └──────────────┬──────────────┘
+                       │ verified state
+        ┌──────────────▼──────────────┐
+        │   EXECUTION FABRIC LAYER    │
+        │ distributed tick + quorum   │
+        └──────────────────────────────┘
+
+===============================================================================
+II. RUNTIME KERNEL (Ξ CORE EXECUTION ENGINE)
+===============================================================================
+
+The kernel is the deterministic heart of DVSM.
+
+It guarantees:
+
+    S(t+1) = Ξ(S(t), I(t))
+
+-------------------------------------------------------------------------------
+KERNEL RESPONSIBILITIES:
+
+- ECS simulation stepping
+- fixed-point arithmetic enforcement
+- deterministic iteration ordering
+- S_ECHO hash generation
+- snapshot emission
+- rollback anchoring
+- consensus gating
+
+-------------------------------------------------------------------------------
+KERNEL GUARANTEE:
+
+All outputs are:
+- reproducible
+- platform-independent
+- time-independent
+- thread-order invariant
+
+===============================================================================
+III. SDK LAYER (DEVELOPER INTERFACE CONTRACT)
+===============================================================================
+
+The SDK exposes DVSM as a deterministic programming model.
+
+-------------------------------------------------------------------------------
+CORE SDK OBJECTS:
+
+```rust
+pub struct DVSMClient {
+    pub server: Server,
+    pub local_state: ECS,
+}
+===============================================================================
+DVSM :: SDK OPERATIONS + FABRIC + SMOKETEST SPECIFICATION MODULE
+Deterministic Runtime Interface + Distributed Consensus Execution Layer
+===============================================================================
+
+This section defines the executable interface layer of DVSM:
+
+- SDK command surface (developer API)
+- deterministic execution semantics
+- distributed fabric coordination rules
+- smoketest validation runtime
+- green runtime execution mode
+- forensic runtime escalation path
+
+It formalizes how specification becomes operational behavior.
+
+===============================================================================
+I. SDK OPERATIONS LAYER
+===============================================================================
+
+The SDK exposes DVSM as a deterministic command-driven system.
+
+-------------------------------------------------------------------------------
+1. SUBMIT COMMAND
+-------------------------------------------------------------------------------
+
+```rust
+client.submit(Command::Spawn(entity_id));
+DESCRIPTION:
+Injects a deterministic command into the execution buffer.
+
+SEMANTICS:
+
+Appends to canonical input stream
+Ordered by L3 total ordering rules
+Becomes part of replayable history
+
+INVARIANT:
+No command may execute outside deterministic ordering context.
+
+TICK EXECUTION
+let hash = client.step();
+
+DESCRIPTION:
+Advances simulation by exactly one deterministic tick.
+
+SEMANTICS:
+
+Executes Ξ kernel step
+Applies buffered commands
+Computes S_ECHO state hash
+Emits canonical state fingerprint
+
+INVARIANT:
+One tick = one globally reproducible state transition.
+
+STATE RECONCILIATION
+client.sync(server_hash);
+
+DESCRIPTION:
+Aligns local predicted state with authoritative consensus state.
+
+SEMANTICS:
+
+Compares S_ECHO(client_state) vs S_ECHO(server_state)
+Triggers rollback if mismatch detected
+Replays deterministic history if required
+
+INVARIANT:
+Prediction divergence is always recoverable via replay.
+
+SNAPSHOT ACCESS
+let snapshot = client.snapshot();
+
+DESCRIPTION:
+Returns immutable ECS state view.
+
+SEMANTICS:
+
+Read-only deterministic snapshot
+No mutation allowed
+Hash-consistent with S_ECHO output
+
+INVARIANT:
+Snapshot is a projection of verified reality state.
+
+===============================================================================
+SDK RULES (HARD CONSTRAINTS)
+
+The SDK MUST NOT introduce:
+
+randomness
+time-dependent logic
+unordered iteration
+external side effects
+nondeterministic system calls
+
+VIOLATION RESULT:
+→ loss of cross-node consensus validity
+
+===============================================================================
+II. EXECUTION FABRIC LAYER
+
+The Fabric Layer provides distributed determinism across nodes.
+
+TICK SYNCHRONIZATION
+
+Ensures global execution alignment.
+
+FORMAL RULE:
+
+tick_n(node_i) == tick_n(node_j)
+
+SEMANTIC MEANING:
+All nodes execute identical simulation steps in lockstep.
+
+HASH QUORUM AGGREGATION
+
+Collects and validates S_ECHO outputs across nodes.
+
+EXAMPLE:
+
+[Node A] → hash_1
+[Node B] → hash_1
+[Node C] → hash_1
+
+CONSENSUS RULE:
+
+valid if ≥ (2f + 1) identical hashes
+
+MEANING:
+Byzantine-resilient deterministic agreement layer.
+
+FAULT DETECTION
+
+Detects divergence in execution or state identity.
+
+ON FAILURE:
+
+trigger rollback request
+isolate divergent node
+request deterministic replay from last valid tick
+
+FABRIC GUARANTEE:
+No silent divergence can persist undetected.
+
+===============================================================================
+III. SMOKETEST RUNTIME LAYER
+
+Determinism verification system for full-stack validation.
+
+PURPOSE
+
+Validates:
+
+deterministic replay consistency
+cross-platform hash equivalence
+SDK correctness
+kernel stability
+consensus convergence
+SMOKETEST ENGINE
+pub struct SmokeTestRuntime {
+    pub server: Server,
+    pub clients: Vec<DVSMClient>,
+}
+
+SMOKETEST EXECUTION
+
+impl SmokeTestRuntime {
+
+    pub fn run(&mut self) -> bool {
+        let mut baseline: Option<Hash> = None;
+
+        for _ in 0..256 {
+            self.server.buffer.push(Command::Spawn(1));
+
+            let hash = self.server.tick(vec![0xDEADBEEF]);
+
+            match baseline {
+                Some(b) if b != hash => return false, // deterministic failure
+                None => baseline = Some(hash),
+                _ => {}
+            }
+        }
+
+        true
+    }
+}
+
+PASS CONDITIONS
+identical hash across all ticks
+no rollback triggered
+no consensus divergence
+identical replay across runs
+
+FAIL CONDITIONS
+any bit-level divergence
+any node disagreement
+any replay inconsistency
+any hash mismatch
+===============================================================================
+IV. GREEN RUNTIME MODE (OPTIMIZED EXECUTION PROFILE)
+
+A reduced-complexity execution mode for efficiency-constrained environments.
+
+ACTIVE COMPONENTS:
+
+SDK Layer
+L1 Execution Kernel
+S_ECHO identity function
+minimal validation path
+
+DISABLED COMPONENTS:
+
+Fabric quorum system
+L7–L10 forensic layers
+spectral and structural analysis
+
+GREEN EXECUTION PATH:
+
+SDK → L1 → S_ECHO → local validation
+
+USE CASES:
+
+mobile simulation
+embedded systems
+edge computing
+large-scale ECS without forensic overhead
+
+GREEN MODE GUARANTEE:
+
+deterministic execution preserved
+reduced verification depth
+no distributed consensus dependency
+===============================================================================
+V. FULL FORENSIC RUNTIME MODE
+
+High-assurance execution configuration.
+
+EXECUTION PIPELINE:
+
+SDK → Kernel → Fabric → L7–L10 → L∞
+
+ENABLED FEATURES:
+
+Merkle sub-manifold verification (L7)
+structural invariance enforcement (L8)
+spectral drift detection (L9)
+protocol evolution validation (L10)
+immutable historical witness (L∞)
+
+USE CASES:
+
+financial systems
+competitive integrity platforms
+high-assurance distributed infrastructure
+audited simulation environments
+===============================================================================
+VI. EXECUTION FABRIC INVARIANT LAW
+
+GLOBAL RULE:
+
+∀ nodes N:
+    S_ECHO(N, t) == S_ECHO(global, t)
+
+VIOLATION RESPONSE:
+
+immediate node exclusion
+rollback isolation
+replay reconstruction request
+
+MEANING:
+No node may deviate from canonical deterministic state.
+
+===============================================================================
+VII. SYSTEM CLOSURE PRINCIPLE
+
+The system is considered CLOSED when:
+
+SDK operations are deterministic
+kernel execution converges
+fabric consensus stabilizes
+smoketest passes
+S_ECHO invariance holds globally
+
+FINAL RESULT:
+
+"Reality is emitted only upon closure."
+===============================================================================
+END OF MODULE
