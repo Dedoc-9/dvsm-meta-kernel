@@ -1,453 +1,400 @@
-===============================================================================
-DVSM :: AUTHORSHIP & PROVENANCE BLOCK
-===============================================================================
+AUTHOR BLOCK / PROVENANCE / INTELLECTUAL FRAMEWORK NOTICE
 
-PROJECT NAME:
-DVSM — Multi-Scale Deterministic Convergence Kernel
+============================================================
+PROJECT
+============================================================
+DVSM :: Industrial Meta-Kernel v1.0
+Deterministic Distributed Execution + Multi-Scale Invariant Consensus System
 
-PRIMARY DESIGNATION:
-Formal Verification Framework for Multi-Resolution State Systems
-
--------------------------------------------------------------------------------
+============================================================
 AUTHORSHIP
--------------------------------------------------------------------------------
+============================================================
+Primary Author:
+- System Architecture: Formal deterministic distributed execution design (DVSM specification layer)
 
-Lead Architect:
-Daniel J. Dillberg
+Contributors:
+- Derived engineering synthesis across deterministic ECS simulation, consensus systems, and renormalization-based invariance modeling
 
-Contribution Scope:
-- Deterministic execution model (Ξ kernel abstraction)
-- Multi-scale state equivalence system (S_ECHO redesign)
-- Consensus attractor architecture (L5 reformulation)
-- Structural invariance model (L8 integration)
-- Spectral stability and forensic observability layers (L7–L9 adaptation)
+Note:
+This system is a formal specification artifact, not a natural language hypothesis. All components are defined as executable or verifiable logic constructs.
 
--------------------------------------------------------------------------------
-DESIGN CLASSIFICATION
--------------------------------------------------------------------------------
+============================================================
+LICENSE
+============================================================
+GNU Affero General Public License v3.0 (AGPL-3.0)
 
-System Type:
-- Deterministic Distributed Simulation Framework
-- Multi-Resolution State Synchronization Kernel
-- Equivalence-Class Based Consensus System
+Core Implication:
+- Any network-deployed derivative system must expose source-level implementation of all modified DVSM components.
 
-Not a:
-- Physical theory of reality
-- Ontological claim about fundamental physics
-- Probabilistic inference engine
+Network Clause:
+- If DVSM (or modified variants of Ξ, S_ECHO, Renormalize, L5 consensus logic, or forensic layers L7–L9) are used as a service, the full corresponding source must be made available to downstream users.
 
--------------------------------------------------------------------------------
-CORE INTELLECTUAL CONTRIBUTION
--------------------------------------------------------------------------------
+============================================================
+PROTECTED PRIMITIVES
+============================================================
+The following components are considered core invariant primitives of the DVSM system:
 
-Primary Innovation:
+- Ξ (Deterministic Execution Kernel)
+- S_ECHO (Multi-scale invariant identity function)
+- RENORMALIZE (Scale transformation operator)
+- L5 (Consensus attractor engine)
+- L7 (Hollow Merkle verification layer)
+- L9 (Spectral stability and drift detection layer)
 
-Transition from strict state identity comparison to:
-    Multi-Scale Invariant Equivalence Verification
+These primitives define the structural identity of the system and are intended to remain causally consistent across all derived implementations.
 
-Formal Shift:
-    S_ECHO(state) := invariant signature under resolution projection Π(Ln)
+============================================================
+INTELLECTUAL DESIGN TRAITS
+============================================================
+This system introduces the following architectural properties:
 
-Result:
-- Supports heterogeneous LOD execution environments
-- Enables deterministic reconciliation across non-identical state views
-- Preserves convergence without requiring uniform state fidelity
+1. SCALE-INVARIANT CONSENSUS
+   - System correctness is defined across resolution layers rather than single-state equality.
 
--------------------------------------------------------------------------------
-SYSTEM OBJECTIVE
--------------------------------------------------------------------------------
+2. REPLAY-BASED TRUTH MODEL
+   - System state validity is derived from deterministic reconstruction, not snapshot storage.
 
-To define a reproducible computation substrate where:
+3. EQUILIBRIUM-CLASS IDENTITY
+   - Identity is defined over equivalence classes produced by renormalization, not raw bit identity.
+
+4. CONVERGENCE-BASED FINALITY (NON-ABSOLUTE)
+   - Consensus represents stability convergence, not authoritative closure.
+
+5. HARDWARE-AGNOSTIC DETERMINISM
+   - Execution correctness is preserved across heterogeneous compute substrates via invariant projection rules.
+
+============================================================
+REVOLUTIONARY ARCHITECTURAL CLAIM
+============================================================
+DVSM is not defined as a simulation engine.
+
+It is defined as a:
+
+    Deterministic Convergence Manifold
+
+Where:
+- computation is state transition (Ξ)
+- identity is renormalized invariance (S_ECHO)
+- correctness is multi-scale stability
+- consensus is attractor convergence
+- truth is replay-consistent reconstruction across all layers
+
+============================================================
+DERIVATIVE WORK RULE
+============================================================
+Any system derived from DVSM must preserve:
+
+- deterministic replay semantics (L3 dependency chain integrity)
+- S_ECHO invariant equivalence structure
+- renormalization-consistent identity mapping
+- non-collapsing consensus interpretation (L5 is convergence, not authority)
+
+============================================================
+END AUTHOR / PROVENANCE BLOCK
+============================================================
+DVSM INDUSTRIAL EDIT SUMMARY BLOCK
+
+CORE CHANGE:
+Shifted DVSM from bit-level deterministic identity to scale-invariant equivalence-based determinism.
+
+============================================================
+1. RENORMALIZE BECOMES A CORE PRIMITIVE
+============================================================
+- Introduced formal pipeline:
+  spatial quantization → momentum aggregation → entropy filtering → invariant encoding
+- Purpose: convert L1 microstate into L5 stable macrostate
+
+WHY:
+Enables stable cross-node agreement under hardware noise and resolution differences.
+
+============================================================
+2. S_ECHO REDEFINED AS INVARIANT HASH
+============================================================
+- New definition: S_ECHO(S) = HASH(RENORMALIZE(S))
+
+WHY:
+Removes sensitivity to microstate jitter and ensures identity is based on equivalence classes, not raw bits.
+
+============================================================
+3. CONSENSUS IS NOT FINALITY
+============================================================
+- Consensus redefined as convergence detector (L5 attractor)
+- Explicitly not a voting system or absolute authority
+
+WHY:
+Prevents logical overreach and aligns with distributed convergence systems.
+
+============================================================
+4. MULTI-SCALE INVARIANCE MADE OPERATIONAL
+============================================================
+- Rule: S_ECHO(r, S) = S_ECHO(r+1, RENORMALIZE(S, r))
+
+WHY:
+Forces consistency across resolution layers (LOD stability guarantee).
+
+============================================================
+5. EQUIVALENCE BAND (EPSILON MODEL)
+============================================================
+- Introduced tolerance for microstate divergence
+- L1 differences allowed if L5 invariants match
+
+WHY:
+Solves real-world hardware drift and floating-point instability.
+
+============================================================
+6. L4.5 ROLLBACK = REPLAY MODEL
+============================================================
+- Rollback defined as deterministic replay of L3 event stream
+
+WHY:
+Ensures full causal reconstruction instead of snapshot dependence.
+
+============================================================
+7. L5 REDEFINED AS ATTRACTOR FIELD
+============================================================
+- Consensus behaves as convergence dynamics
+
+WHY:
+Replaces discrete agreement with continuous stability convergence model.
+
+============================================================
+8. FORENSIC LAYERS (L7–L9) ARE OPTIONAL
+============================================================
+- L7: partial state verification
+- L8: structural invariance
+- L9: spectral drift detection
+
+WHY:
+Separates runtime performance from audit-grade verification.
+
+============================================================
+9. HARDWARE NOISE ACCEPTANCE
+============================================================
+- System tolerates microstate variance within epsilon bounds
+
+WHY:
+Enables cross-platform determinism without requiring perfect hardware uniformity.
+
+============================================================
+FINAL ARCHITECTURAL SHIFT
+============================================================
+FROM:
+- strict bitwise determinism
+
+TO:
+- scale-invariant equivalence determinism
+
+============================================================
+RESULT:
+DVSM now defines reality as:
+stable convergence of renormalized state identities across distributed systems.
+============================================================
+```text
+DVSM :: INDUSTRIAL META-KERNEL v1.0
+Formal Protocol Specification / Deterministic Distributed Execution System
+(Multi-Scale Invariant Consensus Architecture)
+
+================================================================================
+STATUS
+================================================================================
+Formal Protocol Specification / Deterministic Distributed Execution System
+
+PRIMARY OBJECTIVE:
+Define a deterministic execution system where:
 
     STATE(t+1) = Ξ(INPUT(t), STATE(t))
 
-and correctness is evaluated not as raw equality, but as:
-
-    CONSISTENCY = agreement across S_ECHO projections
-
--------------------------------------------------------------------------------
-LICENSE MODEL
--------------------------------------------------------------------------------
-
-Recommended License:
-GNU AGPL-3.0 (Network Copyleft)
-
-Constraint:
-If deployed as a networked system, all modifications affecting:
-- Ξ execution kernel
-- S_ECHO equivalence system
-- L5 consensus logic
-
-must remain publicly reproducible under equivalent terms.
-
--------------------------------------------------------------------------------
-VERSION STATUS
--------------------------------------------------------------------------------
-
-DVSM-META-KERNEL v2.0 (Multi-Scale Consistency Revision)
-
-Status:
-- Stable conceptual framework
-- Implementation-ready architecture specification
-- Requires backend instantiation for production deployment
-
--------------------------------------------------------------------------------
-END AUTHORSHIP BLOCK
-===============================================================================
-
-#![allow(non_camel_case_types)]
-#![allow(dead_code)]
-
-// ============================================================================
-// DVSM :: S_ECHO PROJECTION CONSISTENCY KERNEL
-// Invariant-Based Manifold Simulation Architecture (IBMSA)
-// ============================================================================
-//
-// WHITEPAPER INTRODUCTION
-// ============================================================================
-//
-// Traditional deterministic simulation systems rely on *absolute identity*:
-// a full, bit-exact agreement between distributed nodes.
-//
-// This design is fragile under:
-//   - floating point divergence
-//   - LOD (level-of-detail) mismatches
-//   - heterogeneous compute architectures
-//   - partial simulation replication
-//
-// DVSM replaces this with a fundamentally different abstraction:
-//
-//     "Representational Consistency over Absolute Identity"
-//
-// Instead of requiring identical microstate execution,
-// the system enforces equivalence across *projection manifolds*.
-//
-// S_ECHO is redefined not as a hash,
-// but as a projection operator:
-//
-//     S_ECHO : State × Resolution → Invariant Class Representative
-//
-// This transforms simulation correctness from:
-//
-//     exact replay equivalence
-//
-// into:
-//
-//     bounded manifold equivalence
-//
-// ============================================================================
-// CORE PRINCIPLE
-// ============================================================================
-//
-// Reality is not a single state.
-// Reality is a family of projections that must agree at shared resolution boundaries.
-//
-// If all projections agree:
-//     system is valid
-//
-// If projections diverge:
-//     system is partially unresolved but not incorrect
-//
-// Only when invariants disagree does rollback occur.
-//
-// ============================================================================
-// RESOLUTION MODEL
-// ============================================================================
-
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum ResolutionLevel {
-    Micro,     // particles, rigid bodies
-    Meso,      // aggregates, clusters
-    Macro,     // fields, fluids
-    Semantic,  // gameplay logic
-    Global,    // system invariants (energy, topology)
-}
-
-// ============================================================================
-// CORE TRAIT: S_ECHO AS PROJECTION OPERATOR
-// ============================================================================
-
-pub trait SEcho {
-    type Invariant: Eq + Clone;
-
-    /// Projects full internal state into a resolution-dependent manifold
-    fn project(&self, resolution: ResolutionLevel) -> Self::Invariant;
-
-    /// Equivalence check between two states at a given resolution
-    fn equivalent(
-        a: &Self,
-        b: &Self,
-        resolution: ResolutionLevel
-    ) -> bool {
-        a.project(resolution) == b.project(resolution)
-    }
-}
-
-// ============================================================================
-// ECS STATE MODEL (SIMPLIFIED FOR MANIFOLD THEORY)
-// ============================================================================
-
-pub type Fx = i64;
-pub type Entity = u32;
-
-#[derive(Clone)]
-pub struct ECSState {
-    pub entities: Vec<Entity>,
-    pub pos: Vec<[Fx; 3]>,
-    pub vel: Vec<[Fx; 3]>,
-}
-
-// ============================================================================
-// PROJECTION IMPLEMENTATION
-// ============================================================================
-//
-// Each resolution collapses microstate into a different invariant space:
-// - Micro: exact positions
-// - Macro: centroid + total momentum
-// - Global: energy-like scalar signature
-//
-// ============================================================================
-
-#[derive(Eq, PartialEq, Clone)]
-pub struct MacroInvariant {
-    pub centroid: [Fx; 3],
-    pub momentum: [Fx; 3],
-}
-
-#[derive(Eq, PartialEq, Clone)]
-pub struct GlobalInvariant {
-    pub energy_signature: Fx,
-}
-
-impl SEcho for ECSState {
-    type Invariant = VariantInvariant;
-
-    fn project(&self, resolution: ResolutionLevel) -> Self::Invariant {
-        match resolution {
-
-            ResolutionLevel::Micro => {
-                VariantInvariant::Micro(self.clone())
-            }
-
-            ResolutionLevel::Macro => {
-                let mut cx = 0;
-                let mut cy = 0;
-                let mut cz = 0;
-
-                for p in &self.pos {
-                    cx += p[0];
-                    cy += p[1];
-                    cz += p[2];
-                }
-
-                VariantInvariant::Macro(MacroInvariant {
-                    centroid: [cx, cy, cz],
-                    momentum: [0, 0, 0],
-                })
-            }
-
-            ResolutionLevel::Global => {
-                let mut e: Fx = 0;
-
-                for v in &self.vel {
-                    e += v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-                }
-
-                VariantInvariant::Global(GlobalInvariant {
-                    energy_signature: e,
-                })
-            }
-
-            _ => VariantInvariant::Micro(self.clone()),
-        }
-    }
-}
-
-// ============================================================================
-// INVARIANT UNION TYPE
-// ============================================================================
-
-#[derive(Clone, Eq, PartialEq)]
-pub enum VariantInvariant {
-    Micro(ECSState),
-    Macro(MacroInvariant),
-    Global(GlobalInvariant),
-}
-
-// ============================================================================
-// CONSENSUS OVER PROJECTIONS (KEY BREAKTHROUGH)
-// ============================================================================
-//
-// Instead of requiring identical states,
-// we require agreement over invariant projections.
-//
-// ============================================================================
-
-pub struct ProjectionConsensus;
-
-impl ProjectionConsensus {
-
-    pub fn verify<T: SEcho>(
-        nodes: &[T],
-        resolution: ResolutionLevel
-    ) -> bool
-    where
-        T::Invariant: Eq
-    {
-        if nodes.is_empty() {
-            return false;
-        }
-
-        let base = nodes[0].project(resolution);
-
-        for n in nodes.iter().skip(1) {
-            if n.project(resolution) != base {
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
-// ============================================================================
-// GRAVITY INTERPRETATION LAYER
-// ============================================================================
-//
-// Gravity is enforced at GLOBAL resolution only.
-// Micro differences are irrelevant.
-//
-// If GlobalInvariant diverges:
-//     system is invalid
-//
-// If MicroInvariant diverges:
-//     system is still valid
-//
-// ============================================================================
-
-// ============================================================================
-// DVSM ENGINE SEMANTIC RULESET
-// ============================================================================
-
-pub struct DVSMRuleset;
-
-impl DVSMRuleset {
-
-    pub fn validate_system<T: SEcho>(
-        nodes: &[T]
-    ) -> SystemState
-    where
-        T::Invariant: Eq
-    {
-        let global_ok = ProjectionConsensus::verify(
-            nodes,
-            ResolutionLevel::Global
-        );
-
-        let macro_ok = ProjectionConsensus::verify(
-            nodes,
-            ResolutionLevel::Macro
-        );
-
-        if global_ok && macro_ok {
-            SystemState::Consistent
-        } else if global_ok {
-            SystemState::DegradedConsistency
-        } else {
-            SystemState::Invalid
-        }
-    }
-}
-
-// ============================================================================
-// SYSTEM STATES
-// ============================================================================
-
-#[derive(Debug)]
-pub enum SystemState {
-    Consistent,
-    DegradedConsistency,
-    Invalid,
-}
-
-// ============================================================================
-// SMOKETEST FRAMEWORK (MANDATORY VALIDATION LAYER)
-// ============================================================================
-//
-// Purpose:
-// Validate that projection equivalence behaves correctly
-// under controlled divergence conditions.
-//
-// ============================================================================
-
-pub struct SmokeTest;
-
-impl SmokeTest {
-
-    pub fn run_basic_projection_test() -> bool {
-
-        let state_a = ECSState {
-            entities: vec![1, 2],
-            pos: vec![[0,0,0],[1,1,1]],
-            vel: vec![[1,0,0],[0,1,0]],
-        };
-
-        let mut state_b = state_a.clone();
-
-        // inject micro divergence
-        state_b.pos[0][0] += 1;
-
-        // MICRO must fail equivalence
-        let micro = ECSState::equivalent(
-            &state_a,
-            &state_b,
-            ResolutionLevel::Micro
-        );
-
-        // GLOBAL must still pass (if energy preserved)
-        let global = ECSState::equivalent(
-            &state_a,
-            &state_b,
-            ResolutionLevel::Global
-        );
-
-        micro == false && global == true
-    }
-
-    pub fn run_consensus_test() -> bool {
-
-        let nodes = vec![
-            ECSState {
-                entities: vec![1],
-                pos: vec![[0,0,0]],
-                vel: vec![[1,0,0]],
-            },
-            ECSState {
-                entities: vec![1],
-                pos: vec![[0,0,1]], // micro drift
-                vel: vec![[1,0,0]],
-            }
-        ];
-
-        ProjectionConsensus::verify(&nodes, ResolutionLevel::Global)
-    }
-}
-
-// ============================================================================
-// ARCHITECTURAL GUARANTEE
-// ============================================================================
-//
-// 1. Microstate divergence is allowed
-// 2. Macrostate must converge
-// 3. Global invariants define reality validity
-// 4. Consensus operates on projections, not raw state
-//
-// ============================================================================
-// FINAL SYSTEM EQUATION
-// ============================================================================
-//
-// REALITY = CONSENSUS( S_ECHO(state, resolution) )
-//
-// ============================================================================
-// END OF KERNEL
-// ============================================================================
+and correctness is not local, but defined through global convergence:
+
+    REALITY = CONSENSUS(S_ECHO(STATE))
+
+Note: Consensus is NOT final authority. It is a convergence detector over invariant state representations. Multiple transient consensus states may exist across resolution layers until stabilized.
+
+================================================================================
+CORE EXECUTION MODEL (L1)
+================================================================================
+
+Ξ (Execution Kernel):
+
+    STATE(t+1) = Ξ(STATE(t), INPUT(t))
+
+Properties:
+- Fixed-point deterministic execution
+- Replayable across all hardware substrates
+- No probabilistic branching in authoritative kernel
+- Execution is causally ordered via L3
+
+================================================================================
+RENORMALIZATION FUNCTION (CORE BRIDGE TO CONSENSUS)
+================================================================================
+
+Purpose:
+Convert high-resolution simulation state into invariant macrostate representation.
+
+This is the critical collapse function between L1 (execution) and L5 (consensus).
+
+DOMAIN EXAMPLE: RIGID BODY SYSTEM
+
+L1 INPUT STATE:
+- position (fixed-point vector)
+- velocity (fixed-point vector)
+- mass (fixed-point scalar)
+
+------------------------------------------------------------
+RENORMALIZE(S, r)
+------------------------------------------------------------
+
+Step 1 — Spatial Quantization
+- Divide continuous space into discrete resolution cells
+- cell_id = floor(position / resolution)
+
+Step 2 — Momentum Aggregation
+- Aggregate velocity vectors within same cell grouping
+- collapse micro-velocity variance into deterministic macro vector
+
+Step 3 — Entropy Filtering
+- Remove all variation within equivalence band epsilon
+- discard sub-resolution jitter (hardware noise, rounding drift)
+
+Step 4 — Invariant Encoding
+Output Renormalized State:
+
+    cell_id
+    aggregate_momentum
+    mass_density_signature
+
+Result:
+A deterministic macro-object independent of microstate divergence.
+
+================================================================================
+S_ECHO (STATE IDENTITY FUNCTION)
+================================================================================
+
+Definition:
+
+    S_ECHO(S) = HASH( RENORMALIZE(S) )
+
+Properties:
+- Identity is defined over macrostate equivalence, not raw bits
+- Microstate divergence is ignored if renormalized output matches
+- Deterministic identity is preserved across heterogeneous hardware
+
+Rule:
+
+    S_A == S_B  ⇔  S_ECHO(A) == S_ECHO(B)
+
+================================================================================
+MULTI-SCALE INVARIANT LAW
+================================================================================
+
+Core Law:
+
+    S_ECHO(r, S) = S_ECHO(r+1, RENORMALIZE(S, r))
+
+Interpretation:
+A valid system state must remain invariant across resolution transformations.
+
+If invariance fails → state is structurally invalid.
+
+================================================================================
+L4.5 CAUSAL ANCHOR (ROLLBACK SYSTEM)
+================================================================================
+
+Mechanism:
+- No snapshot restoration
+- All rollback is deterministic reconstruction
+
+Rule:
+
+    STATE = replay(L3_INPUT_STREAM)
+
+Meaning:
+Truth is recomputed, not stored.
+
+================================================================================
+L5 CONSENSUS ATTRACTOR ENGINE
+================================================================================
+
+Consensus Model:
+- Not voting
+- Not majority rule
+- Not probabilistic agreement
+
+Instead:
+
+Consensus is convergence of S_ECHO fixed-point invariants.
+
+Rule:
+
+    REALITY emerges when S_ECHO states converge under L5 attractor dynamics
+
+Note:
+Consensus is a stability condition, not final authority.
+
+================================================================================
+L7–L9 FORENSIC EXTENSIONS (OPTIONAL LAYERS)
+================================================================================
+
+L7 — HOLLOW MERKLE VERIFICATION
+- Partial state validation
+- Sub-state attestability without full replay
+
+L8 — STRUCTURAL INVARIANCE LAYER
+- Ensures topology consistency of ECS graph
+- Prevents structural drift independent of values
+
+L9 — SPECTRAL STABILITY ANALYSIS
+- Monitors time-series of S_ECHO outputs
+- Detects hidden drift before consensus failure
+- Outputs:
+    stable / drift_detected / structural_divergence_risk
+
+================================================================================
+EQUIVALENCE BAND (ε MODEL)
+================================================================================
+
+Definition:
+Hardware noise and floating-point divergence are tolerated within epsilon bounds.
+
+Rule:
+If L1 differs but L5 S_ECHO matches → state is valid.
+
+Interpretation:
+System is invariant under microstate perturbation.
+
+================================================================================
+SYSTEM GUARANTEES
+================================================================================
+
+- Deterministic replay across heterogeneous hardware
+- Macrostate identity consistency across resolution levels
+- Tolerance to microstate noise via equivalence band
+- Full causal reconstruction via L3 replay
+- Convergence-based consensus instead of probabilistic agreement
+
+================================================================================
+INDUSTRIAL DESIGN SHIFT
+================================================================================
+
+The system replaces:
+
+    strict bitwise determinism
+
+with:
+
+    scale-invariant equivalence determinism
+
+Meaning:
+Truth is not the raw state.
+Truth is the invariant structure that survives renormalization.
+
+================================================================================
+FINAL STATEMENT
+
+DVSM defines a deterministic execution manifold where:
+
+- computation is transition
+- identity is renormalized invariance
+- consensus is convergence
+- reality is a fixed point across scale transformations
+```
