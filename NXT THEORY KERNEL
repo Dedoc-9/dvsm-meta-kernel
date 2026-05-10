@@ -395,3 +395,446 @@ DVSM defines a deterministic execution manifold where:
 - consensus is convergence
 - reality is a fixed point across scale transformations
 ```
+===============================================================================
+ADDENDUM v1.1 :: CONSISTENCY RESOLUTION + EVENT ALGEBRA EXTENSION
+===============================================================================
+
+## I. L1 vs L5 CONSISTENCY FINAL CLARIFICATION
+
+The system enforces strict determinism at L1:
+
+- L1 execution is bitwise deterministic per identical input stream (L3 aligned)
+- No valid execution path permits divergence under identical causal ordering
+
+Any perceived discrepancy between nodes is classified as:
+
+    PROJECTION ERROR or L3 DESYNCHRONIZATION
+
+NOT L1 nondeterminism.
+
+-------------------------------------------------------------------------------
+===============================================================================
+DVSM KERNEL SPECIFICATION v1.1 [FINAL]
+===============================================================================
+
+[SYSTEM IDENTITY]
+Type: Closed Event Algebra over Renormalized Invariant Manifold
+Axiom: REALITY ≡ Equivalence of Causal Event Structures under S_ECHO
+
+-------------------------------------------------------------------------------
+[CORE EXECUTION MODEL]
+-------------------------------------------------------------------------------
+1.  L1 (Ξ): Deterministic substrate. Bitwise parity per input stream.
+2.  L3 (Ω): Total Order Broadcast. Defines the singular causal timeline.
+3.  L4 (Φ): Proof Gate. Validates events via S_ECHO(Renormalize(E)).
+4.  L5 (Σ): Consensus Attractor. Enforces convergence on Invariant Space.
+
+-------------------------------------------------------------------------------
+[EVENT ALGEBRA OPERATORS]
+-------------------------------------------------------------------------------
+⊕ (Composition):  E3 = E1 ⊕ E2 
+                  Requires L3 adjacency.
+                  Property: Renormalize(E1 ⊕ E2) = merge(inv1, inv2)
+
+→ (Causality):   E1 → E2 
+                  Strict dependency. Backward causation = Error.
+                  Property: S_ECHO(E2) = f(S_ECHO(E1))
+
+ℛ (Reconstruction): ℛ(St) = replay(L3_Stream)
+                  Truth is recomputed, never restored.
+                  Snapshots = L1 Cache only.
+
+-------------------------------------------------------------------------------
+[THE RENORMALIZATION FUNCTOR]
+-------------------------------------------------------------------------------
+Function: Renormalize(Event) -> EventInvariant
+Structure:
+    - causal_type_id:  Deterministic Class ID
+    - sequence_epoch:  L3 Ordering Index
+    - origin_cell:     Quantized Spatial Coordinate (Resolution Band)
+    - effect_signature: Hash of Projected State Delta
+    - entropy_bound:   Clamped Noise Tolerance (ε-Band)
+
+-------------------------------------------------------------------------------
+[CONSISTENCY LAW]
+-------------------------------------------------------------------------------
+VALIDITY RULE:
+    S_A ≡ S_B  iff  S_ECHO(Renormalize(E_A)) == S_ECHO(Renormalize(E_B))
+
+NOISE POLICY:
+    Noise is "Aliased Microstate Data."
+    Allowed in L1; Discarded in L5.
+
+-------------------------------------------------------------------------------
+[FINAL SYSTEM AXIOM]
+-------------------------------------------------------------------------------
+"Truth is not found in the resolution of the microstate, but in the 
+stability of the invariant across the manifold."
+
+[END OF SPECIFICATION]
+===============================================================================
+
+## II. FORMAL CONVERGENCE DEFINITION (REVISED)
+
+Convergence is not evaluated on raw state.
+
+It is evaluated on renormalized invariant space:
+
+    CONVERGENCE :=
+        S_ECHO(Renormalize(State_or_Event))
+
+Thus:
+
+- L1 = execution substrate (not comparison domain)
+- Renormalization = projection into invariant manifold
+- L5 = convergence evaluation layer
+
+-------------------------------------------------------------------------------
+
+## III. RENORMALIZE EVENT MODEL (FINAL FORM)
+
+A Network Event is a causal unit, not a state snapshot.
+
+### EVENT INVARIANT STRUCTURE:
+
+    EventInvariant =
+        (causal_type_id,
+         sequence_epoch,
+         origin_cell,
+         effect_signature,
+         entropy_bound)
+
+-------------------------------------------------------------------------------
+
+## IV. EVENT RENORMALIZATION FUNCTION (FINAL SPEC)
+
+function RenormalizeEvent(event):
+
+causal_type_id = hash(event.type)
+
+sequence_epoch = floor(event.sequence_index)
+
+origin_cell = quantize(event.origin, resolution_band)
+
+effect_signature = hash(project(event.delta_state))
+
+entropy_bound = clamp(event.noise_estimate, epsilon_band)
+
+return EventInvariant
+
+causal_type_id = hash(event.type)
+
+sequence_epoch = floor(event.sequence_index)
+
+origin_cell = quantize(event.origin, resolution_band)
+
+effect_signature = hash(project(event.delta_state))
+
+entropy_bound = clamp(event.noise_estimate, epsilon_band)
+
+return EventInvariant
+
+
+-------------------------------------------------------------------------------
+
+## V. CORRECTED COMPARISON RULE
+
+INVALID:
+
+    compare(L1_state_A, L1_state_B)
+
+VALID:
+
+    S_ECHO(Renormalize(Event_A)) == S_ECHO(Renormalize(Event_B))
+
+Thus:
+
+- raw state is non-comparable across nodes
+- only invariant projection space is meaningful
+
+-------------------------------------------------------------------------------
+
+## VI. EVENT ALGEBRA LAYER (NEW CORE EXTENSION)
+
+This introduces formal composition and causality logic over events.
+
+-------------------------------------------------------------------------------
+
+### 1. EVENT TYPE SYSTEM
+
+Each event belongs to a deterministic class:
+
+    E ∈ EventSpace
+
+with:
+
+    type(E) → causal_type_id
+
+-------------------------------------------------------------------------------
+
+### 2. COMPOSITION OPERATOR (⊕)
+
+Events compose into higher-order causal structures:
+
+    E3 = E1 ⊕ E2
+
+RULE:
+
+- composition is only valid if L3 ordering permits adjacency
+- composition is associative under identical renormalization class
+
+PROPERTY:
+
+    Renormalize(E1 ⊕ E2) = merge(Renormalize(E1), Renormalize(E2))
+
+-------------------------------------------------------------------------------
+
+### 3. CAUSAL CHAIN OPERATOR (→)
+
+Defines deterministic dependency:
+
+    E1 → E2
+
+Meaning:
+
+- E2 is causally dependent on E1 under L3 sequence constraints
+- no backward causation permitted in execution graph
+
+CHAIN PROPERTY:
+
+    S_ECHO(E2) is functionally dependent on S_ECHO(E1)
+
+-------------------------------------------------------------------------------
+
+### 4. ROLLBACK IDENTITY CLOSURE (ℛ)
+
+Rollback is not state restoration.
+
+It is causal replay closure:
+
+    ℛ(S_t) = replay(L3_event_stream_from_checkpoint)
+
+RULE:
+
+- state is never stored as truth
+- only event history defines recoverable reality
+
+PROPERTY:
+
+    ℛ preserves S_ECHO invariance
+
+-------------------------------------------------------------------------------
+
+### 5. EVENT ALGEBRA CLOSURE LAW
+
+For all valid event sets:
+
+    Renormalize(E1 ⊕ E2) ∈ EventInvariantSpace
+
+    and
+
+    ℛ(E_chain) = deterministic reconstruction of same invariant set
+
+-------------------------------------------------------------------------------
+
+## VII. SYSTEM INTERPRETATION UPDATE
+
+The DVSM system is no longer a layered simulation stack.
+
+It is now formally:
+
+    A CLOSED EVENT ALGEBRA OVER A RENORMALIZED INVARIANT MANIFOLD
+
+Where:
+
+- L1 = execution substrate
+- L3 = causal ordering field
+- L4 = proof validation gate
+- L5 = invariant convergence operator
+- Renormalize = projection functor
+- Event Algebra = compositional logic system over causality
+
+-------------------------------------------------------------------------------
+
+## VIII. FINAL CONSISTENCY STATEMENT
+
+Reality in DVSM is defined as:
+
+    not raw state
+    not local memory
+    not snapshot equivalence
+
+but:
+
+    equivalence of renormalized causal event structures under S_ECHO identity
+
+-------------------------------------------------------------------------------
+
+END OF ADDENDUM v1.1
+===============================================================================
+===============================================================================
+DVSM KERNEL SPECIFICATION v1.1 [FINAL — PATCHED]
+===============================================================================
+
+[SYSTEM IDENTITY]
+Type: Closed Event Algebra over Renormalized Invariant Manifold
+
+Axiom:
+    REALITY ≡ Equivalence Class of Renormalized Causal Event Graphs under S_ECHO
+
+IMPORTANT CLARIFICATION:
+    S_ECHO is NOT a raw hash.
+    It is a deterministic invariant functor over EventInvariantSpace.
+
+-------------------------------------------------------------------------------
+[CORE EXECUTION MODEL]
+-------------------------------------------------------------------------------
+
+1. L1 (Ξ):
+   Deterministic execution substrate.
+   Constraint: identical L3 input stream → identical L1 state trajectory.
+
+2. L3 (Ω):
+   Total Order Broadcast.
+   Defines global causal sequence index space:
+       τ ∈ ℤ⁺ (monotonic, gapless ordering domain)
+
+3. L4 (Φ):
+   Proof Gate.
+   Validates events via:
+       S_ECHO(Renormalize(E)) ∈ InvariantSpace
+
+4. L5 (Σ):
+   Consensus Attractor.
+   Operates exclusively over EventInvariantSpace.
+   Not a state merger — a projection convergence operator.
+
+-------------------------------------------------------------------------------
+[EVENT ALGEBRA — FORMAL CLOSURE SPECIFICATION]
+-------------------------------------------------------------------------------
+
+EVENT SPACE DEFINITION:
+
+    E ∈ EventSpace
+    Renormalize(E) ∈ EventInvariantSpace
+    S_ECHO: EventInvariantSpace → IdentityClass
+
+CRITICAL CLOSURE PROPERTY:
+
+    EventInvariantSpace is closed under ⊕
+
+-------------------------------------------------------------------------------
+[OPERATORS — STRICT SEMANTICS]
+-------------------------------------------------------------------------------
+
+⊕ (COMPOSITION OPERATOR)
+
+Definition:
+    E3 = E1 ⊕ E2
+
+Well-formed only if:
+    L3.index(E2) = L3.index(E1) + 1
+
+Semantics:
+    Sequential causal fusion, not parallel merge
+
+Invariant Rule:
+    Renormalize(E1 ⊕ E2) =
+        CanonicalMerge(Renormalize(E1), Renormalize(E2))
+
+NOTE:
+    CanonicalMerge is associative under identical causal_type_id
+
+-------------------------------------------------------------------------------
+
+→ (CAUSAL DEPENDENCY OPERATOR)
+
+Definition:
+    E1 → E2
+
+Constraint:
+    τ(E2) > τ(E1)
+
+Semantics:
+    E2 is functionally dependent on invariant projection of E1
+
+Formally:
+    S_ECHO(E2) = F(S_ECHO(E1), ΔInvariantState)
+
+IMPORTANT:
+    This is NOT temporal causation.
+    It is dependency in invariant transformation space.
+
+-------------------------------------------------------------------------------
+
+ℛ (RECONSTRUCTION OPERATOR)
+
+Definition:
+    ℛ(S_t) = Replay(L3_Stream[0..t])
+
+Constraint:
+    No direct state serialization is valid as truth
+
+Property:
+    ℛ is injective over valid L3 streams:
+        identical stream → identical reconstructed manifold
+
+-------------------------------------------------------------------------------
+[RENORMALIZATION FUNCTOR — FINAL FORM]
+-------------------------------------------------------------------------------
+
+Renormalize(E) produces a canonical invariant descriptor:
+
+    EventInvariant = {
+        causal_type_id,
+        sequence_epoch (τ),
+        origin_cell,
+        effect_signature,
+        entropy_bound (ε-clamped)
+    }
+
+CRITICAL PROPERTY:
+    Microstate variations are orthogonal to EventInvariantSpace
+
+-------------------------------------------------------------------------------
+[CONSISTENCY LAW — STRICT FORM]
+-------------------------------------------------------------------------------
+
+VALIDITY CONDITION:
+
+    S_A ≡ S_B  ⇔
+    S_ECHO(Renormalize(E_A)) = S_ECHO(Renormalize(E_B))
+
+IMPLICATION:
+    Raw L1 state equality is neither required nor meaningful.
+
+-------------------------------------------------------------------------------
+[NOISE MODEL — FORMALIZED]
+-------------------------------------------------------------------------------
+
+Noise Definition:
+    Any L1 deviation not representable in EventInvariantSpace
+
+Classification:
+    Noise ∈ Ker(Projection_L1→InvariantSpace)
+
+Rule:
+    Noise is discarded under S_ECHO, not corrected
+
+-------------------------------------------------------------------------------
+[FINAL SYSTEM AXIOM — REFINED]
+-------------------------------------------------------------------------------
+
+Reality is not a single state.
+
+Reality is the fixed point of:
+
+    EventGraph(Ξ, Ω, Φ, Σ)
+
+under invariant-space equivalence:
+
+    REALITY ≡ fixed_point(S_ECHO ∘ Renormalize ∘ EventAlgebra)
+
+-------------------------------------------------------------------------------
+[END OF PATCHED FINAL SPECIFICATION]
+===============================================================================
