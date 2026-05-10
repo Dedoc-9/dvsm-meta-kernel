@@ -1,415 +1,288 @@
 ===============================================================================
-DVSM :: CONVERGENT DETERMINISTIC CONSENSUS ENGINE
-Unified Simulation + Consensus + Verification Runtime
-Whitepaper / Reference Architecture (Single-File Edition)
+DVSM :: CONVERGENT DETERMINISTIC CONSENSUS PROTOCOL
+Unified Specification + Reference Kernel + Verification Manifold
 Author: Daniel J. Dillberg
 Contact: BigDilly95@gmail.com
+License: AGPL-3.0 (Network Copyleft Enforcement)
 ===============================================================================
-
-CLASSIFICATION:
-Research / Experimental Systems Architecture
-
-LICENSING:
-MIT-style permissive reference design (see legal section)
 
 STATUS:
-Conceptual Final Architecture Specification (v1.0 Unified)
+Formal Protocol Specification / Deterministic Distributed Execution System
 
 PRIMARY OBJECTIVE:
-To define a deterministic, cross-platform, rollback-safe distributed
-simulation engine where:
+
+Define a deterministic system where:
 
     STATE(t) = Ξ(INPUT(t), STATE(t-1))
-    TRUTH    = S_ECHO(STATE)
-    FINALITY = CONSENSUS(TRUTH)
+
+and correctness is defined not locally, but through global convergence:
+
+    REALITY = CONSENSUS(S_ECHO(STATE))
 
 ===============================================================================
-ABSTRACT
+I. CORE AXIOM (FOUNDATIONAL TRUTH MODEL)
 ===============================================================================
 
-This system defines a unified deterministic execution substrate composed of four
-coordinated engine layers:
+The DVSM system is built on a single invariant axiom:
 
-1. L1 — Deterministic Execution Kernel (Ξ)
-   - Fixed-point ECS simulation (Q32.32)
-   - Ordered command resolution
-   - Platform-invariant state evolution
+    Φ(L1) = Φ(L3) = Φ(L4) = Φ(L5) = ... = Φ(L∞)
 
-2. L3 — Causal Ordering Engine
-   - Total-order broadcast of all inputs/events
-   - Deterministic sequencing across distributed nodes
-   - Eliminates concurrency nondeterminism
+Where:
 
-3. L4 / L4.5 — Verification & Causal Anchor Engine
-   - Cryptographic state identity hashing (S_ECHO)
-   - Formal validation gate
-   - Replay-based deterministic reconstruction (rollback-as-replay)
+- Φ = embedding function mapping system state into invariant space
+- Equality = deterministic equivalence, not approximation
 
-4. L5 — Consensus / Attractor Convergence Engine
-   - Byzantine-resilient quorum validation
-   - Dual-lane tracking (execution trajectory vs predicted convergence)
-   - Finality determined by convergence stability, not authority
+-------------------------------------------------------------------------------
+INTERPRETATION
+-------------------------------------------------------------------------------
 
---------------------------------------------------------------------------------
-SYSTEM CAPABILITIES
---------------------------------------------------------------------------------
+A state is REAL iff:
 
-- Deterministic ECS simulation with fixed-point arithmetic
-- Byzantine-resilient distributed consensus validation
-- Rollback via causal replay reconstruction (not snapshot trust)
-- Cryptographic state identity binding (S_ECHO)
-- Network-synchronized deterministic simulation across nodes
-- Hardware-agnostic execution (CPU / SIMD / GPU / WASM)
-
---------------------------------------------------------------------------------
-PRIMARY ARCHITECTURAL GUARANTEES
---------------------------------------------------------------------------------
-
-1. Bitwise determinism across all supported platforms
-2. Divergence detection via embedding/hash consistency checks
-3. Consensus-driven finality (global agreement over local correctness)
-4. Rollback via deterministic reconstruction, not mutation repair
-
---------------------------------------------------------------------------------
-CORE DESIGN PHILOSOPHY ("CONVERGENCE MODEL")
---------------------------------------------------------------------------------
-
-Traditional systems assume:
-    local correctness → eventual consistency
-
-DVSM inverts this model:
-
-    deterministic execution → global verification → accepted reality
-
-Thus:
-
-    computation is not trusted at runtime
-    computation is continuously verified across independent deterministic engines
-
---------------------------------------------------------------------------------
-FOUR PRIMARY ENGINES
---------------------------------------------------------------------------------
-
-1. L1 — EXECUTION KERNEL ENGINE (Ξ)
-   Deterministic fixed-point simulation layer (ECS + physics + commands)
-   → Produces raw state evolution S(t+1)
-
-2. L3 — CAUSAL ORDER ENGINE (TOTAL ORDER BROADCAST)
-   Deterministic sequencing of all inputs and events
-   → Ensures identical execution order across all nodes
-
-3. L4/L4.5 — VERIFICATION & CAUSAL ANCHOR ENGINE
-   Formal proof gating + replay-based reconstruction system
-   → Validates state correctness and enables deterministic rollback
-
-4. L5 — CONSENSUS / ATTRACTOR ENGINE
-   Dual-lane convergence system (live trajectory + predicted attractor)
-   → Determines finality through convergence stability, not voting alone
-
---------------------------------------------------------------------------------
-FINAL SYSTEM SPECIFICATION (DVSM_SUPERIOR_KERNEL.rs)
---------------------------------------------------------------------------------
-
-STATE EVOLUTION:
-
-    S(t+1) = Ξ(S(t), INPUT(t))
-
-GLOBAL TRUTH FUNCTION:
-
-    TRUTH = S_ECHO(S)  ∈ embedding space Φ
-
-FINALITY CONDITION:
-
-    Φ(L1) = Φ(L3) = Φ(L4/L4.5) = Φ(L5)
-
-AND
-
-    ||divergence|| ≤ ε
-
-AND
-
-    consensus convergence is stable (attractor lock achieved)
-
---------------------------------------------------------------------------------
-SYSTEM GUARANTEE MODEL
---------------------------------------------------------------------------------
-
-- Deterministic execution across CPU / SIMD / GPU / WASM targets via fixed-point kernel (L1 — Ξ Execution Engine)
-- Bitwise-identical replay and reconstruction enforced through causal anchor re-execution (L4.5 — Causal Anchor Engine)
-- Byzantine-resistant state agreement enforced via attractor convergence + quorum validation (L5 — Consensus / Attractor Engine)
-- Rollback via deterministic causal re-synthesis rather than snapshot restoration (L4.5 + L1 combined reconstruction pipeline)
-- Execution validity defined through cross-engine embedding equivalence (Φ-space agreement across L1–L5 manifold)
-
---------------------------------------------------------------------------------
-CORE PRINCIPLE
---------------------------------------------------------------------------------
-
-The system does not resolve computation through trust, probability, or authority.
-
-It resolves computation through:
-
-    geometric agreement across independent deterministic engines
-
-Where correctness is defined as:
-
-    Φ(L1) = Φ(L3) = Φ(L4/L4.5) = Φ(L5)
-
-within bounded divergence ε.
+- It is produced by deterministic execution (Ξ)
+- It passes hash identity validation (S_ECHO)
+- It converges across all system layers (L1–L∞)
 
 ===============================================================================
-CORE DESIGN PHILOSOPHY ("CONVERGENCE MODEL")
+II. SYSTEM ARCHITECTURE OVERVIEW
 ===============================================================================
 
-Traditional simulation systems assume:
-    local correctness → eventual consistency
-
-DVSM inverts this:
-
-    deterministic execution → global verification → accepted reality
-
-Thus:
-
-    computation is not "trusted"
-    computation is "verified"
-
-===============================================================================
-DESIGN DECISIONS (LONG-STANDING TRADEOFF RESOLUTION)
-===============================================================================
-
-1. HASH AS TRUTH ANCHOR (S_ECHO MODEL)
-------------------------------------------------
-Decision:
-    Use a deterministic hash as canonical state identity.
-
-Rationale:
-    Enables cross-node verification without full state transfer.
-
-Tradeoff:
-    Rejects floating-point equivalence models due to drift risk.
-
-2. NO FLOATING POINT SIMULATION
-------------------------------------------------
-Decision:
-    Fixed-point arithmetic only (Q32.32 model).
-
-Rationale:
-    Ensures identical results across CPU/GPU/WASM.
-
-3. SNAPSHOT + ROLLBACK OVER REPLAY GUESSING
-------------------------------------------------
-Decision:
-    Store deterministic snapshots rather than reconstructive replay.
-
-Rationale:
-    Prevents divergence accumulation over long simulation chains.
-
-4. CONSENSUS OVER LOCAL AUTHORITY
-------------------------------------------------
-Decision:
-    State validity requires quorum agreement.
-
-Rationale:
-    Prevents single-node authoritative corruption.
-
-5. DETERMINISTIC ECS (STRUCT OF ARRAYS)
-------------------------------------------------
-Decision:
-    No HashMap-based ECS indexing.
-
-Rationale:
-    Eliminates nondeterministic iteration ordering.
-
-===============================================================================
-MATHEMATICAL MODEL
-===============================================================================
-
-STATE EVOLUTION:
-
-    S_{t+1} = Ξ(S_t, I_t)
-
-STATE IDENTITY:
-
-    H_t = S_ECHO(S_t)
-
-CONSENSUS FUNCTION:
-
-    C(H_t) → {FINAL, FORK, VOID, DRIFT}
-
-FINALITY RULE:
-
-    FINAL ⇔ quorum(H_t)
-
-===============================================================================
-INVARIANTS
-===============================================================================
-
-I1. Determinism:
-    identical input → identical state everywhere
-
-I2. Temporal Discreteness:
-    time is tick-based, not continuous
-
-I3. Hash Sovereignty:
-    all state identity is derived from S_ECHO
-
-I4. No Silent Divergence:
-    all inconsistencies manifest as rollback or fork
-
-I5. No Partial Truth:
-    state is either accepted or rejected globally
-
-===============================================================================
-ARCHITECTURE LAYERS
-===============================================================================
+DVSM is a layered convergence manifold:
 
 ┌──────────────────────────────────────────────┐
-│ CLIENT PREDICTION LAYER                     │
-│ - interpolation                             │
-│ - speculative simulation                    │
-└───────────────────────┬──────────────────────┘
-                        │
-                        ▼
-┌──────────────────────────────────────────────┐
-│ TRANSPORT LAYER                             │
-│ - QUIC (reliable ordered stream)           │
-│ - UDP (minimal fallback sync mode)         │
-└───────────────────────┬──────────────────────┘
-                        ▼
-┌──────────────────────────────────────────────┐
-│ DETERMINISTIC SIMULATION CORE (Ξ)           │
-│ - ECS execution                            │
-│ - fixed-point physics                     │
-│ - command resolution order                │
-└───────────────────────┬──────────────────────┘
-                        ▼
-┌──────────────────────────────────────────────┐
-│ STATE HASHING LAYER (S_ECHO)               │
-│ - canonical state fingerprint             │
-│ - divergence detection                    │
-└───────────────────────┬──────────────────────┘
-                        ▼
-┌──────────────────────────────────────────────┐
-│ CONSENSUS LAYER (DHQ MODEL)               │
-│ - Byzantine quorum validation           │
-│ - fork detection                         │
-└──────────────────────────────────────────────┘
-                        ▼
-┌──────────────────────────────────────────────┐
-│ FINALITY + ROLLBACK SYSTEM               │
-│ - snapshot recovery                     │
-│ - deterministic reconciliation         │
+│ L∞ Semantic Witness (Historical Trace)      │
+│ L9 Spectral Stability (Forensics)           │
+│ L8 Structural Invariance (Topology ECS)     │
+│ L7 Hollow Merkle (Partial Verification)     │
+│ L6 Meta-Governance (Protocol Evolution)     │
+│ L5 Consensus Attractor Engine               │
+│ L4.5 Causal Anchor (Deterministic Replay)   │
+│ L4 Proof Gate (State Validation)            │
+│ L3 Total Order Broadcast                    │
+│ L1 Ξ Execution Kernel (Fixed-Point ECS)     │
 └──────────────────────────────────────────────┘
 
 ===============================================================================
-ROLLOUT & LATENCY MODEL
+III. L1 — DETERMINISTIC EXECUTION KERNEL (Ξ)
 ===============================================================================
 
-Client view:
+PURPOSE:
+Bitwise deterministic simulation engine.
 
-    C_t = predicted(S_t)
+FORMAL MODEL:
 
-Server truth:
+    S(t+1) = Ξ(S(t), I(t))
 
-    S_t = Ξ(S_{t-1}, I_t)
+-------------------------------------------------------------------------------
+RUST REFERENCE CORE
+-------------------------------------------------------------------------------
+pub fn tick(&mut self) {
+    for i in 0..self.entities.len() {
+        self.pos[i].0 += self.vel[i].0 * DT;
+        self.pos[i].1 += self.vel[i].1 * DT;
+        self.pos[i].2 += self.vel[i].2 * DT;
+    }
+}
+-------------------------------------------------------------------------------
+INVARIANT GUARANTEE
+-------------------------------------------------------------------------------
 
-Error condition:
-
-    H(C_t) ≠ H(S_t)
-
-Resolution:
-
-    rollback → deterministic replay → resync
-
-IMPORTANT:
-Visual smoothness is independent of simulation truth.
-
-===============================================================================
-HARDWARE EXECUTION MODEL
-===============================================================================
-
-SUPPORTED TARGETS:
-
-- CPU (single-thread deterministic core)
-- SIMD (AVX2 / NEON vector lanes)
-- GPU (parallel ECS collapse kernels)
-- WASM (browser deterministic runtime)
-
-REQUIREMENT:
-
-All targets must satisfy:
-
-    S_ECHO(P1) == S_ECHO(P2)
+- No floating-point nondeterminism
+- No thread-order dependence
+- Identical execution across CPU / SIMD / WASM targets
 
 ===============================================================================
-INSPIRATIONAL DESIGN INFLUENCES (NON-LITERAL)
+IV. S_ECHO — STATE IDENTITY FUNCTION
 ===============================================================================
 
-The system draws conceptual inspiration from:
+Cryptographic identity binding of system state.
+pub fn s_echo(&self) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
 
-1. Nonlinear energy concentration phenomena
-   (used metaphorically for "state collapse behavior")
+    for i in 0..self.entities.len() {
+        h ^= self.entities[i] as u64;
+        h = h.wrapping_mul(1099511628211);
 
-2. Perceptual color encoding systems
-   (used as abstraction for structured state categorization)
+        h ^= self.pos[i].0 as u64;
+        h = h.wrapping_mul(1099511628211);
 
-3. Emergent physical simulation behaviors
-   (used as analogy for deterministic convergence under constraint)
+        h ^= self.pos[i].1 as u64;
+        h = h.wrapping_mul(1099511628211);
+    }
 
-NOTE:
-These are conceptual analogies only and not claims of physical derivation.
+    h
+}
+-------------------------------------------------------------------------------
+RULE
 
-===============================================================================
-COLLAPSE MODEL (CONCEPTUAL)
-===============================================================================
+S_ECHO(A) == S_ECHO(B) ⇒ A ≡ B
 
-"Collapse" refers to:
-
-    multiple divergent computational paths → single verified state
-
-Not physical collapse, but:
-
-    computational convergence under verification constraints
+Hash = identity, not checksum.
 
 ===============================================================================
-LEGAL / IP FRAMEWORK
+V. L3 — TOTAL ORDER BROADCAST
 ===============================================================================
 
-1. COPYRIGHT
-------------------------------------------------
-This codebase and specification are original authored works
-under the MIT License framework unless overridden by contract.
+All inputs are globally ordered before execution.
 
-2. LICENSE MODEL
-------------------------------------------------
-Permissive use permitted with attribution.
+Guarantees:
 
-No warranty is provided.
-
-3. PATENT POSITION (DEFENSIVE DISCLOSURE)
-------------------------------------------------
-This document explicitly declares:
-
-- deterministic ECS systems are prior art
-- rollback netcode is prior art
-- consensus systems are prior art
-- fixed-point simulation is prior art
-
-This work claims no ownership over:
-- mathematical principles
-- physical phenomena
-- general distributed systems techniques
-
-4. CLAIMED NOVEL CONTRIBUTION
-------------------------------------------------
-The contribution is limited to:
-
-- unified architecture synthesis
-- deterministic convergence layering
-- hash-based state identity model (S_ECHO abstraction)
-- rollback-consensus fusion pipeline
+- No race conditions
+- No nondeterministic event ordering
+- Single causal timeline across distributed nodes
 
 ===============================================================================
-SYSTEM EQUATION (FINAL FORM)
+VI. L4 — PROOF GATE
+===============================================================================
+
+Validates state transitions via deterministic hash consistency.
+
+Rule:
+
+Only states passing S_ECHO validation are accepted.
+
+===============================================================================
+VII. L4.5 — CAUSAL ANCHOR ENGINE
+===============================================================================
+
+Rollback is deterministic reconstruction:
+
+    STATE = replay(INPUT_STREAM)
+
+Not snapshot restore.
+
+===============================================================================
+VIII. L5 — CONSENSUS ATTRACTOR ENGINE
+===============================================================================
+
+Consensus is geometric convergence:
+
+    Φ(L1) = Φ(L5)
+
+Finality occurs only when system trajectories converge.
+
+===============================================================================
+IX. L6 — META-GOVERNANCE ENGINE
+===============================================================================
+
+Protocol evolution constraint:
+
+    Φ(P_before) = Φ(P_after)
+
+No update may alter deterministic semantics.
+
+===============================================================================
+X. L7 — HOLLOW MERKLE ENGINE
+===============================================================================
+
+Partial-state verification system.
+
+Definition:
+
+    H(S) = MerkleRoot(H(e1), ..., H(en))
+
+Property:
+
+Subsets Z ⊂ S are verifiable without full state reconstruction.
+
+===============================================================================
+XI. L8 — STRUCTURAL INVARIANCE ENGINE
+===============================================================================
+
+Topology preservation rule:
+
+    T(S_t) ≅ T(S_{t+1})
+
+Structure changes only via explicit commands.
+
+===============================================================================
+XII. L9 — SPECTRAL STABILITY ENGINE
+===============================================================================
+
+Detects pre-failure divergence.
+
+Model:
+
+    ΔH_t = H(S_t) - H(S_{t-1})
+
+    P(ω) = FFT(ΔH_t)
+
+High-frequency energy ⇒ instability signal.
+
+===============================================================================
+XIII. L∞ — SEMANTIC WITNESS ENGINE
+===============================================================================
+
+Execution history as immutable cryptographic object.
+
+Model:
+
+    H(𝒯) = hash(H(S₀), ..., H(Sₜ))
+
+Time becomes part of hash structure.
+
+===============================================================================
+XIV. FAILURE MODEL
+===============================================================================
+
+All failures are deterministic:
+
+- F1: INVALID_INPUT
+- F2: CONSENSUS_FORK
+- F3: STATE_DRIFT
+- F4: ROLLBACK_LIMIT
+
+No undefined states exist.
+
+===============================================================================
+XV. ROLLBACK + CONSENSUS MODEL
+===============================================================================
+
+Reality definition:
+
+    REALITY =
+        CONSENSUS(
+            S_ECHO(
+                Ξ(INPUT, STATE)
+            )
+        )
+
+Rollback = reconstruction  
+Consensus = convergence  
+Hash mismatch = invalid state
+
+===============================================================================
+XVI. AGPL-3.0 SOVEREIGNTY LAYER
+===============================================================================
+
+License: GNU AGPL-3.0
+
+Protected primitives:
+
+- Ξ (Execution Kernel)
+- S_ECHO (State Identity)
+- L7 (Hollow Merkle)
+- L9 (Spectral Stability)
+
+Network rule:
+
+If used as a service → source must be disclosed.
+
+No closed derivative deployments allowed.
+
+===============================================================================
+XVII. KERNEL–SPECIFICATION BINDING
+===============================================================================
+
+Code is not truth.
+
+It is a projection of truth.
+
+Rule:
+
+    P valid ⇔ Φ(P) = Φ(DVSM)
+
+===============================================================================
+XVIII. CORE SYSTEM EQUATION
 ===============================================================================
 
     REALITY(t) =
@@ -420,702 +293,776 @@ SYSTEM EQUATION (FINAL FORM)
         )
 
 ===============================================================================
-DVSM KERNEL EXTENSION
-"VEL-INSPIRED CONVERGENT EXECUTION LAYER"
-===============================================================================
-
-STATUS:
-Architectural expansion module (non-breaking extension)
-
-PURPOSE:
-To extend DVSM from a deterministic simulation engine into a
-multi-layer convergence substrate supporting:
-
-- adaptive execution semantics
-- symbolic state structuring
-- higher-order determinism routing
-- modular consensus scaling
-
-===============================================================================
-I. NOVEL CONTRIBUTION EXPANSION
-===============================================================================
-
-The original system defines:
-
-    STATE(t) = Ξ(INPUT, STATE)
-
-This extension introduces an additional structural layer:
-
-    STATE(t) = Ξ(INPUT, STATE) ⊗ Λ(CONVERGENCE FIELD)
-
-Where:
-
-    Ξ = deterministic collapse engine
-    Λ = structural alignment operator (meta-scheduler)
-
-This does NOT change determinism.
-It refactors *how determinism is organized*.
-
-===============================================================================
-II. VEL PRINCIPLE (CONVERGENCE VECTOR MODEL)
-===============================================================================
-
-Inspired by "spear-like directional convergence" as a conceptual metaphor:
-
-VEL represents:
-
-    directed collapse of distributed state vectors into a singular axis of truth
-
-Mathematically abstracted as:
-
-    VEL(S) → argmin divergence(S_i → S*)
-
-Interpretation:
-
-- multiple state interpretations exist locally
-- system enforces directional convergence toward canonical state
-- convergence is not averaging, but alignment selection
-
-===============================================================================
-III. SYMBOLIC LAYER (STATE SEMANTIC COMPRESSION)
-===============================================================================
-
-Introduce:
-
-    Σ-layer (semantic ECS compression layer)
-
-Purpose:
-Reduce state complexity without losing determinism.
-
-Definition:
-
-    Σ(S) = canonical encoding of ECS state graph
-
-Properties:
-
-- lossless under deterministic reconstruction
-- invariant under permutation of entity ordering
-- hash-stable under S_ECHO equivalence
-
-===============================================================================
-IV. MULTI-QUORUM CONSENSUS (DHQ+ EXTENSION)
-===============================================================================
-
-Extend consensus model:
-
-Before:
-    single quorum threshold
-
-Now:
-    hierarchical quorum trees
-
-Define:
-
-    C₁ = local node quorum
-    C₂ = shard-level quorum
-    C₃ = global finality quorum
-
-Final state accepted only if:
-
-    C₁ ∧ C₂ ∧ C₃ = TRUE
-
-This introduces:
-
-- regional stability zones
-- global convergence authority
-- fork isolation containment layers
-
-===============================================================================
-V. TEMPORAL FOLD MODEL (DETERMINISTIC LOOKAHEAD)
-===============================================================================
-
-Introduce bounded predictive execution:
-
-    T_f = {t, t+1, ..., t+n}
-
-Each fold:
-
-    Ξ executes speculative branches
-
-Only one fold is committed:
-
-    fold with maximum consensus alignment score
-
-Result:
-
-- reduces rollback frequency
-- improves perceived latency stability
-- preserves deterministic truth ordering
-
-===============================================================================
-VI. HARDWARE CONVERGENCE ABSTRACTION (HCA LAYER)
-===============================================================================
-
-Unifies execution targets:
-
-- CPU (scalar deterministic core)
-- SIMD (vector collapse lanes)
-- GPU (parallel ECS collapse grid)
-- WASM (sandboxed deterministic runtime)
-
-HCA defines:
-
-    identical execution semantics across all architectures
-
-Constraint:
-
-    HCA(P1) == HCA(P2) for all valid platforms
-
-===============================================================================
-VII. FAILURE MODE THEORY (ANTI-DIVERGENCE MODEL)
-===============================================================================
-
-System defines only three failure classes:
-
-1. TEMPORAL DRIFT
-   → latency divergence, corrected via rollback interpolation
-
-2. CONSENSUS FRACTURE
-   → quorum disagreement, resolved via fork discard
-
-3. STATE INVALIDATION
-   → hash mismatch, triggers rollback to last valid S_ECHO
-
-There is no "partial corruption" state.
-
-===============================================================================
-VIII. SYSTEM EQUATION (EXPANDED FORM)
-===============================================================================
-
-FINAL FORM:
-
-    REALITY(t) =
-        C₃(
-            C₂(
-                C₁(
-                    S_ECHO(
-                        Ξ(INPUT(t), STATE(t-1))
-                    )
-                )
-            )
-        )
-        ⊗ VEL_ALIGNMENT
-
-===============================================================================
-IX. DESIGN PHILOSOPHY STATEMENT
+XIX. FINAL STATEMENT
 ===============================================================================
 
 DVSM is not a simulation engine.
 
-It is a:
+It is a deterministic convergence manifold where:
 
-    convergent computation topology
-
-where:
-
-- computation is directional
-- truth is enforced structurally
-- divergence is non-permissible by design
-- consensus is layered, not binary
-- execution is platform-invariant by constraint
+- computation is geometry
+- state is identity
+- time is cryptographic sequence
+- consensus is physical convergence
 
 ===============================================================================
-X. LEGAL / INTELLECTUAL CLARIFICATION
+END OF SPECIFICATION
+===============================================================================
+===============================================================================
+DVSM :: CONVERGENT DETERMINISTIC CONSENSUS PROTOCOL
+Core Execution Kernel + Optional Forensic Manifold Extensions
 ===============================================================================
 
-This addendum does NOT claim ownership of:
+## DESIGN PHILOSOPHY
 
-- consensus algorithms
-- deterministic ECS systems
-- rollback netcode methods
-- distributed hash verification
-- physical or metaphysical phenomena
+DVSM is partitioned into two formally distinct execution regimes:
 
-It defines:
+### CORE SYSTEM (L1–L5)
+- Real-time deterministic simulation kernel
+- Designed for performance, predictability, and portability
+- Required for all deployments
 
-- a structural composition of existing techniques
-- a formalized convergence architecture
-- a systems-level integration framework
+### FORENSIC EXTENSIONS (L7–L9)
+- Optional high-assurance verification manifold
+- Designed for auditability, integrity enforcement, and drift detection
+- Activated only in high-trust / high-stakes environments
 
-===============================================================================
-END OF ADDENDUM KERNEL EXTENSION
-===============================================================================
-
-===============================================================================
-DVSM :: MISSING LOGIC ADDENDUM
-"FORMAL COMPLETENESS + EXECUTION CLOSURE LAYER"
-===============================================================================
-
-PURPOSE:
-This section defines the missing formal components required to make the
-DVSM specification computationally complete, including:
-
-- causal completeness of Ξ
-- deterministic ordering guarantees
-- consensus liveness constraints
-- rollback correctness bounds
-- state-space closure properties
-- execution termination semantics
+This separation ensures:
+- Minimal runtime overhead for standard simulation use cases
+- Maximum verification depth for regulated or adversarial environments
 
 ===============================================================================
-1. CAUSAL COMPLETENESS OF Ξ
+I. CORE EXECUTION MANIFOLD (L1–L5)
 ===============================================================================
 
-The system assumes:
+## L1 — Ξ EXECUTION KERNEL
+Deterministic ECS update system
 
-    S_{t+1} = Ξ(S_t, I_t)
+    S(t+1) = Ξ(S(t), I(t))
 
-MISSING CONSTRAINT:
+Guarantee:
+- Bitwise deterministic across all platforms
+- Fixed-point arithmetic (no floating drift)
 
-Ξ must be:
+-------------------------------------------------------------------------------
 
-    (C1) Pure function
-    (C2) Total over state space
-    (C3) Order-preserving over command reduction
-    (C4) Side-effect free
+## L3 — TOTAL ORDER BROADCAST
+Global deterministic input sequencing
 
-FORMAL DEFINITION:
+Guarantee:
+- All nodes process identical command ordering
+- Eliminates concurrency nondeterminism
 
-    ∀ S, I:
-        Ξ(S, I) is defined
-        Ξ(S, I) produces exactly one S'
+-------------------------------------------------------------------------------
 
-IMPLICATION:
+## L4 — STATE IDENTITY (S_ECHO)
+Canonical state fingerprinting system
 
-No undefined state transitions exist.
-No partial execution states are valid.
+Guarantee:
+- Each state maps to a unique deterministic identity hash
 
-===============================================================================
-2. DETERMINISTIC ORDERING INVARIANT (DOI)
-===============================================================================
+-------------------------------------------------------------------------------
 
-MISSING RULE:
+## L5 — CONSENSUS ATTRACTOR ENGINE
+Distributed finality system
 
-Command application order MUST be canonical.
-
-Define:
-
-    O(cmds) = deterministic ordering function
-
-Requirement:
-
-    Ξ(S, I) = fold(O(I), S)
-
-Where O is:
-
-    - stable across platforms
-    - independent of memory layout
-    - independent of thread scheduling
-
-WITHOUT THIS:
-S_ECHO becomes non-portable.
+Guarantee:
+- State is accepted only if convergence stability is achieved
+- Rejects divergent or unstable trajectories
 
 ===============================================================================
-3. STATE SPACE CLOSURE PROPERTY
+CORE TRUTH MODEL
 ===============================================================================
 
-MISSING AXIOM:
+Core correctness is binary:
 
-The system state space is closed under Ξ.
+    S_A == S_B  ⇔  S_ECHO(A) == S_ECHO(B)
 
-FORMALLY:
+This defines:
 
-    Ξ(S_t, I_t) ∈ 𝒮
-
-Where:
-
-    𝒮 = valid ECS state space
-
-IMPLICATION:
-
-No external mutation can produce invalid state.
-
-All invalid states are unreachable by construction.
+- Execution correctness
+- Replay correctness
+- Consensus correctness
 
 ===============================================================================
-4. CONSENSUS LIVENESS CONDITION
+II. FORENSIC MANIFOLD EXTENSIONS (L7–L9)
 ===============================================================================
 
-Existing spec defines safety (no false acceptance),
-but does NOT define liveness.
+These layers are OPTIONAL, COMPOSABLE, and AUDIT-FOCUSED.
 
-MISSING PROPERTY:
+They do NOT modify core execution semantics.
 
-    If network is eventually synchronous,
-    consensus must eventually terminate.
-
-FORMALIZATION:
-
-    ∃ T such that:
-        ∀ t > T:
-            C(H_t) = FINAL or VOID
-
-IMPLICATION:
-
-System cannot remain in indefinite DRIFT state.
+They operate as independent verification overlays.
 
 ===============================================================================
-5. ROLLBACK CORRECTNESS BOUND
+L7 — HOLLOW MERKLE (SUB-MANIFOLD VERIFICATION)
 ===============================================================================
 
-MISSING RULE:
+## TYPE
+Optional Partial State Attestation Layer
 
-Rollback must preserve deterministic equivalence class.
+## PURPOSE
+Enable verification of localized ECS regions without requiring full-state reconstruction.
 
-Define equivalence:
+## FORMAL MODEL
 
-    S_a ≡ S_b ⇔ S_ECHO(S_a) == S_ECHO(S_b)
+    H(S) = MerkleRoot(Leaf_1 ... Leaf_n)
 
-ROLLBACK CONSTRAINT:
+## FUNCTIONAL ROLE
+- Region-based validation (interest management)
+- Sharded simulation trust boundaries
+- Partial proof-of-state systems
 
-    restore(S_t) MUST satisfy:
-        S_restored ≡ S_reference
+## SYSTEM PROPERTY
+Transforms DVSM from:
+    "global state verification"
+into:
+    "localized verifiable sub-state systems"
 
-IMPLICATION:
-
-Rollback is not approximate recovery.
-It is exact state equivalence restoration.
-
-===============================================================================
-6. TEMPORAL CAUSALITY CONSTRAINT
-===============================================================================
-
-MISSING AXIOM:
-
-No future state may influence past computation.
-
-FORMALLY:
-
-    S_t depends only on:
-        S_{t-1}, I_t
-
-NOT:
-
-    S_{t+k}
-
-IMPLICATION:
-
-Prevents speculative execution leakage into truth layer.
+## CLASSIFICATION
+Add-on: High-Scale Distributed Optimization Layer
 
 ===============================================================================
-7. HASH CONSISTENCY BINDING RULE (S_ECHO STRICTNESS)
+L8 — TOPOLOGY GUARD (STRUCTURAL INVARIANCE LAYER)
 ===============================================================================
 
-MISSING PROPERTY:
+## TYPE
+Optional Structural Integrity Enforcement Layer
 
-S_ECHO must be:
+## PURPOSE
+Validate ECS graph integrity independently of simulation values
 
-    injective over reachable state space (practically collision-resistant)
+## FORMAL CONSTRAINT
 
-FORMAL RULE:
+    T(S_t) ≅ T(S_{t+1}) mod ΔC
 
-    S_ECHO(S_a) = S_ECHO(S_b)
-        ⇒ S_a ≡ S_b   (system assumption)
+## FUNCTIONAL ROLE
+- Detects entity corruption
+- Prevents ghost injection
+- Ensures ECS layout consistency
 
-IMPLICATION:
+## SYSTEM PROPERTY
+Separates:
+- VALUE correctness (L1–L5)
+from
+- STRUCTURE correctness (L8)
 
-Hash is not metadata.
-Hash IS identity.
-
-===============================================================================
-8. FAILURE DETERMINISM MODEL
-===============================================================================
-
-MISSING CLASSIFICATION:
-
-All failures MUST map into deterministic categories:
-
-    F1: INVALID_INPUT
-    F2: CONSENSUS_FORK
-    F3: STATE_DRIFT
-    F4: ROLLBACK_LIMIT_REACHED
-
-RULE:
-
-No undefined failure states exist.
-
-EVERY failure is classifiable.
+## CLASSIFICATION
+Add-on: Security & Memory Integrity Layer
 
 ===============================================================================
-9. EXECUTION TERMINATION SEMANTICS
+L9 — SPECTRAL MONITOR (FORENSIC DRIFT DETECTOR)
 ===============================================================================
 
-MISSING RULE:
+## TYPE
+Optional Temporal Stability & Forensic Analysis Layer
 
-System MUST define termination conditions:
+## PURPOSE
+Detect latent nondeterminism before it manifests as consensus failure
 
-Termination occurs when:
+## FORMAL MODEL
 
-    (A) tick >= MAX_TICKS
-    (B) consensus = VOID permanently
-    (C) rollback buffer exhausted
-    (D) external shutdown signal
+    Spec(S) = FFT(ΔS_ECHO)
 
-FORMAL:
+## FUNCTIONAL ROLE
+- Detects bit-flip instability trends
+- Identifies hardware-level drift
+- Provides predictive failure analysis
 
-    TERMINATE ⇔ ∃ condition above
+## SYSTEM PROPERTY
+Transforms system monitoring from:
+    reactive failure detection
+into:
+    predictive stability forecasting
 
-IMPLICATION:
-
-No infinite undefined runtime state.
-
-===============================================================================
-10. OBSERVABILITY COMPLETENESS PRINCIPLE
-===============================================================================
-
-MISSING AXIOM:
-
-Every state transition must be observable via:
-
-    H_t = S_ECHO(S_t)
-
-IMPLICATION:
-
-No hidden state evolution exists.
-
-System is fully auditable at hash level.
+## CLASSIFICATION
+Add-on: Forensic & Reliability Engineering Layer
 
 ===============================================================================
-11. FINAL COMPLETENESS THEOREM (CLOSURE)
+III. CORE VS FORENSIC SEPARATION MODEL
 ===============================================================================
 
-If all conditions hold:
+## CORE SYSTEM (MANDATORY)
+- L1 Execution Kernel
+- L3 Ordering Engine
+- L4 Identity Layer
+- L5 Consensus Engine
 
-- Ξ is pure and total
-- O(cmds) is deterministic
-- S_ECHO is stable and injective
-- consensus is live under synchrony
-- rollback preserves equivalence classes
-- state space is closed
+PROPERTY:
+- Minimal latency
+- Deterministic execution
+- Real-time simulation
 
-THEN:
+-------------------------------------------------------------------------------
 
-    DVSM defines a complete deterministic transition system:
+## FORENSIC SYSTEM (OPTIONAL)
+- L7 Partial Verification
+- L8 Structural Integrity
+- L9 Spectral Stability
 
-        𝒮 × 𝕀 → 𝒮
-
-WITH:
-
-    globally verifiable state identity
-    deterministic replay equivalence
-    consensus-bound finality
---------------------------------------------------------------------------------
-STATUS (ENGINE-COUPLED EXECUTION SPECIFICATION)
---------------------------------------------------------------------------------
-
-Closed Formal Specification / Deterministic Reachability Architecture /
-High-Assurance Distributed Execution System
-
---------------------------------------------------------------------------------
-L1 — EXECUTION KERNEL (Ξ SYSTEM)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Applies deterministic ECS state transition function:
-      S(t+1) = Ξ(S(t), INPUT(t))
-
-- Executes fixed-point physics (Q32.32)
-- Enforces strict update ordering (no iteration nondeterminism)
-
-INVARIANT EFFECT:
-- Eliminates floating-point drift class errors
-- Guarantees bitwise reproducibility across CPU / SIMD / WASM
-
---------------------------------------------------------------------------------
-L2 — REACHABILITY MANIFOLD ENGINE (Ω SPACE FILTER)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Validates whether state transitions are geometrically reachable
-- Rejects transitions that violate state-space constraints
-
-INVARIANT EFFECT:
-- Converts “logic errors” into non-reachable state rejection
-- Reframes invalid simulation states as topology violations, not runtime faults
-
---------------------------------------------------------------------------------
-L3 — TOTAL ORDER BROADCAST ENGINE (CAUSAL SEQUENCER)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Enforces deterministic ordering of all commands:
-      INPUT stream → total order log
-
-- Resolves concurrency via canonical sequence vector
-
-INVARIANT EFFECT:
-- Removes race-condition ambiguity entirely
-- Ensures identical event ordering across distributed nodes
-
---------------------------------------------------------------------------------
-L4 — PROOF GATE ENGINE (FORMAL VERIFICATION LAYER)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Embeds verification certificates into state transitions
-- Validates state hashes against expected formal constraints
-
-INVARIANT EFFECT:
-- Moves correctness from runtime assumption → verifiable property
-- Enables runtime-to-formal-spec equivalence checking
-
---------------------------------------------------------------------------------
-L4.5 — CAUSAL ANCHOR ENGINE (REPLAY RECONSTRUCTION CORE)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Stores intent stream instead of full raw replay
-- Reconstructs state via deterministic re-execution:
-
-      STATE = replay(INPUT, SEED)
-
-INVARIANT EFFECT:
-- Rollback is not “restore snapshot”
-- Rollback is “rebuild exact causal history”
-
---------------------------------------------------------------------------------
-L5 — DUAL-LANE CONSENSUS ENGINE (ATTRACTOR SYSTEM)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Maintains two parallel state vectors:
-      1. live execution trajectory
-      2. attractor convergence prediction
-
-- Compares divergence continuously via hash equivalence
-
-INVARIANT EFFECT:
-- Detects drift before finalization
-- Converts consensus into convergence problem rather than vote-only system
-
---------------------------------------------------------------------------------
-L6 — META-GOVERNANCE ENGINE (INVARIANT TRANSFORM LAYER)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Applies rule updates only if embedding invariance is preserved:
-      Φ(before) == Φ(after)
-
-INVARIANT EFFECT:
-- Prevents governance drift from breaking determinism
-- Treats system rules as reversible operators, not static config
-
---------------------------------------------------------------------------------
-L7 — HOLLOW-MERKLE ENGINE (STRUCTURE-ONLY INTEGRITY SYSTEM)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Hashes structure independently of payload content
-- Validates topology of state graph, not just data
-
-INVARIANT EFFECT:
-- Detects structural tampering even if data appears valid
-- Separates “shape integrity” from “value integrity”
-
---------------------------------------------------------------------------------
-L∞ — SEMANTIC WITNESS ENGINE (AUDIT EMBEDDING LAYER)
---------------------------------------------------------------------------------
-ACTION BINDING:
-- Embeds intent, meaning, and metadata into non-executable vector space
-- Does NOT affect execution outcome
-
-INVARIANT EFFECT:
-- Enables forensic traceability without affecting determinism
-- Separates semantic interpretation from computation logic
-
---------------------------------------------------------------------------------
-CORE CROSS-SYSTEM MECHANISM (THE ACTUAL NOVELTY BOUNDARY)
---------------------------------------------------------------------------------
-
-All engines converge through a shared embedding function:
-
-      Φ(state) → ℝⁿ
-
-SYSTEM-WIDE ACTION:
-
-- Every engine emits a state vector
-- Vectors are normalized into a single embedding manifold
-- Equality is defined as:
-
-      Φ(L1) = Φ(L2) = ... = Φ(L∞)
-
---------------------------------------------------------------------------------
-WHAT IS ESTABLISHED PRIOR ART (NOT CLAIMED AS NEW)
---------------------------------------------------------------------------------
-
-- Fixed-point simulation systems
-- ECS architectures (entity-component systems)
-- Rollback netcode systems
-- Byzantine consensus protocols
-- Merkle hashing systems
-- Deterministic replay engines
-
---------------------------------------------------------------------------------
-WHAT IS ACTUALLY PIONEERING IN THIS DESIGN
---------------------------------------------------------------------------------
-
-1. EMBEDDING-FIRST SYSTEM VALIDATION (Φ-UNIFICATION MODEL)
-   → Instead of verifying outputs individually, all system layers
-     must converge in a shared geometric embedding space.
-
-   Novel aspect:
-   - correctness is defined as vector-space equivalence across engines
-
-2. MULTI-ENGINE BISIMULATION ENFORCEMENT
-   → Runtime is continuously checked against its formal specification
-     AND its replay trace simultaneously
-
-   Novel aspect:
-   - specification, execution, and replay are treated as equal dynamical systems
-
-3. DUAL-LANE CONSENSUS (TRAJECTORY + ATTRACTOR MODEL)
-   → Consensus is not just voting; it is convergence validation
-
-   Novel aspect:
-   - system predicts its own final state and verifies convergence early
-
-4. STRUCTURE-SEPARATED HASHING (HOLLOW-MERKLE MODEL)
-   → Integrity of structure is independent of payload data
-
-   Novel aspect:
-   - graph topology becomes first-class verifiable object
-
-5. CAUSAL RECONSTRUCTION OVER SNAPSHOT STORAGE
-   → rollback is deterministic replay, not memory restoration
-
-   Novel aspect:
-   - state is treated as generative history, not stored snapshot
-
---------------------------------------------------------------------------------
-SYSTEM FINALITY RULE
---------------------------------------------------------------------------------
-
-A system state is FINAL iff:
-
-    Φ(L1) = Φ(L2) = ... = Φ(L∞)
-AND
-    replay trajectory ≡ attractor convergence path
-AND
-    no engine exceeds ε divergence threshold
-
---------------------------------------------------------------------------------
-CORE DESIGN STATEMENT
---------------------------------------------------------------------------------
-
-This system does not treat computation as execution.
-
-It treats computation as:
-
-    a verifiable geometric object evolving in embedding space
-
---------------------------------------------------------------------------------
-END OF ENGINE-COUPLED SPECIFICATION
---------------------------------------------------------------------------------
+PROPERTY:
+- Audit-grade verification
+- Post-hoc or parallel execution
+- High computational cost acceptable
 
 ===============================================================================
-FINAL INTERPRETATION
+IV. TRUTH MODEL TRANSFORMATION
 ===============================================================================
 
-This addendum closes the missing formal gaps:
+## CORE MODEL (L1–L5)
 
-- determinism → proven (not assumed)
-- consensus → bounded (not heuristic)
-- rollback → exact (not approximate)
-- hash → identity (not checksum)
-- execution → total function (not partial runtime)
+Truth is binary:
+
+    TRUE ⇔ S_A == S_B
+
+-------------------------------------------------------------------------------
+
+## EXTENDED MODEL (L1–L9)
+
+Truth becomes convergent:
+
+    TRUE ⇔
+        structural_integrity(S) ∧
+        spectral_stability(S) ∧
+        identity_consistency(S)
 
 ===============================================================================
-END OF MISSING LOGIC ADDENDUM
+V. ARCHITECTURAL GUARANTEE SHIFT
+===============================================================================
+
+## WITHOUT FORENSICS
+- System guarantees correctness of execution
+
+## WITH FORENSICS (L7–L9)
+- System guarantees correctness of:
+  - execution (L1–L5)
+  - structure (L8)
+  - sub-state integrity (L7)
+  - temporal stability (L9)
+
+===============================================================================
+VI. DEPLOYMENT MODES
+===============================================================================
+
+### MODE 1 — STANDARD SIMULATION
+Enabled:
+- L1–L5 only
+
+Use case:
+- Games
+- Real-time simulation
+- Low-latency systems
+
+-------------------------------------------------------------------------------
+
+### MODE 2 — FORENSIC VERIFIED SIMULATION
+Enabled:
+- L1–L9 full stack
+
+Use case:
+- Finance
+- Competitive integrity systems
+- Distributed verification systems
+- High-assurance simulation environments
+
+===============================================================================
+VII. FINAL DESIGN PRINCIPLE
+===============================================================================
+
+DVSM separates computation into:
+
+    EXECUTION (what happens)
+    STRUCTURE (what exists)
+    STABILITY (how it evolves)
+
+Only when all three agree is reality considered valid.
+
+===============================================================================
+END OF FORENSIC MANIFOLD EXTENSION SPECIFICATION
+===============================================================================
+Here is the next-stage single-file C++ formalization extension:
+
+===============================================================================
+DVSM :: CONVERGENT DETERMINISTIC CONSENSUS PROTOCOL
+Core Execution Kernel + Optional Forensic Manifold Extensions
+===============================================================================
+
+## DESIGN PHILOSOPHY
+
+DVSM is partitioned into two formally distinct execution regimes:
+
+### CORE SYSTEM (L1–L5)
+- Real-time deterministic simulation kernel
+- Designed for performance, predictability, and portability
+- Required for all deployments
+
+### FORENSIC EXTENSIONS (L7–L9)
+- Optional high-assurance verification manifold
+- Designed for auditability, integrity enforcement, and drift detection
+- Activated only in high-trust / high-stakes environments
+
+This separation ensures:
+- Minimal runtime overhead for standard simulation use cases
+- Maximum verification depth for regulated or adversarial environments
+
+===============================================================================
+I. CORE EXECUTION MANIFOLD (L1–L5)
+===============================================================================
+
+## L1 — Ξ EXECUTION KERNEL
+Deterministic ECS update system
+
+    S(t+1) = Ξ(S(t), I(t))
+
+Guarantee:
+- Bitwise deterministic across all platforms
+- Fixed-point arithmetic (no floating drift)
+
+-------------------------------------------------------------------------------
+
+## L3 — TOTAL ORDER BROADCAST
+Global deterministic input sequencing
+
+Guarantee:
+- All nodes process identical command ordering
+- Eliminates concurrency nondeterminism
+
+-------------------------------------------------------------------------------
+
+## L4 — STATE IDENTITY (S_ECHO)
+Canonical state fingerprinting system
+
+Guarantee:
+- Each state maps to a unique deterministic identity hash
+
+-------------------------------------------------------------------------------
+
+## L5 — CONSENSUS ATTRACTOR ENGINE
+Distributed finality system
+
+Guarantee:
+- State is accepted only if convergence stability is achieved
+- Rejects divergent or unstable trajectories
+
+===============================================================================
+CORE TRUTH MODEL
+===============================================================================
+
+Core correctness is binary:
+
+    S_A == S_B  ⇔  S_ECHO(A) == S_ECHO(B)
+
+This defines:
+
+- Execution correctness
+- Replay correctness
+- Consensus correctness
+
+===============================================================================
+II. FORENSIC MANIFOLD EXTENSIONS (L7–L9)
+===============================================================================
+
+These layers are OPTIONAL, COMPOSABLE, and AUDIT-FOCUSED.
+
+They do NOT modify core execution semantics.
+
+They operate as independent verification overlays.
+
+===============================================================================
+L7 — HOLLOW MERKLE (SUB-MANIFOLD VERIFICATION)
+===============================================================================
+
+## TYPE
+Optional Partial State Attestation Layer
+
+## PURPOSE
+Enable verification of localized ECS regions without requiring full-state reconstruction.
+
+## FORMAL MODEL
+
+    H(S) = MerkleRoot(Leaf_1 ... Leaf_n)
+
+## FUNCTIONAL ROLE
+- Region-based validation (interest management)
+- Sharded simulation trust boundaries
+- Partial proof-of-state systems
+
+## SYSTEM PROPERTY
+Transforms DVSM from:
+    "global state verification"
+into:
+    "localized verifiable sub-state systems"
+
+## CLASSIFICATION
+Add-on: High-Scale Distributed Optimization Layer
+
+===============================================================================
+L8 — TOPOLOGY GUARD (STRUCTURAL INVARIANCE LAYER)
+===============================================================================
+
+## TYPE
+Optional Structural Integrity Enforcement Layer
+
+## PURPOSE
+Validate ECS graph integrity independently of simulation values
+
+## FORMAL CONSTRAINT
+
+    T(S_t) ≅ T(S_{t+1}) mod ΔC
+
+## FUNCTIONAL ROLE
+- Detects entity corruption
+- Prevents ghost injection
+- Ensures ECS layout consistency
+
+## SYSTEM PROPERTY
+Separates:
+- VALUE correctness (L1–L5)
+from
+- STRUCTURE correctness (L8)
+
+## CLASSIFICATION
+Add-on: Security & Memory Integrity Layer
+
+===============================================================================
+L9 — SPECTRAL MONITOR (FORENSIC DRIFT DETECTOR)
+===============================================================================
+
+## TYPE
+Optional Temporal Stability & Forensic Analysis Layer
+
+## PURPOSE
+Detect latent nondeterminism before it manifests as consensus failure
+
+## FORMAL MODEL
+
+    Spec(S) = FFT(ΔS_ECHO)
+
+## FUNCTIONAL ROLE
+- Detects bit-flip instability trends
+- Identifies hardware-level drift
+- Provides predictive failure analysis
+
+## SYSTEM PROPERTY
+Transforms system monitoring from:
+    reactive failure detection
+into:
+    predictive stability forecasting
+
+## CLASSIFICATION
+Add-on: Forensic & Reliability Engineering Layer
+
+===============================================================================
+III. CORE VS FORENSIC SEPARATION MODEL
+===============================================================================
+
+## CORE SYSTEM (MANDATORY)
+- L1 Execution Kernel
+- L3 Ordering Engine
+- L4 Identity Layer
+- L5 Consensus Engine
+
+PROPERTY:
+- Minimal latency
+- Deterministic execution
+- Real-time simulation
+
+-------------------------------------------------------------------------------
+
+## FORENSIC SYSTEM (OPTIONAL)
+- L7 Partial Verification
+- L8 Structural Integrity
+- L9 Spectral Stability
+
+PROPERTY:
+- Audit-grade verification
+- Post-hoc or parallel execution
+- High computational cost acceptable
+
+===============================================================================
+IV. TRUTH MODEL TRANSFORMATION
+===============================================================================
+
+## CORE MODEL (L1–L5)
+
+Truth is binary:
+
+    TRUE ⇔ S_A == S_B
+
+-------------------------------------------------------------------------------
+
+## EXTENDED MODEL (L1–L9)
+
+Truth becomes convergent:
+
+    TRUE ⇔
+        structural_integrity(S) ∧
+        spectral_stability(S) ∧
+        identity_consistency(S)
+
+===============================================================================
+V. ARCHITECTURAL GUARANTEE SHIFT
+===============================================================================
+
+## WITHOUT FORENSICS
+- System guarantees correctness of execution
+
+## WITH FORENSICS (L7–L9)
+- System guarantees correctness of:
+  - execution (L1–L5)
+  - structure (L8)
+  - sub-state integrity (L7)
+  - temporal stability (L9)
+
+===============================================================================
+VI. DEPLOYMENT MODES
+===============================================================================
+
+### MODE 1 — STANDARD SIMULATION
+Enabled:
+- L1–L5 only
+
+Use case:
+- Games
+- Real-time simulation
+- Low-latency systems
+
+-------------------------------------------------------------------------------
+
+### MODE 2 — FORENSIC VERIFIED SIMULATION
+Enabled:
+- L1–L9 full stack
+
+Use case:
+- Finance
+- Competitive integrity systems
+- Distributed verification systems
+- High-assurance simulation environments
+
+===============================================================================
+VII. FINAL DESIGN PRINCIPLE
+===============================================================================
+
+DVSM separates computation into:
+
+    EXECUTION (what happens)
+    STRUCTURE (what exists)
+    STABILITY (how it evolves)
+
+Only when all three agree is reality considered valid.
+===============================================================================
+Below is the next-layer extension in the same C++/formal hybrid style
+===============================================================================
+===============================================================================
+DVSM :: CONVERGENT DETERMINISTIC CONSENSUS PROTOCOL
+Unified Specification + Living Governance Kernel (L1–L10 + L∞)
+Author: Daniel J. Dillberg
+License: AGPL-3.0 Network Copyleft
+===============================================================================
+
+STATUS: Formal Protocol Specification / Deterministic Distributed System
+TYPE: Living Versioned Consensus Manifold
+CORE IDEA: Reality is defined by deterministic execution + global convergence
+
+-------------------------------------------------------------------------------
+CORE AXIOM
+-------------------------------------------------------------------------------
+
+Φ(L1) = Φ(L2) = Φ(L3) = Φ(L4) = Φ(L5) = Φ(L7) = Φ(L8) = Φ(L9) = Φ(L10)
+
+A state is considered REAL only if:
+- It is produced by deterministic execution (Ξ)
+- It passes identity binding (S_ECHO)
+- It remains stable under structural + spectral + governance invariants
+- It preserves full historical continuity (L∞)
+
+-------------------------------------------------------------------------------
+SYSTEM EQUATION (GLOBAL FORM)
+-------------------------------------------------------------------------------
+
+REALITY(t) =
+    CONSENSUS(
+        S_ECHO(
+            Ξ_V(INPUT(t), STATE(t-1))
+        )
+    )
+    ⊗ L7 ⊗ L8 ⊗ L9 ⊗ L10
+
+-------------------------------------------------------------------------------
+L1–L3 :: EXECUTION & ORDERING KERNEL
+-------------------------------------------------------------------------------
+
+S(t+1) = Ξ(S(t), I(t))
+
+- Fixed-point deterministic ECS simulation
+- Strict ordering of all commands
+- No nondeterministic iteration allowed
+- Bitwise reproducible across CPU/GPU/WASM
+
+-------------------------------------------------------------------------------
+L4–L5 :: CONSENSUS & ATTRACTION LAYER
+-------------------------------------------------------------------------------
+
+- S_ECHO defines canonical state identity
+- Consensus is convergence-based, not voting-based
+
+Condition:
+Φ(L1) ∩ Φ(L5) ≠ ∅ → FINAL STATE
+
+Purpose:
+Ensures global agreement on deterministic truth trajectory
+
+-------------------------------------------------------------------------------
+L7 :: HOLLOW MERKLE (PARTIAL STATE VERIFICATION)
+-------------------------------------------------------------------------------
+
+Purpose:
+Enable partial state verification without full world replay
+
+Function:
+H(S) = MerkleRoot(leaf_1 ... leaf_n)
+
+Properties:
+- Local sub-state attestation
+- Shard-level verification
+- Global anchor compatibility
+
+Role:
+Prevents full-state recomputation for verification workloads
+
+-------------------------------------------------------------------------------
+L8 :: STRUCTURAL INVARIANCE LAYER
+-------------------------------------------------------------------------------
+
+Constraint:
+T(S_t) ≅ T(S_{t+1})
+
+Purpose:
+- Enforces ECS topology integrity
+- Prevents ghost entities
+- Prevents memory structure mutation outside deterministic rules
+
+Interpretation:
+State values may change, structure cannot silently drift
+
+-------------------------------------------------------------------------------
+L9 :: SPECTRAL STABILITY LAYER
+-------------------------------------------------------------------------------
+
+Definition:
+Spec(S) = FFT(ΔS_ECHO)
+
+Purpose:
+- Detects hidden nondeterminism
+- Identifies bit-flip noise accumulation
+- Detects floating-point or scheduling drift before desync
+
+Rule:
+If spectral energy > ε → system enters forensic instability state
+
+-------------------------------------------------------------------------------
+L10 :: INVARIANT-PRESERVING PROTOCOL EVOLUTION
+-------------------------------------------------------------------------------
+
+Purpose:
+Allows system evolution without breaking historical replay
+
+Core Model:
+S_{t+1}(V_next) = Ξ_Vnext(S_t(V_prev), I_t)
+
+VALID ONLY IF:
+- L7–L9 remain stable
+- S_ECHO equivalence preserved
+- Mapping Φ exists and is bijective
+
+Interpretation:
+Code evolves, but truth equivalence classes do not
+
+-------------------------------------------------------------------------------
+STATE MIGRATION CERTIFICATE (SMC)
+-------------------------------------------------------------------------------
+
+SMC = proof object for version transition correctness
+
+Structure:
+- pre_state  = S_ECHO(V_prev, S_t)
+- post_state = S_ECHO(V_next, S_{t+1})
+- mapping    = Φ(V_prev → V_next)
+
+VALID IF:
+S_ECHO(pre_state) == S_ECHO(post_state ∘ Φ)
+
+Function:
+- Prevents silent forks
+- Enables verifiable upgrades
+- Binds runtime evolution to cryptographic proof
+
+-------------------------------------------------------------------------------
+L∞ :: SEMANTIC WITNESS (HISTORICAL CONTINUITY LAYER)
+-------------------------------------------------------------------------------
+
+Definition:
+Entire execution history treated as immutable object:
+
+T = [H(S_0), H(S_1), ... H(S_t)]
+
+Property:
+- No version upgrade can invalidate past history
+- Time becomes cryptographically anchored
+
+-------------------------------------------------------------------------------
+AGPL-3.0 GOVERNANCE MODEL
+-------------------------------------------------------------------------------
+
+DVSM is licensed under AGPL-3.0 with network copyleft enforcement.
+
+Protected components:
+- Ξ execution kernel
+- S_ECHO identity system
+- L7 hollow merkle verification
+- L9 spectral stability analysis
+- L10 protocol evolution system
+
+Rule:
+Any network service using DVSM must expose:
+- state migration proofs (SMC)
+- forensic invariants
+- spectral stability metrics
+
+Purpose:
+Prevent closed-source divergence of deterministic truth systems
+
+-------------------------------------------------------------------------------
+SYSTEM CLASSIFICATION CHANGE
+-------------------------------------------------------------------------------
+
+Before:
+Deterministic Simulation Engine
+
+After:
+Living Deterministic Protocol
+
+Reason:
+System now includes self-verifying evolution (L10)
+
+-------------------------------------------------------------------------------
+FINAL DESIGN STATEMENT
+-------------------------------------------------------------------------------
+
+DVSM does not simulate reality.
+
+DVSM defines reality as:
+
+- deterministic execution
+- cryptographic identity
+- structural invariance
+- spectral stability
+- version-consistent evolution
+
+Reality is not computed.
+
+Reality is verified.
+
+-------------------------------------------------------------------------------
+END OF PROTOCOL SPECIFICATION
 ===============================================================================
