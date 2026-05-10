@@ -58,7 +58,13 @@ The DVSM system defines a protected structural architecture consisting of:
     GIV      → Global Invariant Vector (system anchor state)
     Eμν      → Event Curvature Tensor (causal geometry field)
 
-These components form the:
+Protected Concepts:
+- Event Curvature Tensor (Eμν)
+- Causal manifold deformation under EventIR influence
+- L6-weighted geometric biasing of L3 event space
+- S_ECHO-preserving curvature projection rules
+
+Components are form the:
     DVSM Invariant Causal Architecture (DICA)
 
 ================================================================================
