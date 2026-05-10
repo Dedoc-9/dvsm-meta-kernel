@@ -38,17 +38,41 @@ CORE EXECUTION MODEL:
 
 STATE(t+1) = Ξ(INPUT(t), STATE(t))
 
-The system is pioneeringly grounded in a discrete deterministic state-transition
-equation with cryptographic identity finality:
+The system is grounded in a deterministic state-transition model where
+execution is fully defined by a pure update function Ξ over a fixed and
+replayable system state.
 
-    STATE(t+1) = Ξ(INPUT(t), STATE(t))
+State identity is derived from a cryptographic hashing function:
 
-where correctness is enforced through hash-based identity equivalence:
+    S_ECHO(STATE) → Hash(STATE)
 
-    S_ECHO(STATE)
+This function provides deterministic state equivalence verification:
 
-This replaces probabilistic convergence with deterministic replayable execution
-and cryptographic state identity validation.
+    STATE_A ≡ STATE_B ⇔ S_ECHO(STATE_A) == S_ECHO(STATE_B)
+
+This enables:
+- deterministic replay across machines
+- verification of state consistency
+- detection of divergence between simulations
+
+IMPORTANT CLARIFICATION:
+
+S_ECHO does not provide system-wide finality by itself.
+Finality requires an external consensus or validation layer.
+
+Therefore the system provides:
+- deterministic execution (core kernel property)
+- cryptographic state identity (verification layer)
+- optional consensus mechanisms (network layer)
+
+Rather than replacing probability in networking, the model replaces
+nondeterministic execution outcomes with replayable, identical-state
+computation under identical inputs.
+
+RESULT:
+
+A deterministic simulation kernel with cryptographic state equivalence
+verification and optional distributed consensus extension.
 
 ===============================================================================
 
