@@ -21,7 +21,7 @@ NXT THEORY KERNEL (advanced for deploy): https://github.com/Dedoc-9/dvsm-meta-ke
 // - Removed ambiguity where L1 equality was incorrectly implied as meaningful
 //
 // ============================================================================
-// STATUS (Pre-NXT):
+// STATUS (Pre-NXT below unless specified)
 // Formal Protocol Specification / Deterministic Distributed Execution System
 // (Configurable Consensus Observation Layer)
 //
