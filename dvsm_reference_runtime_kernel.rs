@@ -298,6 +298,275 @@ fn main() {
 // RESULT:
 // A production-lean, engine-grade deterministic simulation kernel.
 // ============================================================================
+//// ============================================================================
+// DVSM :: EXECUTION FABRIC KERNEL EXTENSION
+// Noise Deconstruction + Shard Tracking + Anti-Cheat Validation Layer
+// Compatible with DUMEStrictEngine + AuditLogV3 + Deterministic Envelope System
+// ============================================================================
+//
+// PURPOSE:
+// This module formalizes runtime enforcement for:
+// - deterministic integrity verification
+// - shard-level state tracking
+// - noise reduction / anomaly classification
+// - anti-cheat validation gate
+//
+// It is a STRICT EXECUTION LAYER (not philosophical extension).
+// ============================================================================
+
+import Foundation
+import CryptoKit
+
+// ============================================================================
+// MARK: - SHARD MODEL (STATE PARTITIONING LAYER)
+// ============================================================================
+
+public struct StateShard: Sendable, Codable {
+    public let shardID: String
+    public let envelopeIDs: [String]
+    public let hash: Data
+    public let tickRange: ClosedRange<UInt64>
+}
+
+// ============================================================================
+// MARK: - NOISE PROFILE (DETERMINISTIC DEVIATION MODEL)
+// ============================================================================
+
+public struct NoiseProfile: Sendable {
+    public let entropyDelta: Float
+    public let driftDelta: Float
+    public let hashVariance: Float
+    public let anomalyScore: Float
+}
+
+// ============================================================================
+// MARK: - ANTI-CHEAT CLASSIFIER
+// ============================================================================
+
+public enum CheatClassification: String, Sendable {
+    case clean
+    case suspicious
+    case desyncDetected
+    case invalidStateInjection
+}
+
+// ============================================================================
+// MARK: - EXECUTION INTEGRITY ENGINE
+// ============================================================================
+
+public final class DVSMIntegrityKernel {
+
+    private let crypto = SHA256()
+
+    // ------------------------------------------------------------
+    // SHARD TRACKING TABLE
+    // ------------------------------------------------------------
+
+    private var shardMap: [String: StateShard] = [:]
+
+    // ------------------------------------------------------------
+    // NOISE ACCUMULATION BUFFER
+    // ------------------------------------------------------------
+
+    private var noiseWindow: [NoiseProfile] = []
+    private let noiseLimit = 64
+
+    public init() {}
+
+    // ========================================================================
+    // SHARD REGISTRATION
+    // ========================================================================
+
+    public func registerShard(_ shard: StateShard) {
+        shardMap[shard.shardID] = shard
+    }
+
+    public func getShard(_ id: String) -> StateShard? {
+        shardMap[id]
+    }
+
+    // ========================================================================
+    // NOISE DECONSTRUCTION (STABLE STATE FILTERING)
+    // ========================================================================
+
+    public func analyzeNoise(entropy: Float,
+                             drift: Float,
+                             hashVariance: Float) -> NoiseProfile {
+
+        let anomaly = (entropy * 0.4) +
+                      (drift * 0.4) +
+                      (hashVariance * 0.2)
+
+        let profile = NoiseProfile(
+            entropyDelta: entropy,
+            driftDelta: drift,
+            hashVariance: hashVariance,
+            anomalyScore: anomaly
+        )
+
+        noiseWindow.append(profile)
+
+        if noiseWindow.count > noiseLimit {
+            noiseWindow.removeFirst()
+        }
+
+        return profile
+    }
+
+    // ========================================================================
+    // ANTI-CHEAT VALIDATION (STATE CONSISTENCY GATE)
+    // ========================================================================
+
+    public func classify(profile: NoiseProfile) -> CheatClassification {
+
+        if profile.anomalyScore < 0.2 {
+            return .clean
+        }
+
+        if profile.anomalyScore < 0.5 {
+            return .suspicious
+        }
+
+        if profile.hashVariance > 0.8 {
+            return .desyncDetected
+        }
+
+        return .invalidStateInjection
+    }
+
+    // ========================================================================
+    // SHARD CONSISTENCY CHECK (DETERMINISTIC VALIDATION)
+    // ========================================================================
+
+    public func validateShardIntegrity(_ shard: StateShard,
+                                       expectedTick: UInt64) -> Bool {
+
+        guard shard.tickRange.contains(expectedTick) else {
+            return false
+        }
+
+        let recomputed = SHA256.hash(
+            data: Data(shard.envelopeIDs.joined().utf8)
+        )
+
+        return Data(recomputed) == shard.hash
+    }
+
+    // ========================================================================
+    // GLOBAL INTEGRITY PASS CHECK
+    // ========================================================================
+
+    public func systemIntegrityOK() -> Bool {
+
+        let avgAnomaly = noiseWindow
+            .map { $0.anomalyScore }
+            .reduce(0, +) / max(Float(noiseWindow.count), 1)
+
+        return avgAnomaly < 0.35
+    }
+}
+
+// ============================================================================
+// MARK: - DVSM EXECUTION FABRIC EXTENSION (HOOK INTO STRICT ENGINE)
+// ============================================================================
+
+public extension DUMEStrictEngine {
+
+    // Inject integrity kernel without modifying core engine
+    private static var integrityKernel = DVSMIntegrityKernel()
+
+    // ========================================================================
+    // ENHANCED INGEST WITH NOISE + SHARD TRACKING
+    // ========================================================================
+
+    func ingestValidated(
+        id: String,
+        vector: [Float],
+        ctx: CompressionContext,
+        shardID: String
+    ) async throws {
+
+        // STEP 1: RUN ORIGINAL INGEST
+        try await self.ingest(id: id, vector: vector, ctx: ctx)
+
+        // STEP 2: FETCH ENVELOPE
+        guard let env = try await self.retrieveEnvelope(id: id) else {
+            throw DUMEError.storageError("missing envelope")
+        }
+
+        // STEP 3: COMPUTE NOISE PROFILE
+        let noise = Self.integrityKernel.analyzeNoise(
+            entropy: ctx.entropy,
+            drift: ctx.drift,
+            hashVariance: Float(env.entropy)
+        )
+
+        // STEP 4: CLASSIFY STATE
+        let classification = Self.integrityKernel.classify(profile: noise)
+
+        // STEP 5: OPTIONAL SHARD UPDATE
+        let shard = StateShard(
+            shardID: shardID,
+            envelopeIDs: [id],
+            hash: SHA256.hash(data: Data(id.utf8)),
+            tickRange: env.timestamp...(env.timestamp + 1)
+        )
+
+        Self.integrityKernel.registerShard(shard)
+
+        // STEP 6: ENFORCEMENT (HARD FAIL ON INVALID STATE)
+        if classification == .invalidStateInjection {
+            fatalError("DVSM INTEGRITY VIOLATION: invalid state injection detected")
+        }
+    }
+
+    // ========================================================================
+    // SYSTEM HEALTH QUERY
+    // ========================================================================
+
+    func dvsmSystemHealthy() -> Bool {
+        Self.integrityKernel.systemIntegrityOK()
+    }
+}
+
+// ============================================================================
+// MARK: - EXECUTION SUMMARY (ENGINEERING ONLY)
+// ============================================================================
+//
+// THIS EXTENSION ADDS:
+//
+// 1. SHARD TRACKING
+//    - partitions deterministic state into verifiable segments
+//
+// 2. NOISE DECONSTRUCTION
+//    - converts entropy/drift into measurable anomaly score
+//
+// 3. ANTI-CHEAT CLASSIFICATION
+//    - deterministic state validation (clean/suspicious/fail)
+//
+// 4. INTEGRITY GATE
+//    - enforces rejection of corrupted state injection
+//
+// 5. NON-INTRUSIVE DESIGN
+//    - does NOT modify core ECS or audit system
+//    - operates as external enforcement layer
+//
+// ============================================================================
+//
+// RESULTING ARCHITECTURE:
+//
+// DUMEStrictEngine
+//      ↓
+// AuditLogV3
+//      ↓
+// DVSMIntegrityKernel
+//      ↓
+// Shard + Noise Validation Layer
+//
+// ============================================================================
+//
+// END OF KERNEL EXTENSION
+// ============================================================================
 //
 // AGPL-3.0 NOTICE:
 // This software is licensed under the GNU Affero General Public License v3.0.
