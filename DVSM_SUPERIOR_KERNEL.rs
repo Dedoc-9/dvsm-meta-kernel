@@ -2,6 +2,7 @@
 // DVSM_SUPERIOR_KERNEL.rs
 // Deterministic ECS + Netcode + Rollback + SIMD + GPU + QUIC + Delta Codec
 // Single-file production kernel (logical repo fusion)
+// Author: Daniel J. Dillberg
 // ============================================================================
 //
 // LOGICAL REPO STRUCTURE (embedded):
