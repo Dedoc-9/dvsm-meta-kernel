@@ -1,23 +1,20 @@
 AUTHOR BLOCK / PROVENANCE / INTELLECTUAL FRAMEWORK NOTICE
-
 ============================================================
 PROJECT
 ============================================================
 DVSM :: Industrial Meta-Kernel v1.0
 Deterministic Distributed Execution + Multi-Scale Invariant Consensus System
-
 ============================================================
 AUTHORSHIP
 ============================================================
-Primary Author:
-- System Architecture: Formal deterministic distributed execution design (DVSM specification layer)
+Primary Author: Daniel J. Dillberg
 
-Contributors:
-- Derived engineering synthesis across deterministic ECS simulation, consensus systems, and renormalization-based invariance modeling
+CLASSIFICATION:
+Type: Formal Deterministic Distributed Execution Specification
 
-Note:
-This system is a formal specification artifact, not a natural language hypothesis. All components are defined as executable or verifiable logic constructs.
+Category: Consensus-Verified Computational Manifold Design
 
+Domain: Systems Engineering / Distributed Simulation / Cryptographic State Theory
 ============================================================
 LICENSE
 ============================================================
