@@ -27,33 +27,64 @@ simulation engine where:
 ABSTRACT
 ===============================================================================
 
-This system defines a unified computational substrate combining:
+This system defines a unified deterministic execution substrate composed of four
+coordinated engine layers:
 
-- Deterministic ECS simulation (fixed-point arithmetic)
-- Byzantine-resilient consensus validation
-- Rollback + replay safety model
-- Cryptographic state identity hashing (S_ECHO)
-- Networked simulation synchronization model
+1. L1 — Deterministic Execution Kernel (Ξ)
+   - Fixed-point ECS simulation (Q32.32)
+   - Ordered command resolution
+   - Platform-invariant state evolution
+
+2. L3 — Causal Ordering Engine
+   - Total-order broadcast of all inputs/events
+   - Deterministic sequencing across distributed nodes
+   - Eliminates concurrency nondeterminism
+
+3. L4 / L4.5 — Verification & Causal Anchor Engine
+   - Cryptographic state identity hashing (S_ECHO)
+   - Formal validation gate
+   - Replay-based deterministic reconstruction (rollback-as-replay)
+
+4. L5 — Consensus / Attractor Convergence Engine
+   - Byzantine-resilient quorum validation
+   - Dual-lane tracking (execution trajectory vs predicted convergence)
+   - Finality determined by convergence stability, not authority
+
+--------------------------------------------------------------------------------
+SYSTEM CAPABILITIES
+--------------------------------------------------------------------------------
+
+- Deterministic ECS simulation with fixed-point arithmetic
+- Byzantine-resilient distributed consensus validation
+- Rollback via causal replay reconstruction (not snapshot trust)
+- Cryptographic state identity binding (S_ECHO)
+- Network-synchronized deterministic simulation across nodes
 - Hardware-agnostic execution (CPU / SIMD / GPU / WASM)
 
-The architecture prioritizes:
-
-1. Bitwise determinism across platforms
-2. Divergence detection via state hashing
-3. Consensus-driven finality rather than local truth
-4. Rollback-based correction rather than mutation repair
-
 --------------------------------------------------------------------------------
-ABSTRACT — ENGINE SUMMARY (DVSM v∞ CORE)
+PRIMARY ARCHITECTURAL GUARANTEES
 --------------------------------------------------------------------------------
 
-DVSM defines a deterministic, multi-engine execution substrate in which all
-computation is reduced to embedding-consistent state evolution:
+1. Bitwise determinism across all supported platforms
+2. Divergence detection via embedding/hash consistency checks
+3. Consensus-driven finality (global agreement over local correctness)
+4. Rollback via deterministic reconstruction, not mutation repair
 
-    Φ(state) → ℝⁿ
+--------------------------------------------------------------------------------
+CORE DESIGN PHILOSOPHY ("CONVERGENCE MODEL")
+--------------------------------------------------------------------------------
 
-Correctness is not assumed locally; it is enforced globally through
-cross-engine embedding equivalence and causal convergence.
+Traditional systems assume:
+    local correctness → eventual consistency
+
+DVSM inverts this model:
+
+    deterministic execution → global verification → accepted reality
+
+Thus:
+
+    computation is not trusted at runtime
+    computation is continuously verified across independent deterministic engines
 
 --------------------------------------------------------------------------------
 FOUR PRIMARY ENGINES
@@ -103,24 +134,27 @@ AND
 SYSTEM GUARANTEE MODEL
 --------------------------------------------------------------------------------
 
-- Deterministic execution across CPU / SIMD / WASM targets
-- Bitwise identical replay and reconstruction
-- Byzantine-resistant state agreement via embedding convergence
-- Rollback via causal re-synthesis, not snapshot trust
-- Execution validity defined by cross-engine geometric equivalence
+- Deterministic execution across CPU / SIMD / GPU / WASM targets via fixed-point kernel (L1 — Ξ Execution Engine)
+- Bitwise-identical replay and reconstruction enforced through causal anchor re-execution (L4.5 — Causal Anchor Engine)
+- Byzantine-resistant state agreement enforced via attractor convergence + quorum validation (L5 — Consensus / Attractor Engine)
+- Rollback via deterministic causal re-synthesis rather than snapshot restoration (L4.5 + L1 combined reconstruction pipeline)
+- Execution validity defined through cross-engine embedding equivalence (Φ-space agreement across L1–L5 manifold)
 
 --------------------------------------------------------------------------------
 CORE PRINCIPLE
+--------------------------------------------------------------------------------
 
-The system does not resolve computation by trust, probability, or authority.
+The system does not resolve computation through trust, probability, or authority.
 
-It resolves computation by:
+It resolves computation through:
 
     geometric agreement across independent deterministic engines
 
---------------------------------------------------------------------------------
-END ABSTRACT
---------------------------------------------------------------------------------
+Where correctness is defined as:
+
+    Φ(L1) = Φ(L3) = Φ(L4/L4.5) = Φ(L5)
+
+within bounded divergence ε.
 
 ===============================================================================
 CORE DESIGN PHILOSOPHY ("CONVERGENCE MODEL")
