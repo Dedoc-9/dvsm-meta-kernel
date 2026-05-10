@@ -1,8 +1,13 @@
+===============================================================================
+DVSM: CONVERGENT DETERMINISTIC CONSENSUS PROTOCOL
+Unified Specification + Reference Kernel + Verification Manifold
+Author: Daniel J. Dillberg
+Contact: BigDilly95@gmail.com
+License: AGPL-3.0 (Network Copyleft Enforcement)
 ================================================================================
 DVSM :: EXTENDED EXECUTION ADDENDUM (README-2)
 Green Runtime + Dual-Mode Deterministic Kernel Extension
 ================================================================================
-
 PURPOSE
 --------------------------------------------------------------------------------
 This document extends the DVSM reference kernel with:
