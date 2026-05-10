@@ -8,11 +8,12 @@ License: AGPL-3.0 (Network Copyleft Enforcement)
 dvsm_meta_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_meta_kernel.rs
 dvsm_reference_runtime_kernel.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_reference_runtime_kernel.rs
 NXT THEORY KERNEL (advanced for deploy): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/NXT%20THEORY%20KERNEL
-    + IBMSA Kernel
-    + dvsm_genesis_l6_kernel.rs
-    + Stable Waveform Truth
-    + Eμν_CORE.v1
-    + DVSM_CKITL_GENESIS
+    + IBMSA Kernel (MIT-IBMSA: invariant multi-basin state architecture core)
+    + dvsm_genesis_l6_kernel.rs (MIT-L6: deterministic incentive execution kernel in Rust)
+    + Stable Waveform Truth (MIT-SWT: renormalized invariant signal truth layer)
+    + Eμν_CORE.v1 (MIT-EINSTEIN: event curvature tensor field definition core)
+    + DVSM_CKITL_GENESIS (MIT-CKITL: cross-kernel invariant translation bootstrap layer)
+    + CMST_MASTER_ARCHIVE (MIT-CMST: cross-manifold synchronization final authority layer)
 ===============================================================================
 // NOTE: NXT THEORY KERNEL
 //  What was actually fixed (important, non-rhetorical):
