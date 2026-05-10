@@ -836,5 +836,203 @@ under invariant-space equivalence:
     REALITY ≡ fixed_point(S_ECHO ∘ Renormalize ∘ EventAlgebra)
 
 -------------------------------------------------------------------------------
+
+===============================================================================
+DVSM ADDENDUM v1.2 :: EVENT INVARIANT IR + BINARY SERIALIZATION SPEC
+===============================================================================
+
+[SCOPE]
+This addendum defines:
+1. Typed IR for EventInvariantSpace
+2. Canonical binary serialization format
+3. Deterministic hash schedule for S_ECHO binding
+4. Cross-node replay compatibility rules
+
+This specification is REQUIRED for any implementation of L4–L5 validation,
+L7–L9 forensic systems, or distributed execution reconciliation.
+
+-------------------------------------------------------------------------------
+I. EVENT INVARIANT IR (EIR)
+-------------------------------------------------------------------------------
+
+EventInvariantSpace is represented as a strongly-typed intermediate representation:
+
+    EIR := TypedCanonicalEvent
+
+-------------------------------------------------------------------------------
+[CORE TYPE SYSTEM]
+
+All events are encoded into one of the following deterministic classes:
+
+    enum EventTypeID (uint16):
+
+        0x01  INPUT_COMMAND
+        0x02  PHYSICS_DELTA
+        0x03  STATE_MUTATION
+        0x04  NETWORK_MESSAGE
+        0x05  CONSENSUS_SIGNAL
+        0x06  ROLLBACK_MARKER
+        0x07  PROOF_ATTESTATION
+        0x08  SYSTEM_NOISE_OBSERVATION (non-executing)
+        0x09  RENORMALIZATION_ANCHOR
+
+RULE:
+    EventTypeID defines semantic execution rules, not interpretation.
+
+-------------------------------------------------------------------------------
+II. CANONICAL EVENT IR STRUCTURE (FIXED LAYOUT)
+-------------------------------------------------------------------------------
+
+All events MUST serialize into the following binary layout:
+
+    struct EventIR (canonical 64-byte minimum header):
+
+        uint16  type_id
+        uint64  sequence_epoch (L3 τ index)
+        uint64  origin_cell_hash
+        uint64  effect_signature
+        int64   entropy_bound_fixed
+        uint64  payload_size
+        uint64  payload_offset
+        uint64  reserved_flags
+
+    payload:
+        byte[payload_size]  deterministic content blob
+
+-------------------------------------------------------------------------------
+III. CANONICALIZATION RULES
+-------------------------------------------------------------------------------
+
+Before serialization:
+
+1. All floating-point values MUST be converted to fixed-point Q64.64
+2. All vectors MUST be sorted lexicographically
+3. All optional fields MUST be replaced with deterministic zero-state
+4. All timestamps MUST be replaced with L3 sequence_epoch (no wall time)
+
+RULE:
+    Any non-canonical input is rejected at L4 Proof Gate.
+
+-------------------------------------------------------------------------------
+IV. BINARY SERIALIZATION FORMAT (DVSM-BIN v1)
+
+Encoding:
+    Little-endian, fixed-width alignment (8-byte boundary)
+
+Final layout:
+
+    [HEADER: 64 bytes]
+    [PAYLOAD: variable aligned]
+    [FOOTER: 32 bytes]
+
+-------------------------------------------------------------------------------
+FOOTER STRUCTURE:
+
+    uint64  payload_crc64
+    uint64  invariant_hash_low
+    uint64  invariant_hash_high
+    uint64  S_ECHO_binding_tag
+
+-------------------------------------------------------------------------------
+V. HASH SCHEDULE (DETERMINISTIC PIPELINE)
+-------------------------------------------------------------------------------
+
+S_ECHO is computed via staged folding:
+
+STEP 1 — HEADER HASH
+    H1 = SHA256(EventIR header excluding reserved_flags)
+
+STEP 2 — PAYLOAD HASH
+    H2 = SHA256(payload)
+
+STEP 3 — STRUCTURAL COMBINE
+    H3 = SHA256(H1 || H2 || EventTypeID)
+
+STEP 4 — INVARIANT REDUCTION
+    H4 = Fold64(H3 XOR sequence_epoch XOR origin_cell_hash)
+
+STEP 5 — FINAL IDENTITY BINDING
+
+    S_ECHO = SHA256(H4 || entropy_bound_fixed)
+
+RULE:
+    No step may be parallelized in a non-deterministic order.
+    Fold order is strictly sequential and architecture-independent.
+
+-------------------------------------------------------------------------------
+VI. CROSS-NODE REPLAY CONSISTENCY RULE
+-------------------------------------------------------------------------------
+
+Two nodes are equivalent iff:
+
+    Replay(L3_stream_A) == Replay(L3_stream_B)
+
+AND:
+
+    For all events E:
+        S_ECHO(E_A) == S_ECHO(E_B)
+
+IMPORTANT:
+    Equality is defined in invariant space, not byte identity space.
+
+-------------------------------------------------------------------------------
+VII. EVENT TYPE EXECUTION SEMANTICS
+
+INPUT_COMMAND:
+    Enters L1 execution pipeline
+
+PHYSICS_DELTA:
+    Applied only inside Ξ kernel
+
+STATE_MUTATION:
+    Requires L4 validation gate approval
+
+NETWORK_MESSAGE:
+    Must pass L3 ordering validation
+
+CONSENSUS_SIGNAL:
+    Evaluated only in L5 attractor space
+
+ROLLBACK_MARKER:
+    Triggers ℛ reconstruction logic
+
+PROOF_ATTESTATION:
+    Validated purely in L4 (no execution side effects)
+
+SYSTEM_NOISE_OBSERVATION:
+    Stored but excluded from execution graph
+
+RENORMALIZATION_ANCHOR:
+    Defines invariant projection boundary
+
+-------------------------------------------------------------------------------
+VIII. FORMAL SYSTEM INTEGRATION RULE
+
+This IR defines the boundary between:
+
+    EXECUTION SPACE (L1–L3)
+    VERIFICATION SPACE (L4–L5)
+    FORENSIC SPACE (L7–L9)
+
+Mapping:
+
+    EventIR → Renormalize(EventIR) → EventInvariantSpace → S_ECHO
+
+-------------------------------------------------------------------------------
+IX. FINAL SYSTEM PROPERTY
+
+The DVSM kernel becomes a fully deterministic distributed system only if:
+
+    - All events are representable in EventIR form
+    - All state transitions are expressible as Event sequences
+    - All consensus is performed over S_ECHO(EventInvariant)
+
+Otherwise:
+
+    system is non-compliant and considered non-DVSM-compatible
+
+-------------------------------------------------------------------------------
+END OF ADDENDUM v1.2
+===============================================================================
 [END OF PATCHED FINAL SPECIFICATION]
 ===============================================================================
