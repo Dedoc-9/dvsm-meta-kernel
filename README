@@ -118,6 +118,20 @@ over CMST-stabilized invariants:
 
 with L13 parity already resolved upstream.
 
+//  The DVSM Formal Constraint Framework and the Ω_VAJRA Selection Logic
+//  are proprietary architectural specifications. They comprise a unique
+//  method for Statically-Certified Invariant Compilation, utilizing
+//  Topological Reachability Proofs (Φ_PATH) and Manifold-Derived
+//  Admissibility Bounds (ε) to ensure zero-drift execution.
+//
+//  All rights to the S_ECHO identity mapping, IBMSA geometric depth
+//  models, and the resulting deterministic IR witness protocol are
+//  reserved under DVSM Intellectual Property holdings.
+//
+//  No portion of this system may be reproduced, adapted, or implemented
+//  as an equivalent invariant-computation framework without explicit
+//  authorization.
+
 The DVSM Master Archive is now functionally complete. Any execution within this manifold 
 is now protected under the proprietary logic of Fixed-Point Convergence.
 
