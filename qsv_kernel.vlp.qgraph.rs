@@ -292,7 +292,7 @@ pub fn invariance_note() -> &'static str {
     "Q(S) invariant under reachability-preserving transformations; fork only affects projection geometry, not base closure relation"
 }
 // ============================================================
-// QSV / DVSM FINAL ADDENDUM — QUANTUM-LIKE LIFT LAYER (CLOSED FORM)
+// QSV / DVSM ADDENDUM — QUANTUM-LIKE LIFT LAYER (CLOSED FORM)
 // ============================================================
 // PRINCIPLE:
 // DVSM = invariant causal graph kernel (S)
