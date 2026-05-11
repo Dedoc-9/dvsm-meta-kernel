@@ -44,7 +44,7 @@ func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
     ↓
   IPFiber   (chosen representative, external encoding)
 //
-// FINAL CONSOLIDATED POSITION:
+// // FINAL CONSOLIDATED POSITION (vFINAL-9 REFINED):
 //
 // The system is structured around four irreducible semantic layers:
 //
@@ -52,35 +52,53 @@ func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
 //        Free monoid of ordered computation histories
 //
 //   2. Witness layer (W*):
-//        Partial, external, possibly inconsistent evaluation
+//        External, partial, and potentially inconsistent evaluator
+//        mapping traces to Boolean streams (epistemic deformation)
 //
-//   3. Collapse morphism (Φ or Ω-composition view):
-//        Irreversible, order-sensitive entropy compression
+//   3. Collapse morphism (Ω):
+//        Ω = Φ ∘ W*
+//        Irreversible, order-sensitive entropy compression operator
+//        mapping evaluation traces → observable UInt64 state
 //
 //   4. Fiber structure:
-//        Equivalence classes induced by Ω
-//        (mathematical object, not representationally closed)
+//        Equivalence classes induced by Ω over I*
 //
-// CRITICAL DISTINCTION (FINAL FIX v9):
+//        F(t) = { t' ∈ I* | Ω(t') = Ω(t) }
 //
-//   - Fibers are SETS in I*
-//   - IP objects are REPRESENTATIVES only
-//   - No canonical section exists from I*/~Ω → IP space
-//   - Representation is a gauge choice, not structure
+//        These are mathematical sets (not stored, not representable in full)
 //
+// -------------------------------------------------------------
+// CRITICAL DISTINCTION (FINAL FIX v9 — REFINED):
+// -------------------------------------------------------------
+//
+//   - Fibers are SETS in I* (equivalence classes under Ω)
+//   - IP objects are CONTINGENT REPRESENTATIVES of fibers only
+//   - No canonical section exists:
+//         I*/~Ω → IP space is not derivable from Ω
+//   - Representation is a gauge choice, not structural content
+//   - Different implementations may choose different representatives
+//     without altering Ω or the induced fiber partition
+//
+// -------------------------------------------------------------
 // OBSERVABLE QUANTITY:
+// -------------------------------------------------------------
 //
 //      Ω = Φ ∘ W*
 //
+// -------------------------------------------------------------
 // INTERPRETATION:
+// -------------------------------------------------------------
 //
-//   Ω is the only observable functional,
-//   but it does NOT determine a unique representation of fibers.
+//   Ω is the only observable functional.
+//
+//   However:
+//     Ω determines equivalence classes (fibers),
+//     but does NOT determine their representation.
 //
 //   Therefore:
 //
 //      semantics (fiber space) is invariant
-//      representation (IP layer) is contingent
+//      representation (IP layer) is contingent (gauge-dependent)
 //
 // ============================================================
 
