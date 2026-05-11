@@ -5,6 +5,72 @@
 // Multi-view event graph interpretation kernel
 // No ontological claims — purely structural interpretation system
 // ============================================================
+// DVSM STRUCTURAL INTERPRETATION SYSTEM — CLARIFYING OVERVIEW
+// ============================================================
+//
+// This module implements a structural event-graph interpretation system
+// in which system state is represented as a directed graph of events.
+//
+// Causality is treated as a relational structure rather than a total order.
+// Cycles are permitted and treated as valid first-order constructs.
+//
+// ------------------------------------------------------------
+// CORE COMPONENTS
+// ------------------------------------------------------------
+//
+// Event Graph (S):
+// - Mutable state composed of events
+// - Directed causal links form a general graph structure
+// - No assumption of global ordering or DAG constraints
+//
+// Evolution Operator (E):
+// - Defines state transitions over S
+// - May be identity (static system) or externally extended
+// - Designed for composable, trait-based extension of dynamics
+//
+// Interpretation Lattice (R):
+// - A family of projection functions over S
+// - Multiple valid views of the same underlying structure:
+//     • StrictInvariant   → structure-preserving projection
+//     • Distributed       → causal / partial-order interpretation
+//     • Probabilistic     → stochastic or sampled view
+//     • Compressed        → deterministic structural encoding
+//
+// Ω (Omega) Selection Operator:
+// - Selects a preferred interpretation mode
+// - Based on structural properties of the graph (e.g., density)
+// - Does NOT define truth, validity, or equivalence
+//
+// Porting / Invariance Layer:
+// - Implements reachability, equivalence classes, and quotient views
+// - Explicitly supports cyclic graphs and partial ordering
+// - Avoids assumptions of DAG structure, global ordering, or termination guarantees
+//
+// ------------------------------------------------------------
+// DESIGN INTENT
+// ------------------------------------------------------------
+//
+// The system is intentionally designed to:
+// - Avoid global canonical ordering assumptions
+// - Avoid oracle-style equivalence definitions
+// - Support multiple valid interpretations of the same state
+// - Treat representation as projection-dependent rather than absolute
+//
+// Meaning is defined through invariant relationships across projections,
+// not through reduction to a single canonical form.
+//
+// ------------------------------------------------------------
+// FORMAL CHARACTER
+// ------------------------------------------------------------
+//
+// This architecture is best understood as a
+// "relational event-graph quotient kernel":
+//
+// - Representation is generally non-invertible
+// - Multiple structurally valid interpretations may coexist
+// - No privileged semantic collapse function is assumed
+//
+// ============================================================
 
 use std::collections::HashMap;
 
