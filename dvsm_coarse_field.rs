@@ -1547,7 +1547,68 @@ pub fn check_quotient_stability(old_q: &QuotientGraph, new_q: &QuotientGraph) ->
 /// [ ] Did I implement the "Mutation Reset" as a non-unitary event?
 /// [ ] Is the `check_norm` function passing in my tests?
 
-/*
+/// [ ] Did I remove ALL micro-structure access from the evolution loop?
+///     (No raw node IDs, no hidden graph reconstruction, no leakage paths)
+
+/// [ ] Is the Hamiltonian strictly Real-Symmetric (D - A form preserved)?
+///     (No implicit complex entries unless explicitly extended module)
+
+/// [ ] Is the Cayley transform implemented via linear solve, NOT Euler or approximation?
+///     (Must preserve exact unitarity structure per step)
+
+/// [ ] Is the evolution operator applied ONLY to quotient space Q(S)?
+///     (Never directly on raw graph S or mixed representations)
+
+/// [ ] Is the mutation step explicitly non-unitary and isolated?
+///     (No gradual blending between topologies allowed)
+
+/// [ ] Is the mutation reset reinitializing ψ in the NEW basis only?
+///     (No projection mixing unless explicitly defined as optional extension)
+
+/// [ ] Is the hash function strictly observational?
+///     (No influence on state evolution, branching, or topology decisions)
+
+/// [ ] Did I ensure the hash cannot feed back into P, H, or M operators?
+
+/// [ ] Is the Cayley solver numerically stable under small Δt?
+///     (Condition number check or fallback solver present)
+
+/// [ ] Is there NO hidden renormalization step anywhere?
+///     (Norm preservation must be structural, not enforced post-hoc)
+
+/// [ ] Is norm conservation verified as a theorem of implementation, not a test fix?
+
+/// [ ] Does check_norm validate unitary invariance per timestep (not just final state)?
+
+/// [ ] Are adjacency weights in Q(S) properly normalized or consistently scaled?
+
+/// [ ] Is sparsity preserved or intentionally controlled in H construction?
+
+/// [ ] Are time steps Δt constrained or adaptive based on spectral radius of H?
+
+/// [ ] Is there protection against singular Hamiltonians (degenerate Q(S))?
+
+/// [ ] Are all VLP observers PURELY read-only with zero mutation capability?
+
+/// [ ] Is there strict separation between:
+///        - State evolution (U)
+///        - Observation (VLP)
+///        - Topology change (M)
+
+/// [ ] Is the system free of implicit feedback loops (observer → state coupling)?
+
+/// [ ] Are debug / logging layers excluded from influencing runtime state?
+
+/// [ ] Is reproducibility guaranteed given same S and Δt sequence?
+
+/// [ ] Is floating-point drift accounted for without renormalization hacks?
+
+/// [ ] Is the system safe under repeated mutation cycles (no state collapse)?
+
+/// [ ] Are all external interfaces (Python/JS/WASM) enforcing immutability of core structs?
+
+/// [ ] Is the system still valid if VLP layer is completely removed?
+
 =============================================================================
 END OF ADDENDUM: DEVELOPER DEEP DIVE
 =============================================================================
