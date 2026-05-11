@@ -1609,6 +1609,8 @@ pub fn check_quotient_stability(old_q: &QuotientGraph, new_q: &QuotientGraph) ->
 
 /// [ ] Is the system still valid if VLP layer is completely removed?
 
+/// [ ] Is the VLP layer strictly non-influential (read-only projection only; no state, Hamiltonian, or mutation coupling)?
+
 =============================================================================
 END OF ADDENDUM: DEVELOPER DEEP DIVE
 =============================================================================
