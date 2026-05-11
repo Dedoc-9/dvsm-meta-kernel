@@ -76,7 +76,7 @@ SPDX IDENTIFIERS (for tooling compatibility):
 =============================================================================
 */
 =============================================================================
-WHITEPAPER (ENGINEERING TRANSLATION)
+WHITEPAPER (ENGINEERING TRANSLATION) (Design Intent)
 =============================================================================
 DVSM-COARSE-FIELD (DCF) v3.0.0-FINAL
 CORE ARCHITECTURE & ONTOLOGICAL CONTRACT
