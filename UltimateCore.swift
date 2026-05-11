@@ -984,5 +984,574 @@ do {
 //     finalization semantics.
 //
 // ============================================================================
+// ============================================================================
+// Author: Daniel J. Dillberg
+// File: FINALCORE_V3_NXT_E_MUN_CORE_ADDENDUM.swift
+// Module: FINALCORE v3 :: NXT Theory Kernel + Eμν_CORE Integration Layer
+// Classification: Deterministic Invariant Runtime Extension
+// ============================================================================
+//
+// PURPOSE
+// ----------------------------------------------------------------------------
+//
+// This addendum extends FINALCORE v3 with:
+//
+// - NXT Theory Kernel integration semantics
+// - Eμν_CORE deterministic event curvature modeling
+// - Stable Waveform Truth (SWT) execution stabilization
+// - DVSM_CKITL_GENESIS bootstrap translation semantics
+// - CMST_MASTER_ARCHIVE authority synchronization logic
+// - advanced invariant basin orchestration
+// - deterministic tensor-field execution projection
+//
+// This file is designed as a unified extension layer
+// compatible with:
+//
+//     FINALCORE_v3.swift
+//
+// ============================================================================
+// IMPORTS
+// ============================================================================
+
+import Foundation
+import CryptoKit
+
+// ============================================================================
+// MARK: - NXT THEORY KERNEL
+// ============================================================================
+//
+// NXT Theory Kernel extends FINALCORE by introducing:
+//
+// - invariant tensor interpretation
+// - multi-regime convergence modeling
+// - deterministic field evolution semantics
+// - attractor-space admissibility analysis
+//
+// NXT does NOT replace FINALCORE.
+//
+// It extends invariant interpretation layers while preserving:
+//
+//     S_ECHO identity invariance
+//     Ω_FINAL collapse determinism
+//     CMST synchronization integrity
+//
+// ============================================================================
+// ============================================================================
+// MARK: - STABLE WAVEFORM TRUTH (SWT)
+// ============================================================================
+
+public struct StableWaveformTruth {
+
+    public init() {}
+
+    // ------------------------------------------------------------------------
+    // SIGNAL RENORMALIZATION
+    // ------------------------------------------------------------------------
+
+    public func renormalize(
+        _ signal: [Double]
+    ) -> [Double] {
+
+        guard !signal.isEmpty else {
+            return []
+        }
+
+        let maxMagnitude =
+            signal
+                .map(abs)
+                .max() ?? 1.0
+
+        guard maxMagnitude != 0 else {
+            return signal
+        }
+
+        return signal.map {
+            $0 / maxMagnitude
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // STABILITY ESTIMATION
+    // ------------------------------------------------------------------------
+
+    public func stability(
+        _ signal: [Double]
+    ) -> Double {
+
+        guard !signal.isEmpty else {
+            return 0.0
+        }
+
+        let normalized =
+            renormalize(signal)
+
+        let mean =
+            normalized.reduce(0, +)
+            / Double(normalized.count)
+
+        let variance =
+            normalized
+                .map { pow($0 - mean, 2) }
+                .reduce(0, +)
+            / Double(normalized.count)
+
+        return max(
+            0.0,
+            1.0 - variance
+        )
+    }
+}
+
+// ============================================================================
+// MARK: - Eμν CORE
+// Deterministic Event Curvature Tensor System
+// ============================================================================
+//
+// Eμν_CORE introduces:
+//
+// - deterministic event curvature modeling
+// - execution manifold projection
+// - invariant gradient interpretation
+// - event stress-field analysis
+//
+// ============================================================================
+
+public struct EventCurvatureTensor {
+
+    public let invariantHash: String
+
+    public let curvature: Double
+    public let gradient: Double
+    public let basinDepth: Double
+
+    public init(
+        invariantHash: String,
+        curvature: Double,
+        gradient: Double,
+        basinDepth: Double
+    ) {
+        self.invariantHash = invariantHash
+        self.curvature = curvature
+        self.gradient = gradient
+        self.basinDepth = basinDepth
+    }
+}
+
+// ============================================================================
+// MARK: - Eμν CORE ENGINE
+// ============================================================================
+
+public struct EMuNuCore {
+
+    public init() {}
+
+    // ------------------------------------------------------------------------
+    // CURVATURE PROJECTION
+    // ------------------------------------------------------------------------
+
+    public func project(
+        invariants: [Invariant]
+    ) -> [EventCurvatureTensor] {
+
+        invariants.map {
+
+            let curvature =
+                deterministicCurvature($0.hash)
+
+            let gradient =
+                deterministicGradient($0.hash)
+
+            let basin =
+                deterministicBasin($0.hash)
+
+            return EventCurvatureTensor(
+                invariantHash: $0.hash,
+                curvature: curvature,
+                gradient: gradient,
+                basinDepth: basin
+            )
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // FIELD STABILITY
+    // ------------------------------------------------------------------------
+
+    public func stable(
+        _ tensors: [EventCurvatureTensor]
+    ) -> Bool {
+
+        guard !tensors.isEmpty else {
+            return false
+        }
+
+        let average =
+            tensors
+                .map(\.basinDepth)
+                .reduce(0, +)
+            / Double(tensors.count)
+
+        return average >= 0.65
+    }
+}
+
+// ============================================================================
+// MARK: - DVSM_CKITL_GENESIS
+// Bootstrap Translation Layer
+// ============================================================================
+
+public struct DVSMCKITLGenesis {
+
+    public init() {}
+
+    public func bootstrap(
+        _ payload: String
+    ) -> String {
+
+        payload
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            .lowercased()
+            .replacingOccurrences(
+                of: "\n",
+                with: " "
+            )
+    }
+}
+
+// ============================================================================
+// MARK: - CMST MASTER ARCHIVE
+// ============================================================================
+
+public struct CMSTMasterArchive {
+
+    public init() {}
+
+    // ------------------------------------------------------------------------
+    // AUTHORITATIVE SYNCHRONIZATION
+    // ------------------------------------------------------------------------
+
+    public func synchronize(
+        tensors: [EventCurvatureTensor]
+    ) -> Bool {
+
+        guard !tensors.isEmpty else {
+            return false
+        }
+
+        let averageCurvature =
+            tensors
+                .map(\.curvature)
+                .reduce(0, +)
+            / Double(tensors.count)
+
+        let averageGradient =
+            tensors
+                .map(\.gradient)
+                .reduce(0, +)
+            / Double(tensors.count)
+
+        return
+            averageCurvature <= 0.85
+            &&
+            averageGradient <= 0.90
+    }
+}
+
+// ============================================================================
+// MARK: - NXT ATTRACTOR BASIN ENGINE
+// ============================================================================
+
+public struct NXTAttractorEngine {
+
+    public init() {}
+
+    // ------------------------------------------------------------------------
+    // BASIN CONVERGENCE
+    // ------------------------------------------------------------------------
+
+    public func converge(
+        _ tensors: [EventCurvatureTensor]
+    ) -> [EventCurvatureTensor] {
+
+        tensors.filter {
+
+            $0.basinDepth >= 0.60
+            &&
+            abs($0.gradient) <= 0.95
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - FINALCORE v3 EXTENSION
+// ============================================================================
+
+public final class FinalCoreNXTModule {
+
+    private let swt = StableWaveformTruth()
+
+    private let eField = EMuNuCore()
+
+    private let genesis =
+        DVSMCKITLGenesis()
+
+    private let cmst =
+        CMSTMasterArchive()
+
+    private let attractor =
+        NXTAttractorEngine()
+
+    public init() {}
+
+    // =========================================================================
+    // MAIN EXECUTION FIELD
+    // =========================================================================
+
+    public func process(
+        invariants: [Invariant]
+    ) throws -> String {
+
+        // ---------------------------------------------------------------------
+        // SIGNAL EXTRACTION
+        // ---------------------------------------------------------------------
+
+        let signal =
+            invariants.map(\.stability)
+
+        // ---------------------------------------------------------------------
+        // SWT STABILIZATION
+        // ---------------------------------------------------------------------
+
+        let normalized =
+            swt.renormalize(signal)
+
+        let stability =
+            swt.stability(normalized)
+
+        guard stability >= 0.60 else {
+            throw DVSMFailure.entropyFailure
+        }
+
+        // ---------------------------------------------------------------------
+        // Eμν CURVATURE PROJECTION
+        // ---------------------------------------------------------------------
+
+        let projected =
+            eField.project(
+                invariants: invariants
+            )
+
+        guard eField.stable(projected) else {
+            throw DVSMFailure.invariantFailure
+        }
+
+        // ---------------------------------------------------------------------
+        // ATTRACTOR CONVERGENCE
+        // ---------------------------------------------------------------------
+
+        let converged =
+            attractor.converge(projected)
+
+        guard !converged.isEmpty else {
+            throw DVSMFailure.topologicalSilence
+        }
+
+        // ---------------------------------------------------------------------
+        // CMST MASTER AUTHORITY
+        // ---------------------------------------------------------------------
+
+        guard cmst.synchronize(
+            tensors: converged
+        ) else {
+            throw DVSMFailure.entropyFailure
+        }
+
+        // ---------------------------------------------------------------------
+        // Ω_FINAL TARGET SELECTION
+        // ---------------------------------------------------------------------
+
+        guard let selected =
+            converged.max(
+                by: {
+                    ($0.basinDepth + $0.curvature)
+                    <
+                    ($1.basinDepth + $1.curvature)
+                }
+            )
+        else {
+            throw DVSMFailure.topologicalSilence
+        }
+
+        return
+            "Ω_FINAL::<\(selected.invariantHash)>"
+    }
+
+    // =========================================================================
+    // BOOTSTRAP ENTRY
+    // =========================================================================
+
+    public func bootstrap(
+        payload: String
+    ) -> String {
+
+        genesis.bootstrap(payload)
+    }
+}
+
+// ============================================================================
+// MARK: - DETERMINISTIC FIELD HELPERS
+// ============================================================================
+
+private func deterministicCurvature(
+    _ hash: String
+) -> Double {
+
+    let value =
+        abs(hash.hashValue % 1000)
+
+    return Double(value) / 1000.0
+}
+
+private func deterministicGradient(
+    _ hash: String
+) -> Double {
+
+    let value =
+        abs(hash.hashValue % 800)
+
+    return Double(value) / 1000.0
+}
+
+private func deterministicBasin(
+    _ hash: String
+) -> Double {
+
+    let value =
+        abs(hash.hashValue % 900)
+
+    return Double(value) / 1000.0
+}
+
+// ============================================================================
+// MARK: - EXECUTION FABRIC PRINCIPLE
+// ============================================================================
+//
+// FINALCORE + NXT + Eμν define:
+//
+//     a deterministic invariant execution manifold
+//
+// where:
+//
+//     admissibility,
+//     stability,
+//     synchronization,
+//     curvature,
+//     attractor depth,
+//     and invariant collapse
+//
+// are evaluated prior to execution emission.
+//
+// ============================================================================
+// MARK: - FORMAL EXECUTION LAW
+// ============================================================================
+//
+// EXECUTION = Ω_FINAL(
+//                  CMST(
+//                      Eμν_CORE(
+//                          IBMSA(
+//                              S_ECHO(
+//                                  CKITL(Ξ)
+//                              )
+//                          )
+//                      )
+//                  )
+//              )
+//
+// ============================================================================
+// MARK: - TOPOLOGICAL SILENCE
+// ============================================================================
+//
+// If no admissible invariant survives:
+//
+// - basin convergence,
+// - curvature admissibility,
+// - synchronization constraints,
+// - or Ω_FINAL collapse,
+//
+// the runtime emits:
+//
+//     TOPOLOGICAL_SILENCE
+//
+// indicating:
+//
+//     no uniquely admissible invariant state exists.
+//
+// ============================================================================
+
+// ============================================================================
+// MARK: - DEMO
+// ============================================================================
+
+let nxtModule =
+    FinalCoreNXTModule()
+
+let invariants = [
+
+    Invariant(
+        hash: "alpha",
+        stability: 0.92,
+        weight: 0.88,
+        shard: 0,
+        latencyClass: 1
+    ),
+
+    Invariant(
+        hash: "beta",
+        stability: 0.81,
+        weight: 0.77,
+        shard: 1,
+        latencyClass: 0
+    )
+]
+
+do {
+
+    let result =
+        try nxtModule.process(
+            invariants: invariants
+        )
+
+    print(result)
+
+} catch {
+
+    print(
+        "TOPOLOGICAL_SILENCE::<\(error)>"
+    )
+}
+
+// ============================================================================
+// FINAL DECLARATION
+// ============================================================================
+//
+// FINALCORE v3 + NXT Theory Kernel + Eμν_CORE define
+// a deterministic invariant execution substrate in which:
+//
+// - identity is normalized,
+// - convergence is stabilized,
+// - synchronization is validated,
+// - curvature is constrained,
+// - attractor basins are reconciled,
+// - and executable reality is emitted
+//   only through Ω_FINAL collapse.
+//
+// Reality is not inferred.
+//
+// Reality is the admissible invariant surviving
+// deterministic manifold collapse.
+//
+// ============================================================================
 // END OF FILE
 // ============================================================================
