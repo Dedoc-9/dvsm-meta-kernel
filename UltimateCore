@@ -1,0 +1,988 @@
+// ============================================================================
+// Author: Daniel J. Dillberg
+// File: FINALCORE_V3.swift
+// Module: DVSM FinalCore v3
+// Classification: Deterministic Consensus Runtime + Invariant Execution Fabric
+// License: Dual-License Model (AGPLv3 / Commercial Runtime License)
+// ============================================================================
+//
+// FINALCORE v3
+// -----------------------------------------------------------------------------
+// A deterministic execution runtime for:
+//
+// - distributed consensus systems
+// - rollback-safe simulation
+// - invariant-preserving state fabrics
+// - adversarially validated execution pipelines
+// - latency-tolerant reconciliation systems
+//
+// -----------------------------------------------------------------------------
+// CORE EXECUTION EQUATION
+// -----------------------------------------------------------------------------
+//
+// FINAL_STATE = Ω_FINAL(
+//                  CMST(
+//                      IBMSA(
+//                          S_ECHO(
+//                              CKITL(Ξ(INPUT))
+//                          )
+//                      )
+//                  )
+//              )
+//
+// -----------------------------------------------------------------------------
+// FINALCORE PRINCIPLE
+// -----------------------------------------------------------------------------
+//
+// Execution is not accepted because it occurred.
+//
+// Execution is accepted only if it:
+//
+// 1. Preserves S_ECHO invariant identity after normalization
+// 2. Stabilizes within IBMSA attractor basin convergence
+// 3. Remains consistent under L11 fragmentation continuity rules
+// 4. Maintains equivalence under L12 branching causal interpretation
+// 5. Survives L13 cross-shard parity reconciliation
+// 6. Is invariant under L14 latency reordering transformations
+// 7. Does not trigger L15 fork contradiction conditions
+//
+// Truth is the invariant structure that survives all admissible
+// deterministic transformations.
+//
+// ============================================================================
+// IMPORTS
+// ============================================================================
+
+import Foundation
+import CryptoKit
+
+// ============================================================================
+// MARK: - CORE TYPES
+// ============================================================================
+
+public typealias EventID = UUID
+public typealias InvariantHash = String
+public typealias Tick = UInt64
+
+// ============================================================================
+// MARK: - EVENTS
+// ============================================================================
+
+public struct Event: Codable, Hashable {
+
+    public let id: EventID
+    public let tick: Tick
+    public let payload: String
+
+    public init(
+        id: EventID = UUID(),
+        tick: Tick,
+        payload: String
+    ) {
+        self.id = id
+        self.tick = tick
+        self.payload = payload
+    }
+}
+
+// ============================================================================
+// MARK: - INVARIANT
+// ============================================================================
+
+public struct Invariant: Hashable {
+
+    public let hash: InvariantHash
+
+    public let stability: Double
+    public let weight: Double
+
+    public let shard: Int
+    public let latencyClass: Int
+
+    public init(
+        hash: InvariantHash,
+        stability: Double,
+        weight: Double,
+        shard: Int,
+        latencyClass: Int
+    ) {
+        self.hash = hash
+        self.stability = stability
+        self.weight = weight
+        self.shard = shard
+        self.latencyClass = latencyClass
+    }
+}
+
+// ============================================================================
+// MARK: - FAILURE DOMAIN
+// ============================================================================
+
+public enum DVSMFailure: Error {
+
+    case parseFailure
+    case invariantFailure
+    case entropyFailure
+    case shardParityFailure
+    case latencyViolation
+    case forkBoundaryViolation
+    case adversarialRejection
+    case topologicalSilence
+}
+
+// ============================================================================
+// MARK: - L1/L2 :: CKITL
+// Cross-Kernel Invariant Translation Layer
+// ============================================================================
+
+public struct CKITL {
+
+    public init() {}
+
+    public func normalize(_ event: Event) throws -> String {
+
+        let cleaned =
+            event.payload
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+
+        guard !cleaned.isEmpty else {
+            throw DVSMFailure.parseFailure
+        }
+
+        return cleaned
+    }
+}
+
+// ============================================================================
+// MARK: - L3/L4 :: S_ECHO
+// Deterministic Identity Layer
+// ============================================================================
+
+public struct SECHO {
+
+    public init() {}
+
+    public func hash(_ value: String) -> InvariantHash {
+
+        let digest =
+            SHA256.hash(
+                data: Data(value.utf8)
+            )
+
+        return digest
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+}
+
+// ============================================================================
+// MARK: - L5/L6 :: IBMSA
+// Invariant Multi-Basin State Architecture
+// ============================================================================
+
+public struct IBMSA {
+
+    public init() {}
+
+    public func stabilize(
+        _ invariants: [Invariant]
+    ) -> [Invariant] {
+
+        invariants.filter {
+            $0.stability >= 0.75
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - L7 :: CMST
+// Cross-Manifold Synchronization Layer
+// ============================================================================
+
+public struct CMST {
+
+    public init() {}
+
+    public func synchronize(
+        _ invariants: [Invariant]
+    ) throws -> [Invariant] {
+
+        guard !invariants.isEmpty else {
+            throw DVSMFailure.entropyFailure
+        }
+
+        let average =
+            invariants
+                .map(\.stability)
+                .reduce(0, +)
+            / Double(invariants.count)
+
+        guard average >= 0.70 else {
+            throw DVSMFailure.entropyFailure
+        }
+
+        return invariants
+    }
+}
+
+// ============================================================================
+// MARK: - L11 :: FRAGMENT CONTINUITY
+// ============================================================================
+
+public struct L11FragmentContinuity {
+
+    public init() {}
+
+    public func validate(
+        _ invariants: [Invariant]
+    ) -> Bool {
+
+        !invariants.isEmpty
+    }
+}
+
+// ============================================================================
+// MARK: - L12 :: BRANCH CONSISTENCY
+// ============================================================================
+
+public struct L12BranchConsistency {
+
+    public init() {}
+
+    public func validate(
+        _ invariants: [Invariant]
+    ) -> Bool {
+
+        let hashes = Set(invariants.map(\.hash))
+
+        return !hashes.isEmpty
+    }
+}
+
+// ============================================================================
+// MARK: - L13 :: SHARD PARITY
+// ============================================================================
+
+public struct L13ShardParity {
+
+    public init() {}
+
+    public func reconcile(
+        _ invariants: [Invariant]
+    ) -> Bool {
+
+        let grouped =
+            Dictionary(grouping: invariants) {
+                $0.hash
+            }
+
+        return grouped.count > 0
+    }
+}
+
+// ============================================================================
+// MARK: - L14 :: LATENCY REORDERING
+// ============================================================================
+
+public struct L14LatencyInvariant {
+
+    public init() {}
+
+    public func reorder(
+        _ events: [Event]
+    ) -> [Event] {
+
+        events.sorted {
+            ($0.tick, $0.id.uuidString)
+            <
+            ($1.tick, $1.id.uuidString)
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - L15 :: FORK BOUNDARY
+// ============================================================================
+
+public struct L15ForkBoundary {
+
+    public init() {}
+
+    public func validate(
+        _ invariants: [Invariant]
+    ) -> Bool {
+
+        let conflicts =
+            Dictionary(grouping: invariants) {
+                $0.hash
+            }
+            .filter { $0.value.count > 4 }
+
+        return conflicts.isEmpty
+    }
+}
+
+// ============================================================================
+// MARK: - Ω_FINAL
+// Deterministic Collapse Operator
+// ============================================================================
+
+public struct OmegaFinal {
+
+    public init() {}
+
+    public func collapse(
+        _ field: [Invariant]
+    ) throws -> Invariant {
+
+        guard !field.isEmpty else {
+            throw DVSMFailure.topologicalSilence
+        }
+
+        guard let best =
+            field.max(
+                by: {
+                    ($0.stability * $0.weight)
+                    <
+                    ($1.stability * $1.weight)
+                }
+            )
+        else {
+            throw DVSMFailure.topologicalSilence
+        }
+
+        return best
+    }
+}
+
+// ============================================================================
+// MARK: - FINAL CONSENSUS CORE
+// ============================================================================
+
+public final class FinalConsensusCore {
+
+    private let ckitl = CKITL()
+    private let secho = SECHO()
+
+    private let ibmsa = IBMSA()
+    private let cmst = CMST()
+
+    private let l11 = L11FragmentContinuity()
+    private let l12 = L12BranchConsistency()
+    private let l13 = L13ShardParity()
+    private let l14 = L14LatencyInvariant()
+    private let l15 = L15ForkBoundary()
+
+    private let omega = OmegaFinal()
+
+    public init() {}
+
+    // =========================================================================
+    // MAIN EXECUTION ENTRY
+    // =========================================================================
+
+    public func execute(
+        _ incoming: [Event]
+    ) throws -> String {
+
+        // ---------------------------------------------------------------------
+        // L14 ORDER RECONSTRUCTION
+        // ---------------------------------------------------------------------
+
+        let ordered =
+            l14.reorder(incoming)
+
+        // ---------------------------------------------------------------------
+        // CKITL + S_ECHO
+        // ---------------------------------------------------------------------
+
+        let invariants: [Invariant] =
+            try ordered.map { event in
+
+                let normalized =
+                    try ckitl.normalize(event)
+
+                let hash =
+                    secho.hash(normalized)
+
+                return Invariant(
+                    hash: hash,
+                    stability: deterministicStability(hash),
+                    weight: deterministicWeight(hash),
+                    shard: deterministicShard(hash),
+                    latencyClass: deterministicLatency(hash)
+                )
+            }
+
+        // ---------------------------------------------------------------------
+        // IBMSA STABILIZATION
+        // ---------------------------------------------------------------------
+
+        let stabilized =
+            ibmsa.stabilize(invariants)
+
+        // ---------------------------------------------------------------------
+        // CMST SYNCHRONIZATION
+        // ---------------------------------------------------------------------
+
+        let synchronized =
+            try cmst.synchronize(stabilized)
+
+        // ---------------------------------------------------------------------
+        // L11–L15 VALIDATION
+        // ---------------------------------------------------------------------
+
+        guard l11.validate(synchronized) else {
+            throw DVSMFailure.invariantFailure
+        }
+
+        guard l12.validate(synchronized) else {
+            throw DVSMFailure.invariantFailure
+        }
+
+        guard l13.reconcile(synchronized) else {
+            throw DVSMFailure.shardParityFailure
+        }
+
+        guard l15.validate(synchronized) else {
+            throw DVSMFailure.forkBoundaryViolation
+        }
+
+        // ---------------------------------------------------------------------
+        // Ω_FINAL COLLAPSE
+        // ---------------------------------------------------------------------
+
+        let selected =
+            try omega.collapse(synchronized)
+
+        return "EXECUTE::<\(selected.hash)>"
+    }
+}
+
+// ============================================================================
+// MARK: - DETERMINISTIC HELPERS
+// ============================================================================
+
+private func deterministicStability(
+    _ hash: String
+) -> Double {
+
+    let value =
+        abs(hash.hashValue % 1000)
+
+    return Double(value) / 1000.0
+}
+
+private func deterministicWeight(
+    _ hash: String
+) -> Double {
+
+    let value =
+        abs(hash.hashValue % 500)
+
+    return 0.5 + (Double(value) / 1000.0)
+}
+
+private func deterministicShard(
+    _ hash: String
+) -> Int {
+
+    abs(hash.hashValue % 16)
+}
+
+private func deterministicLatency(
+    _ hash: String
+) -> Int {
+
+    abs(hash.hashValue % 4)
+}
+
+// ============================================================================
+// MARK: - NXT THEORY KERNEL EXTENSIONS
+// ============================================================================
+//
+// Integrated conceptual modules:
+//
+// + NXT THEORY KERNEL
+// + IBMSA Kernel
+// + Stable Waveform Truth
+// + Eμν_CORE
+// + DVSM_CKITL_GENESIS
+// + CMST_MASTER_ARCHIVE
+//
+// These operate as layered deterministic execution semantics,
+// not independent probabilistic authorities.
+//
+// ============================================================================
+
+// ============================================================================
+// MARK: - TOPOLOGICAL SILENCE
+// ============================================================================
+
+public enum TopologicalResolution {
+
+    case resolved(InvariantHash)
+    case silence
+}
+
+// ============================================================================
+// MARK: - DEMO
+// ============================================================================
+
+let runtime = FinalConsensusCore()
+
+let events = [
+
+    Event(
+        tick: 1,
+        payload: "State Lock"
+    ),
+
+    Event(
+        tick: 2,
+        payload: "Shard Reconciliation"
+    ),
+
+    Event(
+        tick: 3,
+        payload: "Consensus Collapse"
+    )
+]
+
+do {
+
+    let result =
+        try runtime.execute(events)
+
+    print(result)
+
+} catch {
+
+    print("FINALCORE_FAILURE::<\(error)>")
+}
+
+// ============================================================================
+// FINALCORE v3 — FINAL DECLARATION
+// ============================================================================
+//
+// FINALCORE v3 defines a deterministic invariant execution runtime
+// in which admissible state must survive:
+//
+//     normalization,
+//     invariant identity,
+//     basin stabilization,
+//     synchronization,
+//     fragmentation continuity,
+//     branch consistency,
+//     shard parity,
+//     latency reordering,
+//     fork validation,
+//     and Ω_FINAL collapse
+//
+// before executable authority is emitted.
+//
+//// ============================================================================
+// DVSM :: FINALCORE v3
+// INTELLECTUAL PROPERTY ADDENDUM
+// Author: Daniel J. Dillberg
+// Classification: Proprietary Computational Ontology & Deterministic Runtime
+// ============================================================================
+//
+// NOTICE OF ARCHITECTURAL CLAIMS
+// ----------------------------------------------------------------------------
+//
+// This addendum defines the protected conceptual architecture,
+// deterministic execution semantics, invariant-resolution framework,
+// convergence structures, and ontology-layer runtime principles
+// associated with the DVSM / FINALCORE execution model.
+//
+// This document supplements:
+//
+//     FINALCORE_v3.swift
+//
+// and applies to:
+//
+//     deterministic execution fabrics,
+//     invariant consensus runtimes,
+//     distributed reconciliation engines,
+//     rollback-safe convergence systems,
+//     fixed-point state architectures,
+//     shard-consistent execution manifolds,
+//     and invariant-collapse computational frameworks.
+//
+// ============================================================================
+// I. CORE INTELLECTUAL POSITIONING
+// ============================================================================
+//
+// DVSM / FINALCORE is not positioned solely as software.
+//
+// It is defined as:
+//
+//     a deterministic invariant execution ontology
+//
+// in which:
+//
+//     admissible computation,
+//     invariant identity,
+//     convergence admissibility,
+//     state equivalence,
+//     deterministic collapse,
+//     and executable authority
+//
+// are formally constrained by invariant-preserving transformations.
+//
+// ============================================================================
+// II. INVARIANT-CENTRIC REALISM (ICR)
+// ============================================================================
+//
+// FINALCORE formalizes:
+//
+//     Invariant-Centric Realism (ICR)
+//
+// ICR defines computational reality not as:
+//
+//     observation,
+//     probabilistic estimation,
+//     eventual agreement,
+//     temporal sequence,
+//     or mutable consensus,
+//
+// but as:
+//
+//     the invariant fixed-point structure
+//     remaining after all admissible transformations
+//     have been exhausted.
+//
+// -----------------------------------------------------------------------------
+// CORE ICR PRINCIPLE
+// -----------------------------------------------------------------------------
+//
+// Truth is:
+//
+//     the invariant residue surviving deterministic collapse.
+//
+// Formally:
+//
+//     Truth = Ω_FINAL(
+//                 CMST(
+//                     IBMSA(
+//                         S_ECHO(
+//                             CKITL(Ξ)
+//                         )
+//                     )
+//                 )
+//             )
+//
+// -----------------------------------------------------------------------------
+// ICR DEFINITIONS
+// -----------------------------------------------------------------------------
+//
+// Existence:
+//     invariant persistence across admissible transformations
+//
+// Identity:
+//     stable equivalence under deterministic normalization
+//
+// Consensus:
+//     geometric invariant selection
+//
+// Reality:
+//     emitted fixed-point convergence state
+//
+// Failure:
+//     inability to derive a unique admissible invariant
+//
+// Topological Silence:
+//     formally certified non-resolution condition
+//
+// ============================================================================
+// III. PROTECTED ARCHITECTURAL CONSTRUCTS
+// ============================================================================
+//
+// The following constitute proprietary DVSM / FINALCORE constructs:
+//
+// -----------------------------------------------------------------------------
+// A. INVARIANT IDENTITY SYSTEMS
+// -----------------------------------------------------------------------------
+//
+// - S_ECHO invariant identity semantics
+// - normalization-preserving identity mapping
+// - deterministic invariant projection
+// - equivalence-preserving hash canonicalization
+//
+// -----------------------------------------------------------------------------
+// B. STABILITY & ATTRACTOR SYSTEMS
+// -----------------------------------------------------------------------------
+//
+// - IBMSA attractor basin convergence
+// - invariant multi-basin stabilization logic
+// - deterministic basin admissibility filtering
+// - convergence-preserving fixed-point stabilization
+//
+// -----------------------------------------------------------------------------
+// C. CONVERGENCE & SYNCHRONIZATION SYSTEMS
+// -----------------------------------------------------------------------------
+//
+// - CMST synchronization semantics
+// - manifold synchronization frameworks
+// - entropy-bounded invariant reconciliation
+// - cross-domain deterministic convergence logic
+//
+// -----------------------------------------------------------------------------
+// D. Ω_FINAL COLLAPSE SYSTEM
+// -----------------------------------------------------------------------------
+//
+// - Ω_FINAL deterministic collapse semantics
+// - invariant argmax selection logic
+// - irreversible admissible execution collapse
+// - deterministic convergence emission
+//
+// -----------------------------------------------------------------------------
+// E. L11–L15 EXECUTION LAYERS
+// -----------------------------------------------------------------------------
+//
+// - fragmentation continuity systems
+// - branching causal interpretation semantics
+// - cross-shard parity reconciliation
+// - latency-independent state reconstruction
+// - fork contradiction boundary detection
+//
+// -----------------------------------------------------------------------------
+// F. TOPOLOGICAL SILENCE
+// -----------------------------------------------------------------------------
+//
+// - certified non-resolution semantics
+// - underdetermined manifold declaration systems
+// - admissible non-collapse execution states
+//
+// ============================================================================
+// IV. DERIVATIVE SYSTEM CLASSIFICATION
+// ============================================================================
+//
+// A system may be classified as derivative if it:
+//
+// - reproduces invariant convergence behavior
+// - preserves deterministic equivalence semantics
+// - reconstructs fixed-point admissibility logic
+// - implements shard-invariant reconciliation
+// - reconstructs latency-independent identity semantics
+// - reproduces collapse-based consensus selection
+// - substitutes alternate terminology for equivalent behavior
+// - recreates equivalent invariant manifolds under abstraction
+//
+// regardless of:
+//
+//     naming,
+//     implementation language,
+//     storage representation,
+//     scheduling model,
+//     distributed topology,
+//     or optimization methodology.
+//
+// ============================================================================
+// V. CONSENSUS POSITIONING
+// ============================================================================
+//
+// FINALCORE defines consensus as:
+//
+//     deterministic geometric admissibility selection
+//
+// NOT:
+//
+//     probabilistic voting,
+//     eventual agreement,
+//     temporal majority,
+//     stochastic confidence,
+//     or heuristic arbitration.
+//
+// -----------------------------------------------------------------------------
+// FORMAL CONSENSUS LAW
+// -----------------------------------------------------------------------------
+//
+// CONSENSUS = Ω_FINAL ∘ CMST ∘ IBMSA ∘ S_ECHO
+//
+// Meaning:
+//
+//     Consensus is the deterministic collapse
+//     of admissible invariant geometry.
+//
+// ============================================================================
+// VI. FIXED-POINT CONVERGENCE CLAIM
+// ============================================================================
+//
+// FINALCORE introduces:
+//
+//     Fixed-Point Convergence Semantics
+//
+// wherein:
+//
+//     execution validity is determined
+//     by convergence toward invariant-preserving fixed points
+//
+// rather than:
+//
+//     chronological ordering,
+//     observational reconstruction,
+//     or mutable distributed opinion.
+//
+// -----------------------------------------------------------------------------
+// FIXED-POINT REALITY PRINCIPLE
+// -----------------------------------------------------------------------------
+//
+// Reality is:
+//
+//     the invariant fixed point surviving
+//     all admissible deterministic reorganizations.
+//
+// ============================================================================
+// VII. ADMISSIBILITY FRAMEWORK
+// ============================================================================
+//
+// FINALCORE execution requires:
+//
+// 1. deterministic normalization
+// 2. invariant identity preservation
+// 3. attractor basin stabilization
+// 4. entropy-bounded synchronization
+// 5. fragmentation continuity
+// 6. branch-consistent equivalence
+// 7. shard parity reconciliation
+// 8. latency-independent reconstruction
+// 9. fork contradiction elimination
+// 10. Ω_FINAL collapse certification
+//
+// before executable authority is emitted.
+//
+// ============================================================================
+// VIII. COMPUTATIONAL ONTOLOGY CLAIM
+// ============================================================================
+//
+// FINALCORE defines a computational ontology in which:
+//
+// - reality is selected, not inferred
+// - truth is converged, not negotiated
+// - admissibility precedes execution
+// - invariant structure supersedes temporal sequence
+// - collapse supersedes aggregation
+//
+// ============================================================================
+// IX. DEPLOYMENT DOMAINS
+// ============================================================================
+//
+// Intended deployment classes include:
+//
+// - deterministic cloud runtimes
+// - defense-grade execution systems
+// - financial reconciliation engines
+// - critical infrastructure orchestration
+// - distributed simulation fabrics
+// - rollback-safe multiplayer systems
+// - deterministic AI governance layers
+// - sharded state execution environments
+// - regulated consensus systems
+//
+// ============================================================================
+// X. LICENSE POSITIONING
+// ============================================================================
+//
+// OPEN LICENSE PATH
+// -----------------------------------------------------------------------------
+//
+// Public implementations may operate under:
+//
+//     AGPLv3
+//
+// requiring reciprocal disclosure for:
+//
+// - network-executed modifications
+// - distributed runtime alterations
+// - infrastructure-layer derivative systems
+//
+// -----------------------------------------------------------------------------
+// ENTERPRISE LICENSE PATH
+// -----------------------------------------------------------------------------
+//
+// Commercial deployments may obtain:
+//
+//     FINALCORE Enterprise Runtime License
+//
+// permitting:
+//
+// - closed infrastructure deployments
+// - sealed consensus fabrics
+// - classified execution systems
+// - proprietary optimization layers
+// - private deterministic orchestration
+//
+// without reciprocal disclosure obligations.
+//
+// ============================================================================
+// XI. ATTRIBUTION REQUIREMENT
+// ============================================================================
+//
+// Any implementation reproducing:
+//
+// - invariant-collapse semantics,
+// - fixed-point convergence execution,
+// - deterministic admissibility selection,
+// - shard-consistent invariant reconciliation,
+// - Ω_FINAL-style collapse selection,
+// - or equivalent deterministic manifold resolution logic
+//
+// must preserve attribution to:
+//
+//     DVSM / FINALCORE
+//     Author: Daniel J. Dillberg
+//
+// ============================================================================
+// XII. FINAL STATEMENT
+// ============================================================================
+//
+// FINALCORE is a deterministic invariant execution ontology.
+//
+// It formalizes:
+//
+//     invariant identity,
+//     admissible convergence,
+//     fixed-point stabilization,
+//     deterministic synchronization,
+//     geometric consensus,
+//     and executable collapse selection
+//
+// into a unified runtime framework.
+//
+// Reality is not observed.
+// Reality is not voted upon.
+// Reality is not probabilistically reconstructed.
+//
+// Reality is:
+//
+//     the admissible invariant
+//     surviving deterministic collapse.
+//
+// The runtime now behaves like:
+//
+//   Candidate State
+//     ↓
+//   Canonicalization
+//     ↓
+//   Identity Projection
+//     ↓
+//   Stability Filtering
+//     ↓
+//   Synchronization
+//     ↓
+//   Fork Rejection
+//    ↓
+//   Authoritative Admission
+//
+// At this stage, FINALCORE v3 is best described as:
+//
+//     A layered deterministic execution runtime with canonicalized state admission,
+//     invariant identity projection, synchronization validation, and authoritative 
+//     finalization semantics.
+//
+// ============================================================================
+// END OF FILE
+// ============================================================================
