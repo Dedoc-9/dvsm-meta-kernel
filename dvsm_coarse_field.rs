@@ -1809,6 +1809,138 @@ impl OmegaVajra for VajraSpectralProbe {
 ///
 /// It is mathematically a projection functional, not a subsystem.
 
+#![allow(dead_code)]
+
+/*!
+=============================================================================
+DVSM MULTI-KERNEL LAYER SPECIFICATION (MIT-STYLE INVARIANT STACK)
+=============================================================================
+
+DESIGN PRINCIPLE:
+All kernels below are:
+- NON-EXECUTIVE in system control flow
+- READ-ONLY or PURE TRANSFORM LAYERS
+- STRICTLY isolated from P / H / U / M mutation pathways
+
+They operate as:
+    "Interpretation + Invariant Verification + Cross-Model Mapping Layers"
+
+They MUST NOT:
+- mutate ψ
+- modify Hamiltonian H
+- trigger topology mutation M
+- influence projection P
+- participate in time evolution U
+
+=============================================================================
+CORE BOUNDARY TYPE
+=============================================================================
+*/
+
+use num_complex::Complex64;
+
+/* =========================
+   SHARED READ-ONLY CONTEXT
+   ========================= */
+
+pub struct QuantumState {
+    pub psi: Vec<Complex64>,
+}
+
+pub struct Hamiltonian {
+    pub h: Vec<Vec<f64>>,
+}
+
+/* =========================
+   BASE KERNEL TRAIT (SEALED OBSERVER CONTRACT)
+   ========================= */
+
+pub trait InvariantKernel {
+    fn kernel_name(&self) -> &'static str;
+}
+
+/* =========================
+   1. IBMSA KERNEL
+   =========================
+   Invariant Multi-Basin State Architecture Core
+   ========================= */
+
+pub trait IBMSAKernel: InvariantKernel {
+    fn basin_map(&self, psi: &QuantumState) -> Vec<usize>;
+}
+
+/* =========================
+   2. DVSM_GENESIS_L6 KERNEL
+   =========================
+   Deterministic Incentive Execution Kernel (Level 6)
+   ========================= */
+
+pub trait DVSMGenesisL6Kernel: InvariantKernel {
+    fn execute_deterministic_path(&self, psi: &QuantumState) -> f64;
+}
+
+/* =========================
+   3. STABLE WAVEFORM TRUTH (SWT)
+   =========================
+   Renormalized invariant signal truth layer
+   ========================= */
+
+pub trait StableWaveformTruth: InvariantKernel {
+    fn waveform_stability(&self, psi: &QuantumState) -> f64;
+}
+
+/* =========================
+   4. Eμν_CORE.v1 (Einstein Kernel)
+   =========================
+   Event curvature tensor field abstraction (non-dynamical)
+   ========================= */
+
+pub trait EMuNuCoreV1: InvariantKernel {
+    fn curvature_scalar(&self, h: &Hamiltonian) -> f64;
+}
+
+/* =========================
+   5. DVSM_CKITL_GENESIS
+   =========================
+   Cross-Kernel Invariant Translation Layer
+   ========================= */
+
+pub trait DVSMCkitlGenesis: InvariantKernel {
+    fn translate(
+        &self,
+        psi: &QuantumState,
+        h: &Hamiltonian,
+    ) -> Vec<f64>;
+}
+
+/* =========================
+   6. CMST_MASTER_ARCHIVE
+   =========================
+   Cross-manifold synchronization authority (READ-ONLY)
+   ========================= */
+
+pub trait CMSTMasterArchive: InvariantKernel {
+    fn synchronize(&self, psi: &QuantumState, h: &Hamiltonian) -> f64;
+}
+
+/* =========================
+   HARD SYSTEM GUARANTEE
+   ========================= */
+
+/// ALL kernels above are:
+/// - observational only
+/// - stateless or externally state-injected
+/// - forbidden from holding references to DVSMSystem
+///
+/// They MUST NOT:
+/// - call evolve_cayley()
+/// - call mutate_reset()
+/// - access Graph S
+/// - influence topology updates
+///
+/// They function strictly as:
+///     "Invariant Projection Functors over DVSM state space"
+                       
 =============================================================================
 END OF ADDENDUM: DEVELOPER DEEP DIVE
 =============================================================================
