@@ -1879,8 +1879,59 @@ This aligns perfectly with the finalized “observational horizon” principle.
 /// through reversible logical parity transforms over
 /// shared admissibility axioms, while preserving
 /// implementation opacity and core quotient semantics.
+
+// ============================================================
+// π — OBSERVATIONAL QUOTIENT (SEMANTIC ONLY)
+// ============================================================
+
+/// π is NOT a function in the computational sense.
+/// It is a specification-level quotient operator:
+///
+/// C1 ∼ C2 ⇔ π(C1) = π(C2)
+///
+/// Meaning:
+/// Two constraint systems are equivalent iff they induce
+/// identical observable domains over T × N.
+///
+/// π is intentionally non-executable.
+
+enum π {
+
+    /// Prevent instantiation and execution.
+    private init() {}
+
+    /// Semantic definition only (NOT COMPUTED)
+    ///
+    /// This function exists only to express the rule:
+    /// π(C) ≡ D_C = {(t,n) | C.evaluate(t,n) == true}
+    static func domain(_ C: ConstraintSystem) -> Never {
+        fatalError("""
+        π is a semantic quotient operator, not a function.
+        It defines equivalence classes of constraint systems
+        via induced domains over T × N.
+        """)
+    }
+}
+
+// ============================================================
+// PiFunctor — COMPUTABLE REPRESENTATION LAYER
+// ============================================================
+
+/// PiFunctor does NOT implement π.
+/// It only constructs the observable induced domain
+/// as a runtime representation of C*.
+
+struct PiFunctor {
+
+    func apply(_ C: ConstraintSystem) -> Domain {
+
+        Domain { task, node in
+            C.evaluate(task, node)
+        }
+    }
+}
+
 // ============================================================
 // END OF FILE — ODCN FINAL FORM
 // ============================================================
-
 */
