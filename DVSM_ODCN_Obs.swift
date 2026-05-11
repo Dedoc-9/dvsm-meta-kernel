@@ -1,7 +1,7 @@
 
 // DVSM × ODCN — OBSERVATIONAL FIBER EXTRACTION SYSTEM vFINAL-7
 // (PURITY-RESOLVED FORM)
-// Author: Daniel J. Dillberg
+// Author: Daniel J. Dillberg (most recent engine: v9)
 // ============================================================
 // DVSM_ODCN_IP_Sketch.swift
 
@@ -803,6 +803,201 @@ IPFiber equality is not even a relation induced by Ω — it is an application-l
 I’ve successfully separated:
 
 ontology (fibers) from encoding (IP representatives) without letting either collapse into the other.
+
+// =============================================================
+// DVSM × ODCN × IP — CURRENT EXPANDED SKETCH vFINAL-9
+// (Fiber-as-set, IP-as-representation, no canonical section)
+// =============================================================
+
+import Foundation
+
+// =============================================================
+// 1. TRACE / OBSERVATION DOMAIN
+// =============================================================
+
+struct Task {}
+struct Node {}
+struct Context {}
+
+typealias Index = (task: Task, node: Node, context: Context)
+typealias Trace = [Index]
+
+typealias Witness = (Index) -> Bool
+
+// =============================================================
+// 2. COLLAPSE MORPHISM (Ω = Φ ∘ W*)
+// =============================================================
+
+struct CollapseMorphology {
+
+    private func mix(_ x: UInt64) -> UInt64 {
+        var h = x
+        h ^= h >> 33
+        h &*= 0xff51afd7ed558ccd
+        h ^= h >> 33
+        return h
+    }
+
+    func omega(_ w: Witness, _ trace: Trace) -> UInt64 {
+
+        var state: UInt64 = 1469598103934665603
+
+        for (i, idx) in trace.enumerated() {
+            let b = w(idx)
+
+            state ^= UInt64(i &* 131)
+            state &*= 1099511628211
+            state ^= (b ? 1 : 0)
+
+            state = mix(state)
+        }
+
+        return state
+    }
+}
+
+// =============================================================
+// 3. FIBER SEMANTICS (SET-LEVEL OBJECT, NOT REPRESENTED FULLY)
+// =============================================================
+
+/*
+Fiber is a mathematical equivalence class:
+
+    Fiber(t) = { t' ∈ I* | Ω(t') = Ω(t) }
+
+IMPORTANT:
+- This is a SET in I*
+- Not representable in full
+- Not stored in system
+*/
+
+struct FiberRelation {
+    let omega: CollapseMorphology
+    let witness: Witness
+
+    func equivalent(_ a: Trace, _ b: Trace) -> Bool {
+        omega.omega(witness, a) == omega.omega(witness, b)
+    }
+}
+
+// =============================================================
+// 4. IP REPRESENTATION LAYER (CONTINGENT ENCODING ONLY)
+// =============================================================
+
+/// A single observed representative of a fiber (NOT the fiber itself)
+struct IPPoint {
+    let traceHash: UInt64
+}
+
+/// A symbolic handle to a fiber equivalence class
+/// WARNING: This is NOT a quotient object
+struct IPFiber {
+    let id: UInt64
+    let isCanonical: Bool  // always false in this system
+}
+
+// =============================================================
+// 5. REPRESENTATION MAPS (NON-FUNCTORIAL BY DESIGN)
+// =============================================================
+
+func projectIP(_ omegaValue: UInt64) -> IPPoint {
+    IPPoint(traceHash: omegaValue)
+}
+
+/// Induced encoding of a fiber representative
+func induceFiber(_ omegaValue: UInt64) -> IPFiber {
+
+    // deliberately arbitrary perturbation:
+    // ensures no canonical section exists
+    let scrambled = omegaValue ^ (omegaValue >> 33)
+
+    return IPFiber(id: scrambled, isCanonical: false)
+}
+
+// =============================================================
+// 6. OBSERVATIONAL RELATION ON IP LAYER
+// =============================================================
+
+func relate(_ a: IPPoint, _ b: IPPoint) -> Bool {
+    a.traceHash == b.traceHash
+}
+
+// =============================================================
+// 7. DEGREE OF FREEDOM BLOCK (CRITICAL CLARIFICATION)
+// =============================================================
+
+/*
+NEWLY IDENTIFIED STRUCTURAL DOF:
+
+The system has a hidden non-structural degree of freedom:
+
+    choice of representative mapping R: Fiber → IPFiber
+
+PROPERTIES:
+
+- R is NOT determined by Ω
+- R is NOT functorial
+- R is NOT canonical
+- R is external to the algebra
+
+CONSEQUENCE:
+
+Two implementations with identical Ω may differ in IP space.
+
+This means:
+
+    Ω determines equivalence classes
+    but NOT their representation
+
+Thus:
+
+    Fiber space is invariant
+    IP space is gauge-dependent
+*/
+
+// =============================================================
+// 8. SYSTEM INTERPRETATION BLOCK
+// =============================================================
+
+/*
+LAYER A — TRACE SPACE
+    I* (free monoid of execution histories)
+
+LAYER B — OBSERVATION
+    Ω : I* → UInt64
+    induces equivalence relation ~Ω
+
+LAYER C — FIBERS
+    equivalence classes in I*
+    (mathematical objects, not stored)
+
+LAYER D — IP REPRESENTATION
+    IPFiber = arbitrary encoding of a fiber
+    IPPoint = observed Ω-value
+
+KEY DISTINCTION:
+
+✔ Fiber is intrinsic (mathematical)
+✘ IPFiber is extrinsic (representational gauge)
+
+NO CANONICAL SECTION EXISTS:
+    Fiber → IPFiber is non-unique by construction
+*/
+
+// =============================================================
+// 9. FINAL STATUS
+// =============================================================
+
+/*
+SYSTEM CLASS:
+
+LOSSY OBSERVATIONAL QUOTIENT + GAUGE-DEPENDENT REPRESENTATION LAYER
+
+CORE PROPERTY:
+
+    semantics is invariant
+    representation is free
+*/
 
 // ============================================================
 // END OF FILE
