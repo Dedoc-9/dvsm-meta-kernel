@@ -560,3 +560,545 @@ Computation is implemented as:
 a constraint-induced subset of interaction space (T × N)
 over which a partial function EXEC is defined
 where all security, identity, and policy mechanisms operate as domain constructors rather than execution-time guards
+
+ODCN DOMAIN EQUIVALENCE & CONSTRAINT QUOTIENT SEMANTICS — ADDENDUM v3
+(Observation-Consistent Refinement Layer)
+
+Author: Daniel J. Dillberg
+Status: Formal Specification Addendum
+Applies to: ODCN Relational Compute Model
+
+This addendum refines interpretation only.
+It does NOT modify the core ODCN formal system.
+
+------------------------------------------------------------
+1. PURPOSE OF ADDENDUM
+------------------------------------------------------------
+
+This addendum formally separates:
+
+- constraint implementation (hidden structure)
+- constraint evaluation (observable predicate)
+- induced computation domain (extensional result)
+
+It resolves ambiguity in prior formulations by explicitly defining
+the semantic level at which equivalence is evaluated.
+
+No new computational primitives are introduced.
+
+------------------------------------------------------------
+2. THREE-LAYER SEMANTIC MODEL
+------------------------------------------------------------
+
+2.1 Implementation Layer (Hidden)
+
+Let Ĉ denote the internal realization of constraints:
+
+Ĉ ∈ Implementation(C)
+
+This layer includes:
+- cryptographic procedures
+- policy engines
+- acceptance logic
+- internal state or history
+
+This layer is NOT semantically observable.
+
+------------------------------------------------------------
+
+2.2 Observable Evaluation Layer (Primary Semantic Object)
+
+Define the observable constraint evaluation function:
+
+C* : T × N → {0,1}
+
+where:
+
+C*(t,n) = AUTH(n) ∧ ACCEPT(t,n) ∧ POLICY(t,n)
+
+C* is the only semantically relevant representation of constraint systems.
+
+------------------------------------------------------------
+
+2.3 Domain Induction Layer
+
+Define induced domain:
+
+D_C ⊆ (T × N)
+
+D_C = { (t,n) ∈ T × N | C*(t,n) = 1 }
+
+Interpretation:
+C* induces the admissible computation domain.
+
+------------------------------------------------------------
+3. EXECUTION SEMANTICS (UNMODIFIED)
+------------------------------------------------------------
+
+EXEC : D_C ⇀ O
+
+Properties:
+- EXEC is defined only over D_C
+- EXEC is undefined outside D_C
+- EXEC is a partial function induced by C*
+
+No changes to execution semantics are introduced.
+
+------------------------------------------------------------
+4. DOMAIN EQUIVALENCE (REFINED DEFINITION)
+------------------------------------------------------------
+
+Define equivalence relation:
+
+C1 ∼ C2 ⇔ C1* = C2*
+
+Equivalent reformulation:
+
+C1 ∼ C2 ⇔ D_C1 = D_C2
+
+Interpretation:
+Two constraint systems are equivalent iff they induce identical
+observable admissible interaction relations over T × N.
+
+------------------------------------------------------------
+5. SCOPE OF EQUIVALENCE
+------------------------------------------------------------
+
+This equivalence applies ONLY to:
+
+- observable predicate output (C*)
+- induced domain structure (D_C)
+
+It explicitly does NOT imply:
+
+- identical implementation structure (Ĉ)
+- identical computational cost
+- identical runtime behavior
+- identical evaluation timing
+- identical internal state evolution
+- identical adversarial observability beyond C*
+
+------------------------------------------------------------
+6. DOMAIN QUOTIENT STRUCTURE
+------------------------------------------------------------
+
+Define projection:
+
+π : C* → D_C
+
+Then equivalence induces quotient space:
+
+C / ∼ ≅ P(T × N)
+
+where each equivalence class corresponds to a unique admissible domain.
+
+Interpretation:
+ODCN identifies constraint systems only up to their induced
+observable interaction structure.
+
+------------------------------------------------------------
+7. NON-INJECTIVITY RESULT (UNCHANGED BUT CLARIFIED)
+------------------------------------------------------------
+
+∃ C1, C2 such that:
+
+C1 ≠ C2  and  C1 ∼ C2
+
+because:
+different implementations Ĉ may yield identical C*
+
+Therefore:
+
+π is not injective on implementation space.
+
+------------------------------------------------------------
+8. OBSERVATIONAL ABSTRACTION PRINCIPLE
+------------------------------------------------------------
+
+ODCN operates under the axiom:
+
+Only C* is semantically observable.
+All implementation structure Ĉ is intentionally abstracted away.
+
+Thus:
+
+System identity is defined extensionally over C*, not intensionally over Ĉ.
+
+------------------------------------------------------------
+9. SYSTEM INTERPRETATION (REFINED)
+------------------------------------------------------------
+
+ODCN is formally interpreted as:
+
+A computation model defined over observable constraint evaluations C*
+that induce admissible domains D_C,
+with execution defined as a partial function over D_C.
+
+------------------------------------------------------------
+10. FINAL FORMAL STATEMENT
+------------------------------------------------------------
+
+ODCN is a domain-quotient semantics of computation in which:
+
+- constraint systems are identified by their observable evaluation function C*
+- equivalence is defined by equality of induced admissible domains
+- all implementation structure is excluded from semantic equivalence
+
+------------------------------------------------------------
+11. FINAL STABLE FORM (ONE SENTENCE)
+------------------------------------------------------------
+
+ODCN defines computation as a partial function over constraint-induced domains, 
+where systems are considered equivalent if and only if they induce identical observable 
+constraint evaluations over T × N, while all internal implementation structure is explicitly 
+excluded from the semantic equivalence relation.
+
+/*
+ODCN — ADDITIONAL FORMAL ADDENDUM v3.1 (COMBINED)
+Constraint Morphism + Key Concept Stabilization Layer
+
+Author: Daniel J. Dillberg
+Status: Formal Specification Extension (Non-Disruptive)
+
+This file extends ODCN semantics without modifying core definitions.
+*/
+
+
+// MARK: - 1. SYSTEM CORE (REFERENCE SUMMARY)
+
+/// ODCN is a domain-quotient computation framework where:
+/// - constraints define admissible interaction domains
+/// - execution is a partial function over those domains
+/// - system identity is extensional over constraint evaluation
+
+// MARK: - 2. THREE-LAYER STRUCTURE
+
+// MARK: (A) Implementation Layer (Hidden)
+
+/// Ĉ ∈ Implementation(C)
+/// Not semantically observable.
+/// Includes cryptography, state, policy engines, etc.
+
+
+// MARK: (B) Observable Constraint Layer
+
+/// C* : (T × N) → Bool
+///
+/// C*(t, n) = AUTH(n) ∧ ACCEPT(t, n) ∧ POLICY(t, n)
+///
+/// Only semantically relevant constraint representation.
+
+
+// MARK: (C) Domain Layer
+
+/// D_C ⊆ (T × N)
+///
+/// (t, n) ∈ D_C ⇔ C*(t, n) == true
+
+
+// MARK: - 3. EXECUTION MODEL
+
+/// EXEC : D_C → O (partial function)
+///
+/// Defined only on admissible pairs.
+/// Undefined outside D_C.
+
+
+// MARK: - 4. CONSTRAINT PRINCIPLE
+
+/// Constraints define:
+/// - admissible interaction domain
+/// NOT execution behavior
+
+
+// MARK: - 5. DOMAIN EQUIVALENCE
+
+/// Two systems are equivalent iff:
+///
+/// C1 ∼ C2 ⇔ C1* == C2*
+/*
+ Equivalent form:
+ C1 ∼ C2 ⇔ D_C1 == D_C2
+*/
+
+/// Interpretation:
+/// Systems are identified only by induced admissible domains.
+
+
+// MARK: - 6. QUOTIENT SEMANTICS
+
+/// π : C* → D_C
+///
+/// Induces equivalence classes:
+/// C / ∼ ≅ P(T × N)
+
+
+// MARK: - 7. OBSERVATIONAL AXIOM
+
+/// Only C* is semantically observable.
+/// Implementation Ĉ is fully abstracted.
+
+
+// MARK: - 8. NON-IDENTIFIED STRUCTURE
+
+/// NOT preserved under equivalence:
+/// - runtime cost
+/// - evaluation timing
+/// - internal state
+/// - execution mechanics
+/// - adversarial observability beyond C*
+
+
+// MARK: - 9. KEY INVARIANT
+
+/// Computation exists iff:
+/// ∃ (t, n) such that C*(t, n) == true
+
+
+// MARK: - 10. MORPHISM STRUCTURE (SYSTEM TRANSFORMATIONS)
+
+struct ODCNMorphism {
+
+    /// Mapping between systems
+    let map: ((Task, Node)) -> (Task, Node)
+
+    // MARK: Domain Preservation
+
+    /// If (t,n) ∈ D_C1 then Φ(t,n) ∈ D_C2
+    func preservesDomain(_ pair: (Task, Node),
+                         in domain1: (Task, Node) -> Bool,
+                         in domain2: (Task, Node) -> Bool) -> Bool {
+
+        guard domain1(pair) else { return true }
+        let mapped = map(pair)
+        return domain2(mapped)
+    }
+
+
+    // MARK: Constraint Compatibility
+
+    /// C1*(t,n)=true ⇒ C2*(Φ(t,n))=true
+    func preservesConstraint(
+        _ pair: (Task, Node),
+        C1: ((Task, Node)) -> Bool,
+        C2: ((Task, Node)) -> Bool
+    ) -> Bool {
+
+        guard C1(pair) else { return true }
+        return C2(map(pair))
+    }
+}
+
+
+// MARK: - 11. SPECIAL MORPHISM CASES
+
+/// Identity: Φ(x)=x
+/// Domain expansion: D1 ⊂ D2
+/// Domain restriction: D1 ⊃ D2
+/// Equivalence: D1 == D2
+
+// MARK: - 12. SYSTEM SPACE STRUCTURE
+
+/// ODCN systems form a space:
+///
+/// System = (T, N, C*, D_C, EXEC)
+
+/// Morphisms define structure-preserving transformations
+/// between such systems.
+
+// MARK: - 13. FINAL STABILIZED STATEMENT
+
+/// ODCN is a domain-quotient computation framework where:
+/// - constraint systems are identified by C*
+/// - execution is defined over induced domains D_C
+/// - system transformations preserve admissible interaction structure
+/// - implementation details are fully abstracted
+
+/*
+ODCN DOMAIN EQUIVALENCE & CONSTRAINT QUOTIENT SEMANTICS — ADDENDUM v3.2
++ 5-AXIS LOGIC EXTENSION BLOCK
++ STRUCTURAL DIAGRAM SPECIFICATION
+
+Author: Daniel J. Dillberg
+Status: Formal Specification Addendum
+Applies to: ODCN Relational Compute Model
+
+This addendum:
+- Refines semantic interpretation only
+- Adds no new computational primitives
+- Introduces observational axis decomposition for constraint systems
+*/
+
+// ============================================================
+// 1. CORE OBSERVATIONAL MODEL (UNCHANGED)
+// ============================================================
+
+/// Constraint evaluation function (observable layer)
+/// C* : T × N → {0,1}
+///
+/// C*(t,n) = AUTH(n) ∧ ACCEPT(t,n) ∧ POLICY(t,n)
+
+/// Induced domain:
+/// D_C ⊆ (T × N)
+/// D_C = { (t,n) | C*(t,n) = 1 }
+
+/// Execution:
+/// EXEC : D_C ⇀ O
+
+// ============================================================
+// 2. CONSTRAINT SEMANTIC SEPARATION
+// ============================================================
+
+/// Hidden implementation layer:
+/// Ĉ ∈ Implementation(C)
+/// (non-observable, excluded from semantics)
+
+/// Observable layer:
+/// C* : semantic predicate only
+
+/// Domain layer:
+/// C* → D_C → EXEC
+
+// ============================================================
+// 3. DOMAIN EQUIVALENCE (REFINED)
+// ============================================================
+
+/// Equivalence relation:
+///
+/// C1 ∼ C2 ⇔ C1* = C2*
+
+/// Equivalent form:
+///
+/// C1 ∼ C2 ⇔ D_C1 = D_C2
+
+/// Interpretation:
+/// Systems are equivalent only by induced admissible domain structure
+
+// ============================================================
+// 4. 5-AXIS CONSTRAINT LOGIC MODEL
+// ============================================================
+
+/// Each constraint system C* is decomposed into 5 orthogonal axes:
+
+enum ConstraintAxis {
+
+    /// AXIS 1 — Identity Integrity (AUTH)
+    case identity
+    /// Determines cryptographic validity of node membership
+
+    /// AXIS 2 — Consent Binding (ACCEPT)
+    case consent
+    /// Represents explicit task-node commitment
+
+    /// AXIS 3 — Policy Compliance (POLICY)
+    case policy
+    /// Resource + system constraint evaluation
+
+    /// AXIS 4 — Domain Induction (D_C formation)
+    case domain
+    /// Maps predicates → admissible interaction set
+
+    /// AXIS 5 — Execution Realization (EXEC semantics)
+    case execution
+    /// Partial function evaluation over D_C
+}
+
+// ============================================================
+// 5. AXIS DEPENDENCY GRAPH (LOGICAL MODEL)
+// ============================================================
+
+/*
+        [Identity]
+            |
+            v
+        [Consent] ---> (combined predicate layer C*)
+            |
+            v
+        [Policy]
+            |
+            v
+     -----------------
+     |   Domain D_C   |
+     -----------------
+            |
+            v
+       [Execution EXEC]
+*/
+
+// Formal dependency:
+
+// AUTH → ACCEPT → POLICY → C* → D_C → EXEC
+
+// ============================================================
+// 6. AXIS INDEPENDENCE PRINCIPLE
+// ============================================================
+
+/// Each axis is semantically separable:
+/// - Identity does not define execution
+/// - Consent does not define policy
+/// - Policy does not define execution
+/// - Only composition defines domain
+
+/// Core invariant:
+/// EXEC depends only on D_C, not on internal axis structure
+
+// ============================================================
+// 7. DOMAIN QUOTIENT STRUCTURE
+// ============================================================
+
+/// Projection:
+/// π(C*) = D_C
+
+/// Quotient space:
+/// C / ∼ ≅ P(T × N)
+
+/// Interpretation:
+/// Constraint systems collapse into equivalence classes
+/// defined solely by admissible interaction domains
+
+// ============================================================
+// 8. NON-INJECTIVITY RESULT
+// ============================================================
+
+/// ∃ C1, C2 such that:
+/// C1 ≠ C2 ∧ C1 ∼ C2
+
+/// Meaning:
+/// Different implementations → same observable domain
+
+// ============================================================
+// 9. OBSERVATIONAL ABSTRACTION AXIOM
+// ============================================================
+
+/// Only C* and D_C are semantically observable.
+/// All implementation structure Ĉ is excluded.
+
+/// System identity is extensional only:
+/// identity = induced interaction relation
+
+// ============================================================
+// 10. FINAL NORMAL FORM
+// ============================================================
+
+/// ODCN is a domain-quotient computation system:
+///
+/// SYSTEM = (C*, D_C, EXEC)
+///
+/// Where:
+/// C* defines admissibility
+/// D_C is induced interaction set
+/// EXEC is partial function over D_C
+
+// ============================================================
+// 11. FINAL COMPRESSED STATEMENT
+// ============================================================
+
+/// Computation is defined as:
+/// a partial function over a constraint-induced interaction domain,
+/// where systems are equivalent iff they induce identical observable
+/// constraint evaluations over task–node pairs.
+
+// ============================================================
+// END OF SPECIFICATIONS
+// ============================================================
+*/
