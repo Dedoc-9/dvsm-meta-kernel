@@ -1809,6 +1809,27 @@ impl OmegaVajra for VajraSpectralProbe {
 ///
 /// It is mathematically a projection functional, not a subsystem.
 
+/*!
+=============================================================================
+LAYERED KERNEL ADDENDUM (Ω_VAJRA-CONSISTENT SPECIFICATION)
+=============================================================================
+
+DESIGN NOTE:
+This section defines a clean Rust-style layered addendum that preserves the
+original architectural intent while enforcing strict non-leaky, composition-safe,
+and VLP-isolated boundaries consistent with the Ω_VAJRA observer model.
+
+KEY DESIGN CHOICE:
+All kernels are treated as sealed observational or transformation layers.
+They are NOT runtime controllers of the core dynamical operators:
+
+    P (Projection) / H (Hamiltonian) / U (Evolution) / M (Mutation)
+
+They operate strictly in a read-only or invariant-mapping capacity and MUST NOT
+participate in or influence system evolution, topology mutation, or state control.
+
+=============================================================================                     
+
 #![allow(dead_code)]
 
 /*!
