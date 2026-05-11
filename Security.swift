@@ -1447,11 +1447,13 @@ systems modeling and formal verification
 Computational systems are traditionally modeled in multiple equivalent but domain-specific ways:
 
 3.1 Category Theory
+
 Computation modeled as morphisms:
 h:S→O
 Systems correspond to restricted classes of morphisms in a category.
 
 3.2 Programming Language Semantics
+
 Computation modeled via evaluation of expressions.
 System structure defined by:
 typing rules
@@ -1459,6 +1461,7 @@ evaluation strategy
 operational semantics
 
 3.3 Circuit Theory
+
 Computation modeled as Boolean or arithmetic functions.
 Implementation constrained by:
 gate libraries
@@ -1466,6 +1469,7 @@ wiring structure
 timing constraints
 
 3.4 Database Theory
+
 Computation modeled as query functions.
 System structure defined by:
 schema constraints
@@ -1473,6 +1477,7 @@ relational algebra restrictions
 execution plan constraints
 
 3.5 Systems Theory
+
 Computation modeled as input-output mappings.
 Realization constrained by:
 physical dynamics
@@ -1525,24 +1530,28 @@ Constraints: restricted morphism classes
 ➡ System ≡ structured subcategory of Hom(S,O)
 
 7.2 Programming Language Semantics
+
 h: program meaning
 constraints: type system + operational semantics
 
 ➡ System ≡ constrained evaluation model
 
 7.3 Circuit Design
+
 h: Boolean function
 constraints: gate set + wiring restrictions
 
 ➡ System ≡ constrained physical realization of function
 
 7.4 Databases
+
 h: query function
 constraints: schema + query planner restrictions
 
 ➡ System ≡ constrained execution of function
 
 7.5 Systems Theory
+
 h: transfer function
 constraints: physical realizability conditions
 
@@ -1566,6 +1575,7 @@ new equivalence relations
 new composition laws
 new execution semantics
 new algebraic structures
+
 9.2 What is also present in prior art
 
 The abstraction is fully present in:
@@ -1575,6 +1585,7 @@ type theory (typing + operational constraints)
 circuit complexity theory (implementation constraints)
 database theory (query plan constraints)
 systems theory (realizability constraints)
+
 10. Residual Contribution (If any)
 
 If interpreted strictly, the only remaining value is:
