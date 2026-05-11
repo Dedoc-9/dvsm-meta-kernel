@@ -6,7 +6,7 @@ DVSM-COARSE-FIELD (DCF) v3.0.0-FINAL
 AUTHORSHIP
 ----------
 Author: Daniel J. Dillberg
-Co-Architecture: Lumo Synthesis Team / ChatGPT
+Co-Architecture: Lumo Synthesis Team / ChatGPT / Google AI
 
 LICENSE (GNU AGPL v3.0)
 
