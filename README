@@ -26,7 +26,9 @@ Stabilized Rust Kernel & Porting v1: https://github.com/Dedoc-9/dvsm-meta-kernel
 
 qsv_kernel.vlp.qgraph.rs (v2 Rust): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/qsv_kernel.vlp.qgraph.rs
 
-Pre qsv_Kernel logic:
+dvsm_coarse_field.rs (Quantum): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_coarse_field.rs
+
+Pre qsv_Kernel/dvsm_coarse_field.rs logic:
 
 Truth is no longer defined by temporal reference (i.e., "what the clock says"),
 but as the invariant residue that remains after full transformation convergence
