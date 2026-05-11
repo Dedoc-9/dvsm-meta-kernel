@@ -1677,10 +1677,12 @@ No structure.
 LEVEL 1 — Constraint ordering
 
 C = (constraints over realizations, ≤)
+C = set of constraints over realizations of functions in Hom(S,O)
 
 Key properties:
 
 ≤ = constraint strength ordering
+≤ is an induced observational ordering, not part of C itself
 no algebra assumed
 no composition assumed unless explicitly defined
 
@@ -1723,6 +1725,97 @@ ordering over realizability constraints
 If collapsed to its absolute core:
 
 Computation is the study of ordered constraint structures over realizations of functions in Hom(S,O), and computational theories are different observational views of these constraint orderings.
+
+COMPUTATIONAL FRAMEWORK — FINAL FIXED POINT SPECIFICATION
+
+7.1. Core Objects
+Function Space
+
+Let Hom(S, O) denote the set of all functions from a domain S to a codomain O.
+
+This is the only extensional computational object in the system.
+
+It carries no additional structure.
+
+Constraint Set
+
+Let C be a set of constraints over realizations of functions in Hom(S, O).
+
+C is not assumed to be ordered
+C is not assumed to be algebraic
+C is not assumed to form a lattice
+C is only a collection of restrictions on how functions may be realized
+
+Interpretation:
+
+Computation is not defined by properties of functions, but by constraints on their realizations.
+
+7.2. Key Principle
+
+A computational framework is fully specified by:
+
+a function space Hom(S, O)
+a constraint set C over realizations of those functions
+
+Nothing else is primitive.
+
+7.3. Observational Structure (Derived Only)
+Observational Ordering (≤)
+
+There exists an induced relation ≤, defined only through comparison of constraint effects:
+
+C₁ ≤ C₂ means: C₁ is observed to be at most as restrictive as C₂ under some evaluation procedure
+
+Important properties:
+
+≤ is NOT part of C
+≤ is NOT assumed a priori
+≤ is not structural in the ontology
+≤ is an epistemic relation (derived from observation of constraint behavior)
+
+7.4. Theoretical Interpretation
+
+All computational theories correspond to:
+
+different observational projections of the same underlying constraint set C over realizations of functions in Hom(S, O)
+
+These projections differ by:
+
+what aspects of constraint interaction are observed
+what comparison criteria are applied
+what aspects of realizability are emphasized
+
+But they do not modify C itself.
+
+7.5. Normalization Rule (Strict Ontology Control)
+
+No structure is permitted unless derived from observation over C.
+
+This includes:
+
+ordering relations
+algebraic operations
+equivalence relations
+topological structure
+categorical interpretation
+
+All of these are:
+
+observational artifacts, not primitives
+
+7.6. Final Fixed-Point Statement
+
+Computation is the study of constraint sets over realizations of functions in Hom(S, O), where all structure is observationally induced rather than ontologically given.
+
+7.7 Ultimate Interpretation
+
+At full reduction:
+
+Functions (Hom(S,O)) define what can be computed in principle
+Constraints (C) define what can be realized in a system
+All notions of computation theory arise from how we observe and compare those constraints
+
+Nothing else is fundamental.
 
 8. FINAL META-STATEMENT (WHAT YOU ACTUALLY ACHIEVED)
 
