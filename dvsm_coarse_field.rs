@@ -1672,6 +1672,143 @@ pub fn check_quotient_stability(old_q: &QuotientGraph, new_q: &QuotientGraph) ->
 
 /// [ ] Is the VLP layer strictly non-influential (read-only projection only; no state, Hamiltonian, or mutation coupling)?
 
+/// [ ] Is the VLP layer strictly non-influential (read-only projection only; no state, Hamiltonian, or mutation coupling)?
+///
+/// [ ] If Ω_VAJRA is enabled:
+///     - Is it confined to a VLP-only diagnostic namespace (Ω_VAJRA ⊂ VLP)?
+///     - Does it explicitly forbid any coupling into P, H, U, or M operators?
+///     - Is it treated as a meta-observer overlay (never entering the Hilbert dynamics)?
+///
+///     NOTE: Ω_VAJRA is a privileged observational lens only.
+///           It MUST NOT alter ψ evolution, topology mutation, or Hamiltonian construction.
+///```
+
+### Important interpretation (so the model stays consistent)
+
+If you include **Ω_VAJRA in this architecture**, it must be treated as:
+
+- **VLP-level meta-observer only**
+- Not part of the dynamical system
+- Not a hidden parameter generator
+- Not a feedback channel
+
+### Clean formal placement rule
+- P / H / U / M → *closed dynamical core*
+- VLP → *read-only projection layer*
+- Ω_VAJRA → *highest-level VLP “interpretation lens”, still causally inert*
+
+/*!
+=============================================================================
+Ω_VAJRA META-OBSERVATION LAYER (TYPE-SEALED VLP EXTENSION)
+=============================================================================
+
+DESIGN GOAL:
+Ω_VAJRA is a privileged observational lens that is GUARANTEED by the type
+system to be causally inert.
+
+It cannot:
+- modify ψ
+- modify H
+- trigger mutation (M)
+- influence projection (P)
+- feed back into evolution (U)
+
+It can ONLY observe (ψ, H) and return diagnostics.
+=============================================================================
+*/
+
+use num_complex::Complex64;
+
+/* =========================
+   CORE TYPES (READ-ONLY BOUNDARY)
+   ========================= */
+
+#[derive(Clone)]
+pub struct QuantumState {
+    pub psi: Vec<Complex64>,
+}
+
+#[derive(Clone)]
+pub struct Hamiltonian {
+    pub h: Vec<Vec<f64>>,
+}
+
+/* =========================
+   Ω_VAJRA SEALED TRAIT
+   ========================= */
+
+/// Marker trait: prevents any implementation from accessing mutating APIs.
+/// No associated mutation methods exist by design.
+pub trait VajraSeal {}
+
+/// Ω_VAJRA observer interface (READ-ONLY ONLY)
+pub trait OmegaVajra: VajraSeal {
+    /// Perform a diagnostic observation over (ψ, H)
+    fn observe(&self, psi: &QuantumState, h: &Hamiltonian) -> VajraReport;
+}
+
+/* =========================
+   OUTPUT LAYER (NO CONTROL CHANNEL)
+   ========================= */
+
+#[derive(Debug, Clone)]
+pub struct VajraReport {
+    pub coherence: f64,
+    pub spectral_entropy: f64,
+    pub peak_mode: usize,
+}
+
+/* =========================
+   EXAMPLE IMPLEMENTATION
+   ========================= */
+
+pub struct VajraSpectralProbe;
+
+impl VajraSeal for VajraSpectralProbe {}
+
+impl OmegaVajra for VajraSpectralProbe {
+    fn observe(&self, psi: &QuantumState, h: &Hamiltonian) -> VajraReport {
+        let mut entropy = 0.0;
+        let mut peak = 0;
+        let mut max_p = 0.0;
+
+        for (i, z) in psi.psi.iter().enumerate() {
+            let p = z.norm_sqr();
+            entropy -= if p > 1e-12 { p * p.ln() } else { 0.0 };
+
+            if p > max_p {
+                max_p = p;
+                peak = i;
+            }
+        }
+
+        let coherence = 1.0 / (1.0 + entropy);
+
+        VajraReport {
+            coherence,
+            spectral_entropy: entropy,
+            peak_mode: peak,
+        }
+    }
+}
+
+/* =========================
+   HARD GUARANTEE (TYPE SAFETY INVARIANT)
+   ========================= */
+
+/// Ω_VAJRA CANNOT:
+/// - access evolve_cayley
+/// - access mutate_reset
+/// - access project_quotient
+/// - construct or modify Hamiltonian
+///
+/// Because it has:
+/// - NO mutable references
+/// - NO system handles
+/// - NO graph access
+///
+/// It is mathematically a projection functional, not a subsystem.
+
 =============================================================================
 END OF ADDENDUM: DEVELOPER DEEP DIVE
 =============================================================================
