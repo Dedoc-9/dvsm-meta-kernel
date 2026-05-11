@@ -1836,22 +1836,59 @@ participate in or influence system evolution, topology mutation, or state contro
 =============================================================================
 DVSM MULTI-KERNEL LAYER SPECIFICATION (MIT-STYLE INVARIANT STACK)
 =============================================================================
+KERNEL ISOLATION CONTRACT (HARD GUARANTEE SPECIFICATION)
+=============================================================================
 
-DESIGN PRINCIPLE:
-All kernels below are:
-- NON-EXECUTIVE in system control flow
-- READ-ONLY or PURE TRANSFORM LAYERS
-- STRICTLY isolated from P / H / U / M mutation pathways
+DESIGN PRINCIPLE (NON-NEGOTIABLE):
 
-They operate as:
-    "Interpretation + Invariant Verification + Cross-Model Mapping Layers"
+All kernels defined in this module are strictly classified as:
+- NON-EXECUTIVE with respect to DVSM control flow
+- READ-ONLY evaluators over injected state snapshots
+- PURE TRANSFORM / INVARIANT MAP FUNCTIONS ONLY
 
-They MUST NOT:
-- mutate ψ
-- modify Hamiltonian H
-- trigger topology mutation M
-- influence projection P
-- participate in time evolution U
+They exist outside the execution authority boundary of:
+
+    P (Projection) / H (Hamiltonian) / U (Evolution) / M (Mutation)
+
+and MUST be treated as observational adjuncts only.
+
+-----------------------------------------------------------------------------
+
+SEMANTIC ROLE:
+Kernels operate exclusively as:
+
+    "Deterministic Interpretation Layers"
+    "Invariant Verification Functors"
+    "Cross-Model Projection Mappings"
+
+They do NOT participate in causal structure generation.
+
+-----------------------------------------------------------------------------
+
+FORMAL PROHIBITIONS (HARD CONSTRAINTS):
+
+Under no circumstance, direct or indirect, may any kernel:
+
+- mutate or alias ψ (quantum state vector)
+- construct, modify, or reinterpret Hamiltonian H
+- invoke, trigger, or suggest topology mutation M
+- access or influence projection operator P
+- participate in or depend on unitary evolution operator U
+- introduce feedback paths into the DVSM execution graph
+
+-----------------------------------------------------------------------------
+
+CAUSAL ISOLATION GUARANTEE:
+
+Kernels are defined as:
+    f : (ψ, H) → ℝⁿ or metadata
+
+They are:
+- side-effect free
+- state-immutable
+- causally inert with respect to system evolution
+
+Any violation of these constraints constitutes a type-level architecture breach.
 
 =============================================================================
 CORE BOUNDARY TYPE
