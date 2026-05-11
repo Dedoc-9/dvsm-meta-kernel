@@ -656,6 +656,19 @@ final class DVSMKernel {
 // ============================================================================
 // END OF ADDENDUM
 // ============================================================================
+Bottom line
+
+The current framing is correct:
+
+DVSM is a deterministic computational pipeline
+It is not yet a mathematical system
+It lacks algebraic, relational, and structural closure conditions
+
+And crucially:
+
+We are no longer mixing implementation semantics with mathematical ontology
+
+That is the real achievement of this revision chain.
 // ============================================================================
 // END OF FILE
 // ============================================================================
