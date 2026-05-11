@@ -667,6 +667,267 @@ These are computability and observability assumptions, not semantic or philosoph
 In partially observable, distributed, or externally evolving systems, these assumptions may need to be weakened to allow incomplete or incremental projections.
 
 For the current specification: this assumption is valid and consistent.
+
+use std::collections::{HashMap, HashSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub id: usize,
+    pub payload: String,
+    pub links: Vec<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub events: HashMap<usize, Event>,
+}
+
+/// Computes full reachability closure from a node (set semantics)
+fn reachable_closure(state: &State, start: usize) -> HashSet<usize> {
+    let mut visited = HashSet::new();
+    let mut stack = vec![start];
+
+    while let Some(node) = stack.pop() {
+        if !visited.insert(node) {
+            continue;
+        }
+
+        if let Some(event) = state.events.get(&node) {
+            let mut neighbors = event.links.clone();
+            neighbors.sort_unstable(); // deterministic expansion
+
+            for n in neighbors {
+                if !visited.contains(&n) {
+                    stack.push(n);
+                }
+            }
+        }
+    }
+
+    visited
+}
+
+/// DVSM stable structural hash (quotient-collapsed)
+///
+/// FIX APPLIED:
+/// - removes duplicate closure contributions
+/// - hashes unique equivalence regions only
+pub fn dvsm_hash(state: &State, seed: u64) -> u64 {
+    let mut acc = seed;
+
+    let mut nodes: Vec<_> = state.events.keys().cloned().collect();
+    nodes.sort_unstable();
+
+    // ------------------------------------------------------------
+    // CRITICAL FIX: closure deduplication layer
+    // ------------------------------------------------------------
+    let mut seen_closures: HashSet<Vec<usize>> = HashSet::new();
+
+    for node in nodes {
+        let mut closure: Vec<_> = reachable_closure(state, node)
+            .into_iter()
+            .collect();
+
+        closure.sort_unstable(); // canonical representation of set
+
+        // normalize closure to enable structural deduplication
+        if seen_closures.insert(closure.clone()) {
+            // only first occurrence of each equivalence region is hashed
+
+            for v in closure {
+                acc = acc.wrapping_mul(1099511628211);
+                acc ^= v as u64;
+            }
+        }
+    }
+
+    acc
+}
+use std::collections::{HashMap, HashSet};
+
+/// ============================================================
+/// DVSM — INTEGRATED QUOTIENT + OBSERVER STABILITY KERNEL
+/// ============================================================
+///
+/// CORE LAYERS:
+///
+/// S   = Event Graph (causal structure)
+/// R   = Reachability quotient operator
+/// Q_R = Equivalence classes under fixed reachability
+/// Ω   = Normalized structural mode selector
+/// Λ   = Optional observer projection layer (non-morphism)
+///
+/// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub id: usize,
+    pub payload: String,
+    pub links: Vec<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub events: HashMap<usize, Event>,
+}
+
+/// ============================================================
+/// FIXED REACHABILITY OPERATOR (NO VERSIONING ALLOWED)
+/// ============================================================
+
+fn reachability(state: &State, start: usize) -> HashSet<usize> {
+    let mut visited = HashSet::new();
+    let mut stack = vec![start];
+
+    while let Some(node) = stack.pop() {
+        if !visited.insert(node) {
+            continue;
+        }
+
+        if let Some(event) = state.events.get(&node) {
+            for n in &event.links {
+                if !visited.contains(n) {
+                    stack.push(*n);
+                }
+            }
+        }
+    }
+
+    visited
+}
+
+/// ============================================================
+/// CANONICAL REPRESENTATION OF A SET (ORDER-INVARIANT ID)
+/// ============================================================
+
+fn closure_fingerprint(set: &HashSet<usize>) -> u64 {
+    let mut acc: u64 = 1469598103934665603;
+
+    let mut v: Vec<_> = set.iter().cloned().collect();
+    v.sort_unstable();
+
+    for x in v {
+        acc = acc.wrapping_mul(1099511628211);
+        acc ^= x as u64;
+    }
+
+    acc
+}
+
+/// ============================================================
+/// QUOTIENT CONSTRUCTION (Q_R)
+/// ============================================================
+
+fn quotient(state: &State) -> Vec<HashSet<usize>> {
+    let nodes: Vec<_> = state.events.keys().cloned().collect();
+
+    let mut seen_fingerprints = HashSet::new();
+    let mut classes = Vec::new();
+
+    for n in nodes {
+        let closure = reachability(state, n);
+        let fp = closure_fingerprint(&closure);
+
+        if seen_fingerprints.insert(fp) {
+            classes.push(closure);
+        }
+    }
+
+    classes
+}
+
+/// ============================================================
+/// Ω — NORMALIZED MODE SELECTION (NO HEURISTICS)
+/// ============================================================
+
+pub fn omega(state: &State) -> f64 {
+    let q = quotient(state);
+
+    let class_count = q.len() as f64;
+    let total_nodes = state.events.len().max(1) as f64;
+
+    // scale-invariant entropy proxy (normalized structure signal)
+    class_count / total_nodes.ln().max(1.0)
+}
+
+/// ============================================================
+/// OBSERVER LAYER Λ (OPTIONAL, NON-MORPHIC)
+/// ============================================================
+
+pub trait Observer {
+    fn project(&self, state: &State) -> String;
+}
+
+/// NOTE:
+/// Λ is NOT required to preserve:
+/// - injectivity
+/// - class separation
+/// - reconstruction
+///
+/// It is purely interpretive.
+
+pub struct DefaultObserver;
+
+impl Observer for DefaultObserver {
+    fn project(&self, state: &State) -> String {
+        let q = quotient(state);
+
+        format!(
+            "classes={}",
+            q.len()
+        )
+    }
+}
+
+/// ============================================================
+/// COMPARABILITY LAYER (OBSERVATION-INDEPENDENT CORE)
+/// ============================================================
+
+pub fn structurally_equivalent(a: &State, b: &State) -> bool {
+    let qa = quotient(a);
+    let qb = quotient(b);
+
+    if qa.len() != qb.len() {
+        return false;
+    }
+
+    let mut fa: Vec<_> = qa.iter().map(closure_fingerprint).collect();
+    let mut fb: Vec<_> = qb.iter().map(closure_fingerprint).collect();
+
+    fa.sort_unstable();
+    fb.sort_unstable();
+
+    fa == fb
+}
+
+/// ============================================================
+/// TIME CONSISTENCY RULE (EPISTEMIC SAFETY LAYER)
+/// ============================================================
+
+pub fn safe_evolution_constraint(
+    old: &State,
+    new: &State
+) -> bool {
+    let old_q = quotient(old);
+    let new_q = quotient(new);
+
+    // monotonic preservation check (no collapse of prior equivalence)
+    old_q.iter().all(|c_old| {
+        new_q.iter().any(|c_new| c_new.is_superset(c_old))
+    })
+}
+
+/// ============================================================
+/// OBSERVER COMPOSABILITY NOTE (EXPLICIT LIMITATION MODEL)
+/// ============================================================
+///
+/// Λ is NOT a functor over Q_R.
+/// Therefore:
+/// - observer outputs may be incomparable
+/// - identical quotients may yield divergent views
+///
+/// This is intentional and preserved as a structural property.
+/// ============================================================
 // ============================================================
 // END OF FILE
 // ============================================================
