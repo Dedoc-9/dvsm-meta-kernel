@@ -78,25 +78,86 @@ SPDX IDENTIFIERS (for tooling compatibility):
 =============================================================================
 WHITEPAPER (ENGINEERING TRANSLATION)
 =============================================================================
+DVSM-COARSE-FIELD (DCF) v3.0.0-FINAL
+CORE ARCHITECTURE & ONTOLOGICAL CONTRACT
+=============================================================================
 
+SUMMARY:
 DCF is a coarse-grained spectral dynamics engine defined on quotient graphs.
+It replaces microscopic graph dynamics with a structured abstraction to achieve
+scalability (O(K) vs O(2^N)) while preserving interference-like spectral behavior.
 
-It replaces microscopic graph dynamics with a structured abstraction:
+PIPELINE:
 
     Raw Graph (S)
-        ↓  Projection (P)
-    Equivalence Classes Q(S)
-        ↓  Hamiltonian Construction (H = D - A)
+        ↓  [P] Projection (Irreversible Compression)
+    Quotient State Q(S)
+        ↓  [H] Hamiltonian Construction (D - A)
     Real-Symmetric Spectral Operator
-        ↓  Unitary Evolution (Cayley Transform)
-    ψ(t) ∈ ℂ^K
-        ↓  Discrete Topology Events
-    Mutation (M) → Reprojection
+        ↓  [U] Cayley Unitary Evolution
+    ψ(t) ∈ ℂ^K  (State over equivalence classes)
+        ↓  [M] Topology Event Detection
+    Mutation (M) → Reprojection / Reset
 
-KEY PRINCIPLE:
-- The system is piecewise-unitary.
-- Unitarity holds ONLY between topology mutations.
-- Topology changes are explicitly non-unitary resets.
+=============================================================================
+CORE INVARIANTS
+=============================================================================
+
+1. PIECEWISE UNITARITY
+   - Evolution is strictly unitary between topology events.
+   - U(t) preserves norm: ||ψ||₂ = 1.
+   - Implemented via Cayley transform (not Euler approximation).
+
+2. NON-UNITARY TOPOLOGY MUTATIONS
+   - Graph updates are discontinuities, not continuous dynamics.
+   - Mutation (M) is a reset operator:
+       • destroys old basis consistency
+       • redefines Q(S)
+       • reinitializes or projects ψ
+   - This is analogous to measurement, not evolution.
+
+3. COARSE-GRAINED ONTOLOGY
+   - Micro-structure (nodes/edges in S) is not part of state space.
+   - Only equivalence classes Q(S) define the Hilbert space basis.
+   - Projection loss is irreversible by design.
+
+4. REAL-SYMMETRIC HAMILTONIAN
+   - H = D - A, strictly real and symmetric.
+   - No complex coupling terms are required for interference.
+   - Spectral interference arises from eigenmode superposition only.
+
+5. VARIABLE LOGIC PERSPECTIVES (VLP LAYER)
+   - Observers are read-only projections over (ψ, H).
+   - VLPs cannot influence evolution, topology, or state.
+   - They represent diagnostics, not dynamics.
+
+=============================================================================
+IMPLEMENTATION GUARANTEES
+=============================================================================
+
+- Norm preservation: ||ψ(t)||₂ = 1 (enforced via unitary solver, not renorm hacks)
+- Hermiticity: H = Hᵀ (construction-level invariant)
+- Determinism: Projection P(S) is deterministic given S
+- Complexity: O(K) state evolution, O(N log N) topology rebuild
+- Stability: Cayley transform required; Euler methods are invalid
+
+=============================================================================
+FORBIDDEN OPERATIONS (HARD CONSTRAINTS)
+=============================================================================
+
+- Using Hash/entropy outputs as control signals
+- Attempting reconstruction of micro-graph S from ψ
+- Treating topology changes as differentiable evolution
+- Introducing non-symmetric Hamiltonian terms without explicit extension
+- Mutating ψ outside U or M operators
+
+=============================================================================
+STATUS
+=============================================================================
+
+This system is a closed spectral dynamics specification.
+It is implementation-ready in Rust / Python / C++ with strict adherence
+to the unitary–mutation separation principle.
 
 =============================================================================
 GATE FLOW DIAGRAM
