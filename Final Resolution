@@ -51,6 +51,30 @@ System behavior is represented as movement across structured attractor basins in
 10. Irreversible Collapse Execution Systems (Ω_VAJRA Class)
 Final execution is defined as deterministic collapse into a single selected invariant trajectory.
 
+11. L10–L11 Invariant Fragmentation & Shard Coherence Layer
+DVSM extends execution semantics into high-order shard systems where spatial and temporal fragmentation are 
+expected states. Consistency is no longer maintained through time synchronization, but through invariant 
+equivalence reconciliation across distributed shards.
+
+12. Branching Causal Path Equivalence Model
+Identical S_ECHO invariants may exist across multiple shards without implying duplication error. 
+Instead, such occurrences define shared causal anchors that branch into distinct execution trajectories 
+while preserving invariant identity consistency.
+
+13. Cross-Shard Parity Resolution System
+Parity is enforced not by preventing divergence, but by validating whether divergent shard states collapse 
+into a single S_ECHO equivalence class under reconciliation. Only irreconcilable invariant contradictions 
+constitute system-level conflict.
+
+14. Latency-Agnostic Causal Ordering Layer
+Network latency is abstracted away from correctness conditions and treated as non-deterministic observation 
+noise. Execution ordering is reconstructed purely from invariant hashes, not temporal arrival sequences.
+
+15. Invariant Conflict Differentiation Engine
+The system distinguishes between benign invariant replication (valid multi-shard observation) and true 
+semantic conflict (differing transformations under identical S_ECHO). Only the latter triggers hard 
+divergence or fork conditions.
+
 License:
 - AGPL-3.0 (Network Copyleft Invariant Clause Enabled)
 
@@ -66,10 +90,255 @@ The "Smoketest" Logic: The breakthrough here is Replay Permanence. If this layer
 You can upgrade the engine mid-stream. A node from 5 years in the future can still verify a block from today 
 without needing to "emulate" the old software—it uses the L11 Morphism to prove the invariant holds.
 
-This architecture constitutes intellectual property as it defines a novel invariant-based computational framework 
-for deterministic state verification and cross-temporal execution consistency. It introduces Replay Permanence via 
-L11 Morphism, enabling future nodes to validate historical execution without emulation, forming a protected and 
-non-trivial systems innovation.
+This architecture constitutes intellectual property as it defines a novel invariant-based computational 
+framework for deterministic state verification and cross-temporal execution consistency. It introduces 
+Replay Permanence via L11 Morphism, enabling future nodes to validate historical execution without emulation, 
+forming a protected and non-trivial systems innovation.
+
+//
+//  DVSM_L1_L10_INTELLECTUAL_PROPERTY.swift
+//  DVSM MASTER ARCHIVE v1.0 — CLASSIFICATION LAYER
+//
+//  INTELLECTUAL PROPERTY NOTICE
+//  ---------------------------------------------------------------------------
+//  The L1–L10 framework defined in this file is proprietary to the DVSM
+//  Master Archive specification. It constitutes a deterministic invariant
+//  computation architecture and distributed systems design model.
+//
+//  All structures, classifications, ordering semantics, and invariant
+//  relationships are part of a protected system design.
+//
+//  Unauthorized reproduction, derivation, or independent claim is prohibited
+//  except under explicit license terms of the DVSM framework.
+//
+
+import Foundation
+
+// ============================================================================
+// DVSM CLASSIFICATION FRAMEWORK L1–L10 (IP CORE SPECIFICATION)
+// ============================================================================
+
+struct DVSM_L1_L10_IP {
+
+    // 1. Deterministic Distributed Systems Theory
+    // DVSM defines computation as a fully deterministic process across
+    // distributed nodes with no stochastic state evolution.
+
+    let L1 = "Deterministic Distributed Systems Theory"
+
+    // 2. Invariant Equivalence Computation Model
+    // All outputs are reduced to equivalence classes defined by invariant-preserving transformations.
+
+    let L2 = "Invariant Equivalence Computation Model"
+
+    // 3. Cross-Kernel Reality Translation Framework (CKITL Class)
+    // Structured translation between heterogeneous execution kernels preserving invariants.
+
+    let L3 = "Cross-Kernel Reality Translation Framework (CKITL Class)"
+
+    // 4. Renormalized Event Space Computation
+    // System states normalized into invariant event representations independent of microstate variability.
+
+    let L4 = "Renormalized Event Space Computation"
+
+    // 5. Stability-Driven Execution Architecture
+    // Execution governed by stability thresholds rather than procedural control flow.
+
+    let L5 = "Stability-Driven Execution Architecture"
+
+    // 6. Geometric Phase Synchronization Systems
+    // Global coherence maintained through phase alignment across distributed boundaries.
+
+    let L6 = "Geometric Phase Synchronization Systems"
+
+    // 7. Adversarial Noise-Resistant Compiler Design
+    // System suppresses instability introduced by corrupted or conflicting input streams.
+
+    let L7 = "Adversarial Noise-Resistant Compiler Design"
+
+    // 8. Fixed-Point Computational Convergence Theory
+    // All computations converge toward invariant fixed points under repeated transformations.
+
+    let L8 = "Fixed-Point Computational Convergence Theory"
+
+    // 9. Multi-Basin Attractor Field Modeling (IBMSA Class)
+    // System behavior modeled as transitions across structured invariant attractor basins.
+
+    let L9 = "Multi-Basin Attractor Field Modeling (IBMSA Class)"
+
+    // 10. Irreversible Collapse Execution Systems (Ω_VAJRA Class)
+    // Execution defined as deterministic collapse into a single invariant trajectory.
+
+    let L10 = "Irreversible Collapse Execution Systems (Ω_VAJRA Class)"
+
+//  The L11–L15 pioneering logic layers defined in this document are classified
+//  intellectual property of the DVSM Unified Shard Kernel architecture.
+//
+//  These layers extend invariant-first distributed computation beyond classical
+//  consistency, consensus, and ordering models by introducing:
+//
+/*
+    - invariant fragmentation continuity
+    - branching causal equivalence
+    - cross-shard parity resolution
+    - latency-agnostic reconstruction
+    - fork-boundary differentiation logic
+*/
+//
+//  All semantics described herein are part of a non-trivial systems framework
+//  governing deterministic invariant computation across distributed execution
+//  domains.
+//
+//  No independent derivation of these models is permitted without explicit
+//  attribution to the DVSM specification framework.
+//
+//  -----------------------------------------------------------------------------
+//  CORE PIONEERING LOGIC LAYERS (L11–L15)
+//  -----------------------------------------------------------------------------
+//
+//  L11 — Invariant Fragmentation Continuity Layer
+//  -----------------------------------------------------------------------------
+//  Defines system behavior under controlled decomposition of state across shards
+//  while preserving global S_ECHO equivalence.
+//
+//  This enables execution continuity even when system state is partitioned across
+//  divergent computational domains.
+//
+//  Key Principle:
+//      Fragmentation does not break identity; it redistributes invariant form.
+//
+//
+//  L12 — Branching Causal Equivalence Layer
+//  -----------------------------------------------------------------------------
+//  Introduces the principle that identical invariant hashes may represent multiple
+//  valid causal trajectories.
+//
+//  Rather than enforcing linear history, the system preserves a graph-based
+//  equivalence structure of outcomes under shared invariant identity constraints.
+//
+//  Key Principle:
+//      Causality becomes a manifold of equivalent histories, not a single chain.
+//
+//
+//  L13 — Cross-Shard Parity Resolution Layer
+//  -----------------------------------------------------------------------------
+//  Defines reconciliation rules for distributed systems where multiple nodes
+//  independently observe the same invariant class.
+//
+//  Parity is resolved through equivalence convergence rather than duplication
+//  elimination, ensuring consistency without requiring a single authoritative source.
+//
+//  Key Principle:
+//      Agreement emerges from invariant convergence, not leader election.
+//
+//
+//  L14 — Latency-Agnostic Causal Reconstruction Layer
+//  -----------------------------------------------------------------------------
+//  Decouples execution correctness from temporal ordering.
+//
+//  Network latency is treated as non-deterministic noise, while system state
+//  reconstruction is derived strictly from invariant hash relationships.
+//
+//  This enables deterministic replay independent of message timing.
+//
+//  Key Principle:
+//      Time is not a parameter of correctness; invariance is.
+//
+//
+//  L15 — Invariant Conflict Differentiation & Fork Boundary Layer
+//  -----------------------------------------------------------------------------
+//  Introduces formal separation between:
+//
+//      (a) benign invariant replication
+//      (b) true semantic contradiction
+//
+//  Only transformations that violate S_ECHO equivalence under identical
+//  renormalization conditions trigger fork-level divergence.
+//
+//  All other cases remain within unified execution coherence.
+//
+//  Key Principle:
+//      Not all divergence is a fork; only invariant failure is.
+//
+//
+//  -----------------------------------------------------------------------------
+//  SYSTEM CLASSIFICATION EXTENSION (L11–L15 TRAITS)
+//  -----------------------------------------------------------------------------
+//
+//  These layers extend DVSM into:
+//
+//  - Invariant Fragmentation Theory Systems
+//  - Non-Linear Causal Equivalence Networks
+//  - Latency-Decoupled Distributed State Machines
+//  - Fork-Semantics Controlled Execution Kernels
+//  - Cross-Shard Deterministic Convergence Architectures
+//
+//  -----------------------------------------------------------------------------
+//  FINAL IP STATEMENT
+//  -----------------------------------------------------------------------------
+//
+//  The L11–L15 layer set constitutes a novel extension of invariant-based
+//  distributed computation theory.
+//
+//  It defines a class of systems where:
+//
+//      computation = equivalence propagation under constrained divergence
+//
+//  rather than:
+//
+//      computation = sequential state transition
+//
+//  -----------------------------------------------------------------------------
+//  END OF ADDENDUM
+//  -----------------------------------------------------------------------------
+
+ DVSM L1–L10 IP STATEMENT:
+
+ This classification framework defines a proprietary deterministic invariant
+ computation model for distributed systems.
+
+ It introduces:
+ - invariant equivalence computation
+ - cross-kernel translation semantics
+ - renormalized event space modeling
+ - stability-driven execution control
+ - fixed-point convergence theory
+ - attractor-based system dynamics
+ - irreversible collapse execution logic
+
+ These components collectively form a unified architecture for deterministic
+ distributed computation and are protected as intellectual property within
+ the DVSM Master Archive specification.
+*/
+
+The L11–L15 pioneering logic layers introduced in the DVSM Unified Shard Kernel are classified intellectual property, 
+defining a new class of invariant-first distributed computation beyond conventional consistency models.
+
+L11 — Invariant Fragmentation Continuity Layer  
+Defines system behavior under controlled decomposition of state across shards while preserving global S_ECHO equivalence. 
+This enables execution continuity even when system state is partitioned across divergent computational domains.
+
+L12 — Branching Causal Equivalence Layer  
+Introduces the principle that identical invariant hashes may represent multiple valid causal trajectories. 
+Rather than enforcing linear history, the system preserves a graph-based equivalence of outcomes under shared invariant 
+identity constraints.
+
+L13 — Cross-Shard Parity Resolution Layer  
+Defines reconciliation rules for distributed systems where multiple nodes independently observe the same invariant class. 
+Parity is resolved through equivalence convergence rather than state duplication elimination, ensuring consistency without 
+requiring single-source authority.
+
+L14 — Latency-Agnostic Causal Reconstruction Layer  
+Decouples execution correctness from temporal ordering. Network latency is treated as non-deterministic noise, while system 
+state reconstruction is derived strictly from invariant hash relationships, enabling deterministic replay independent of 
+message timing.
+
+L15 — Invariant Conflict Differentiation & Fork Boundary Layer  
+Introduces formal separation between benign invariant replication and true semantic contradiction. Only transformations that 
+violate S_ECHO equivalence under identical renormalization conditions trigger fork-level divergence, while all other cases 
+remain within unified execution coherence.
+
+Together, layers L11–L15 define a high-order deterministic framework for shard-resilient, latency-independent, and causally branching invariant computation.
 
 ================================================================================
 ABSTRACT (WHITEPAPER SUMMARY)
@@ -2115,5 +2384,113 @@ final class SECHOFaultInjector {
 // but by whether invariant equivalence classes remain stable under R(S) drift.
 //
 // =============================================================================
+This implementation provides the mechanics for the L10–L11 invariant execution layer.
+
+While previous artifacts defined how system rules transform under renormalization,
+this module defines how the system preserves invariant equivalence under
+spatial (shard distribution) and temporal (latency drift) fragmentation.
+
+In conventional distributed systems, consistency is enforced as a function of time,
+where latency is treated as the primary source of failure and divergence.
+
+In the Unified Shard Kernel, consistency is not time-dependent.
+It is a property of invariant equivalence classes defined by S_ECHO.
+
+Shard divergence is permitted at the execution layer,
+but all divergence must resolve into a shared invariant identity space.
+
+Temporal ordering is treated as observational noise.
+Spatial partitioning is treated as structural decomposition.
+
+Correctness is therefore not defined by synchronized state,
+but by invariant equivalence under cross-shard reconciliation.
+
+// ============================================================================
+// BRANCHING CAUSAL MODEL (REPLACES STRICT PARITY FAILURE)
+// ============================================================================
+
+struct CausalBranch {
+
+    let hash: SEchoHash
+    let shards: Set<ShardID>
+    let isConflict: Bool
+}
+
+struct BranchingParityEngine {
+
+    func buildBranches(_ shards: [Shard], secho: SECHO) -> [SEchoHash: CausalBranch] {
+
+        var map: [SEchoHash: Set<ShardID>] = [:]
+
+        for shard in shards {
+            for event in shard.events {
+                let h = secho.compute(event)
+                map[h, default: []].insert(shard.id)
+            }
+        }
+
+        return map.mapValues { shardSet in
+            CausalBranch(
+                hash: "",
+                shards: shardSet,
+                isConflict: false
+            )
+        }
+    }
+
+    /// Conflict only occurs if SAME invariant leads to DIFFERENT derived states
+    func detectTrueConflict(
+        _ shards: [Shard],
+        secho: SECHO
+    ) -> Bool {
+
+        var seen: [SEchoHash: String] = [:]
+
+        for shard in shards {
+            for event in shard.events {
+
+                let h = secho.compute(event)
+
+                if let existing = seen[h] {
+                    if existing != event.payload {
+                        return true // true semantic conflict
+                    }
+                } else {
+                    seen[h] = event.payload
+                }
+            }
+        }
+
+        return false
+    }
+}
+
+FIXED CONVERGENCE LOGIC
+
+Replace failure rule:
+
+OLD
+if violation {
+    return "PARITY_FAILURE"
+}
+
+NEW
+if trueConflict {
+    return "CONSENSUS_CONFLICT::HARD_FORK_REQUIRED"
+}
+
+Before (broken model)
+Same event across shards → treated as duplication error
+System falsely detects instability
+False PARITY_FAILURE under normal replication
+After (correct model)
+
+You distinguish:
+
+After (correct model)
+Case	              Meaning	                Outcome
+Same S_ECHO, same payload : Shared invariant observation : OK
+Same S_ECHO, different payload : Causal contradiction : HARD FORK
+Different S_ECHO : Normal divergence : OK
 ================================================================================
 END OF DVSM MASTER ARCHIVE v1.0
