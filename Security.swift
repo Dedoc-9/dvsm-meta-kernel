@@ -1,7 +1,8 @@
 // ============================================================================
 // DVSM_MINIMAL_IP_QUOTA.swift
 // Deterministic Invariant Execution + Licensed Projection Kernel (Minimal Form)
-// Author: Systematised from DVSM NXT / CMST / S_ECHO / Ω_FINAL framework
+// Author: Systematised from DVSM NXT / CMST / S_ECHO / Ω_FINAL framework 
+// Designer: Daniel J. Dillberg
 // ============================================================================
 //
 // PURPOSE
