@@ -70,7 +70,6 @@ The following are considered proprietary DVSM constructs:
 4. Latency-independent state reconstruction semantics
 5. Fork-boundary classification via invariant contradiction detection
 
-
 Any system, framework, or computational architecture that:
 
 - reproduces invariant-based convergence behavior,
