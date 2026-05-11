@@ -100,6 +100,37 @@ func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
 //      semantics (fiber space) is invariant
 //      representation (IP layer) is contingent (gauge-dependent)
 //
+//  CORE SYSTEM (FINAL FORM)
+
+        1. I* is a free monoid of traces.
+
+        2. Ω : I* → U64 is a lossy collapse functional.
+
+        3. ∼Ω is an equivalence relation:
+               t₁ ∼Ω t₂ ⇔ Ω(t₁) = Ω(t₂)
+
+        4. Fibers are equivalence classes:
+               F(t) = [t]∼Ω
+
+        5. IP layer is a gauge choice:
+
+       R : I*/∼Ω → LabelSpace
+
+   where R is:
+
+       non-canonical
+       non-functorial
+       externally chosen
+
+6. No inverse or reconstruction exists:
+
+       Ω⁻¹ undefined
+       R⁻¹ undefined
+
+7. Only invariant structure:
+
+       the partition of I* induced by Ω
+//
 // ============================================================
 
 import Foundation
