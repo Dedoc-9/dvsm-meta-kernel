@@ -1556,8 +1556,9 @@ struct Morphism {
 /// semantic projection π, not the quotient
 /// projection itself.
 ///
-/// The semantic π exists only at the specification
-/// layer as an extensional identification rule.
+/// The semantic projection π exists only at the
+/// specification layer as a quotient-identification
+/// rule over induced domains.
 ///
 /// PiFunctor merely constructs an executable
 /// representation of the observable admissibility
