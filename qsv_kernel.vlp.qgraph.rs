@@ -1846,3 +1846,242 @@ pub fn quantum_step(
 // - Measurement is probabilistic projection only
 //
 // ============================================================
+// ============================================================
+// ADDENDUM 5: QFT-DVSM IMPLEMENTATION BLUEPRINT
+// ============================================================
+// STATUS: CANONICAL REFERENCE
+// GOAL: Scalable Hamiltonian on Quotient Space Q(S)
+// ============================================================
+
+use std::collections::{HashMap, HashSet};
+use num_complex::Complex;
+
+// ----------------------------------------------------------------
+// 1. CORE DATA STRUCTURES (QUOTIENT BASED)
+// ----------------------------------------------------------------
+
+/// The invariant graph (unchanged from DVSM core)
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub id: usize,
+    pub links: Vec<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub events: HashMap<usize, Event>,
+}
+
+/// The Quantum State defined over Equivalence Classes
+#[derive(Clone, Debug)]
+pub struct QuotientQuantumState {
+    /// Amplitudes indexed by Class ID (0..K)
+    pub amplitudes: Vec<Complex<f64>>,
+    /// Mapping from Class ID back to representative Node ID (for debugging)
+    pub class_representatives: Vec<usize>,
+}
+
+// ----------------------------------------------------------------
+// 2. QUOTIENT CONSTRUCTION (THE SCALABILITY ENGINE)
+// ----------------------------------------------------------------
+
+/// Computes the Reachability Quotient Q(S)
+/// Returns: (Map<NodeID -> ClassID>, List<ClassRepresentatives>, AdjacencyMatrixOfClasses)
+fn build_quotient_hamiltonian(state: &State) -> (HashMap<usize, usize>, Vec<usize>, Vec<Vec<f64>>) {
+    let n_nodes = state.events.len();
+    if n_nodes == 0 {
+        return (HashMap::new(), vec![], vec![]);
+    }
+
+    // 1. Compute Reachability Sets for all nodes
+    let mut reachability_map: HashMap<usize, HashSet<usize>> = HashMap::new();
+    let mut nodes: Vec<usize> = state.events.keys().cloned().collect();
+    nodes.sort_unstable();
+
+    for &start in &nodes {
+        let mut visited = HashSet::new();
+        let mut stack = vec![start];
+        while let Some(curr) = stack.pop() {
+            if !visited.insert(curr) { continue; }
+            if let Some(evt) = state.events.get(&curr) {
+                for &next in &evt.links {
+                    stack.push(next);
+                }
+            }
+        }
+        reachability_map.insert(start, visited);
+    }
+
+    // 2. Group nodes into Equivalence Classes
+    let mut class_map: HashMap<usize, usize> = HashMap::new(); // Node -> ClassID
+    let mut classes: Vec<Vec<usize>> = Vec::new();
+    let mut class_counter = 0;
+
+    for &node in &nodes {
+        let reach = reachability_map.get(&node).unwrap();
+        
+        // Find existing class with same reachability
+        let mut found_class = None;
+        for (cid, members) in classes.iter().enumerate() {
+            // Check if representative of this class has same reachability
+            let rep = members[0];
+            if reachability_map.get(&rep).map(|r| r == reach).unwrap_or(false) {
+                found_class = Some(cid);
+                break;
+            }
+        }
+
+        match found_class {
+            Some(cid) => {
+                class_map.insert(node, cid);
+            }
+            None => {
+                class_map.insert(node, class_counter);
+                classes.push(vec![node]);
+                class_counter += 1;
+            }
+        }
+    }
+
+    let k = classes.len();
+
+    // 3. Build Quotient Adjacency (Weighted)
+    // H_0[i][j] = -count(edges between Class i and Class j)
+    // H_0[i][i] = degree(i)
+    let mut h_matrix = vec![vec![0.0_f64; k]; k];
+
+    for (node, evt) in &state.events {
+        let c_i = *class_map.get(node).unwrap();
+        for &neighbor in &evt.links {
+            if let Some(&c_j) = class_map.get(&neighbor) {
+                if c_i == c_j {
+                    // Self-loop in quotient (internal edge)
+                    h_matrix[c_i][c_i] += 1.0; 
+                } else {
+                    // Edge between classes
+                    h_matrix[c_i][c_j] -= 1.0; // Laplacian off-diagonal
+                    h_matrix[c_j][c_i] -= 1.0; // Symmetric
+                }
+            }
+        }
+        // Diagonal degree accumulation (done implicitly by summing row negatives)
+        // Actually, standard Laplacian: L_ii = degree, L_ij = -1
+        // Let's re-calculate diagonal properly
+    }
+
+    // Fix Diagonals: L_ii = sum(|L_ij| for j!=i)
+    for i in 0..k {
+        let mut deg = 0.0;
+        for j in 0..k {
+            if i != j {
+                deg += h_matrix[i][j].abs();
+            }
+        }
+        h_matrix[i][i] = deg;
+    }
+
+    let representatives = classes.into_iter().map(|c| c[0]).collect();
+
+    (class_map, representatives, h_matrix)
+}
+
+// ----------------------------------------------------------------
+// 3. HAMILTONIAN CONSTRUCTION (H_0 + V(t))
+// ----------------------------------------------------------------
+
+/// Constructs the Ground Hamiltonian H_0 (Laplacian of Q(S))
+fn ground_hamiltonian(state: &State) -> Vec<Vec<Complex<f64>>> {
+    let (_, _, adj) = build_quotient_hamiltonian(state);
+    let k = adj.len();
+    let mut h = vec![vec![Complex::new(0.0, 0.0); k]; k];
+
+    for i in 0..k {
+        for j in 0..k {
+            h[i][j] = Complex::new(adj[i][j], 0.0);
+        }
+    }
+    h
+}
+
+/// Optional: Symmetry Breaking Term (Micro-dynamics)
+fn symmetry_breaking_term(representatives: &[usize], epsilon: f64) -> Vec<Vec<Complex<f64>>> {
+    let k = representatives.len();
+    let mut h_eps = vec![vec![Complex::new(0.0, 0.0); k]; k];
+    
+    for i in 0..k {
+        // Use timestamp or ID as a weak perturbation
+        let tau = representatives[i] as f64; 
+        h_eps[i][i] = Complex::new(epsilon * tau, 0.0);
+    }
+    h_eps
+}
+
+// ----------------------------------------------------------------
+// 4. TIME EVOLUTION (CAYLEY TRANSFORM ON QUOTIENT)
+// ----------------------------------------------------------------
+
+/// Evolves the Quotient State using Cayley Transform
+/// H_total = H_0 + V(t)
+pub fn quotient_step(
+    state: &State,
+    psi: &QuotientQuantumState,
+    dt: f64,
+    epsilon: f64, // Symmetry breaking strength
+) -> QuotientQuantumState {
+    let k = psi.amplitudes.len();
+    
+    // 1. Build H_0
+    let h0 = ground_hamiltonian(state);
+    
+    // 2. Build V(t) (Symmetry Breaking)
+    let (_, reps, _) = build_quotient_hamiltonian(state);
+    let v = symmetry_breaking_term(&reps, epsilon);
+
+    // 3. Combine H = H_0 + V
+    let mut h_total = vec![vec![Complex::new(0.0, 0.0); k]; k];
+    for i in 0..k {
+        for j in 0..k {
+            h_total[i][j] = h0[i][j] + v[i][j];
+        }
+    }
+
+    // 4. Cayley Unitary: U = (I + iHdt/2)(I - iHdt/2)^-1
+    // (Reuse matrix_inverse from previous addenda)
+    let u = cayley_unitary(&h_total, dt);
+
+    // 5. Evolve
+    let mut next_amp = vec![Complex::new(0.0, 0.0); k];
+    for i in 0..k {
+        for j in 0..k {
+            next_amp[i] += u[i][j] * psi.amplitudes[j];
+        }
+    }
+
+    QuotientQuantumState {
+        amplitudes: next_amp,
+        class_representatives: reps,
+    }
+}
+
+// ----------------------------------------------------------------
+// 5. OBSERVER (HASH)
+// ----------------------------------------------------------------
+
+/// The Hash is now a projection of the Quantum State, not a generator
+pub fn observe_quotient_hash(psi: &QuotientQuantumState) -> u64 {
+    let mut acc: u64 = 1469598103934665603;
+    for amp in &psi.amplitudes {
+        // Hash the real and imaginary parts
+        let re = amp.re.to_bits();
+        let im = amp.im.to_bits();
+        acc ^= re as u64;
+        acc = acc.wrapping_mul(1099511628211);
+        acc ^= im as u64;
+        acc = acc.wrapping_mul(1099511628211);
+    }
+    acc
+}
+
+// ============================================================
+// END OF ADDENDUM 5
+// ============================================================
