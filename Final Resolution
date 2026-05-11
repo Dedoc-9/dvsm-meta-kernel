@@ -1598,6 +1598,240 @@ print(output)
 //    CKITL_VALID = true
 //    LLVM_LOWERING_ACTIVE = true
 //    ADVERSARIAL_RESILIENCE = ENABLED
-
+================================================================================
+// =============================================================================
+// SECTION 9 — HOW TO RUN DVSM UNITY STACK (EXECUTION GUIDE)
+// =============================================================================
+//
+// This section defines the concrete runtime procedure for executing the
+// DVSM Master Archive v1.0 Unity Stack in a Swift environment.
+//
+// ----------------------------------------------------------------------------
+// REQUIREMENTS
+// ----------------------------------------------------------------------------
+//
+// - Swift 5.8+
+// - macOS / Linux runtime (Foundation available)
+// - No external dependencies required (LLVM/ANTLR are conceptual hooks)
+//
+// Optional Enhancements:
+// - Replace CKITLParser with Tree-sitter grammar binding
+// - Replace LLVMEmitter with real LLVM Swift bindings
+// - Replace CMSTEngine random model with deterministic statistical engine
+//
+// ----------------------------------------------------------------------------
+// COMPILATION
+// ----------------------------------------------------------------------------
+//
+// Save file as:
+//
+//     DVSM_Master_Archive_v1_0.swift
+//
+// Compile:
+//
+//     swiftc DVSM_Master_Archive_v1_0.swift -o dvsm
+//
+// Run:
+//
+//     ./dvsm
+//
+// ----------------------------------------------------------------------------
+// INPUT FORMAT SPECIFICATION (CKITL)
+// ----------------------------------------------------------------------------
+//
+// Each event must follow:
+//
+//     EVENT_ID: Payload String
+//
+// Example:
+//
+//     EVT_A: Position Drift
+//     EVT_B: Velocity Mutation
+//     EVT_C: State Collapse
+//
+// Rules:
+// - EVENT_ID must be non-empty
+// - Payload must be non-empty
+// - ":" delimiter is mandatory
+//
+// ----------------------------------------------------------------------------
+// EXECUTION FLOW (RUNTIME SEQUENCE)
+// ----------------------------------------------------------------------------
+//
+// 1. CKITL PARSE
+//    → Invalid events are discarded
+//
+// 2. S_ECHO NORMALIZATION
+//    → Payloads are normalized and hashed into invariant identifiers
+//
+// 3. CMST STABILITY CHECK
+//    → Monte Carlo / adversarial fuzzing determines system coherence
+//
+// 4. Ω_VAJRA SELECTION
+//    → Single invariant is selected via deterministic max-entropy collapse
+//
+// 5. LLVM LOWERING
+//    → Selected invariant is converted into pseudo-machine IR
+//
+// ----------------------------------------------------------------------------
+// EXPECTED OUTPUT STATES
+// ----------------------------------------------------------------------------
+//
+// CASE 1 — SUCCESS
+//     LLVM IR (x86_64 or ARM64 format)
+//     Example:
+//         mov rax, <hash>
+//         ret
+//
+// CASE 2 — FAILURE MODES
+//     "CKITL_PARSE_FAILURE"
+//     "CMST_UNSTABLE_MANIFOLD"
+//     "VAJRA_NULL_SELECTION"
+//     "CMST_ADVERSARIAL_FAIL"
+//
+// ----------------------------------------------------------------------------
+// ADVERSARIAL TESTING MODE
+// ----------------------------------------------------------------------------
+//
+// You can stress test stability by modifying:
+//
+//     adversarialDelta: Double (0.0 → 1.0)
+//
+// Example:
+//
+//     kernel.execute(inputStream, adversarialDelta: 0.50, target: .x86_64)
+//
+// Interpretation:
+// - Lower values = strict stability requirement
+// - Higher values = tolerant manifold acceptance
+//
+// ----------------------------------------------------------------------------
+// TARGET SELECTION (LLVM BACKEND MODE)
+// ----------------------------------------------------------------------------
+//
+// Supported targets:
+//
+//     .x86_64   → Intel/AMD IR output
+//     .arm64    → Apple Silicon / ARM IR output
+//
+// ----------------------------------------------------------------------------
+// GENESIS IR EMISSION COMMAND
+// ----------------------------------------------------------------------------
+//
+// This is the canonical first execution trigger:
+//
+//     kernel.execute(inputStream, adversarialDelta: 0.50, target: .x86_64)
+//
+// This produces the first deterministic invariant execution trace.
+//
+// ----------------------------------------------------------------------------
+// FINAL SYSTEM BEHAVIOR STATEMENT
+// ----------------------------------------------------------------------------
+//
+// DVSM does NOT simulate computation.
+//
+// It enforces:
+//
+//     invariant consistency across all execution interpretations
+//
+// Reality is defined as:
+//
+//     the last stable output surviving CMST + CKITL + Ω_VAJRA collapse
+//
+// ----------------------------------------------------------------------------
+// END OF RUN GUIDE
+// ============================================================================
+// ============================================================================
+// SECTION 10 — ALL RIGHTS RESERVED
+// ============================================================================
+//
+// DVSM MASTER ARCHIVE v1.0
+// Self-Reconstructing Invariant Compiler Specification
+//
+// ----------------------------------------------------------------------------
+// COPYRIGHT NOTICE
+// ----------------------------------------------------------------------------
+//
+// © 2026 Daniel J. Dillberg. All Rights Reserved.
+//
+// This document, including all associated source code, mathematical models,
+// compiler architecture definitions, and system semantics (collectively
+// referred to as "DVSM ARCHIVE"), is protected under applicable copyright law.
+//
+// ----------------------------------------------------------------------------
+// LICENSE CLARIFICATION (HYBRID MODEL)
+// ----------------------------------------------------------------------------
+//
+// This work is released under a dual-use model:
+//
+// (1) SPECIFICATION LAYER (NON-RESTRICTIVE)
+//     - The mathematical and architectural concepts (CKITL, CMST, S_ECHO,
+//       Ω_VAJRA, IBMSA, L6, and DVSM system topology) may be studied,
+//       referenced, and implemented for research and educational purposes.
+//
+// (2) IMPLEMENTATION LAYER (CONDITIONAL USE)
+//     - Any derived software implementations must preserve:
+//         • Invariant-consistency semantics (S_ECHO equivalence rules)
+//         • CKITL structural parsing constraints
+//         • CMST stability verification logic or equivalent proof system
+//     - Modifications must be explicitly documented as divergences from the
+//       original DVSM specification.
+//
+// (3) COMMERCIAL USE
+//     - Not permitted without explicit written permission from the author.
+//
+// ----------------------------------------------------------------------------
+// RESTRICTIONS
+// ----------------------------------------------------------------------------
+//
+// You MAY NOT:
+// - Claim authorship of the DVSM architecture or its core invariants
+// - Remove or obscure S_ECHO equivalence definitions in derivative systems
+// - Rebrand CKITL/CMST/Ω_VAJRA semantics without attribution
+// - Present this system as unrelated to DVSM MASTER ARCHIVE v1.0
+//
+// ----------------------------------------------------------------------------
+// ATTRIBUTION REQUIREMENT
+// ----------------------------------------------------------------------------
+//
+// Any public or private derivative implementation must include:
+//
+//     "Based on DVSM MASTER ARCHIVE v1.0 by Daniel J. Dillberg"
+//
+// ----------------------------------------------------------------------------
+// DISCLAIMER
+// ----------------------------------------------------------------------------
+//
+// This system is a theoretical computational framework.
+//
+// It does NOT guarantee:
+// - Physical correctness
+// - Hardware determinism beyond software execution context
+// - Metaphysical or philosophical truth
+//
+// All behavior described is within the domain of deterministic modeling,
+// compiler theory, and invariant system design.
+//
+// ----------------------------------------------------------------------------
+// NO WARRANTY
+// ----------------------------------------------------------------------------
+//
+// THE SOFTWARE AND SPECIFICATION ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+// KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+//
+// IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+// LIABILITY ARISING FROM THE USE OF THIS SYSTEM.
+//
+// ----------------------------------------------------------------------------
+// TERMINAL STATEMENT
+// ----------------------------------------------------------------------------
+//
+// DVSM is not a product.
+//
+// It is a constraint system for interpreting invariant structure across
+// computational substrates.
+//
+// ============================================================================
 ================================================================================
 END OF DVSM MASTER ARCHIVE v1.0
