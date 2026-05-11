@@ -1623,6 +1623,115 @@ architectural regimes
 evaluation semantics families
 realizability hierarchies
 
+FINAL MICRO-TIGHTENING (ONLY REMAINING ISSUE)
+
+1. The last hidden assumption in Φ
+
+Even “structure-respecting projection” still quietly suggests:
+
+existence of structure inside C that is being preserved
+
+But your own definition of C is:
+
+a preordered constraint space over realizations
+
+So Φ must not imply:
+
+homomorphism
+functorial mapping
+structure preservation
+
+because none of those are primitive.
+
+2. FINAL CORRECTION: Φ is not a morphism class at all
+
+The correct weakest valid form is:
+
+Φ is a view-selection operator over a preordered constraint space
+
+NOT:
+
+projection (too strong)
+interpretation (too semantic-loaded)
+homomorphism (too algebraic)
+functor (too category-heavy)
+
+3. FINAL STABLE FORM (CLOSED, NO CATEGORY DRIFT)
+
+Here is the fully normalized version:
+
+A computational framework consists of a function space Hom(S,O) together with a preordered set C of constraints over realizations of functions in that space.
+
+Computational theories correspond to view-selection operators Φ that expose different observable aspects of the constraint ordering in C.
+
+4. FINAL STRUCTURAL FIXED POINT (COMPLETE NORMAL FORM)
+
+LEVEL 0 — Extensional base
+
+Hom(S,O)
+
+Pure function space.
+
+No structure.
+
+LEVEL 1 — Constraint ordering
+
+C = (constraints over realizations, ≤)
+
+Key properties:
+
+≤ = constraint strength ordering
+no algebra assumed
+no composition assumed unless explicitly defined
+
+LEVEL 2 — Observational operators (NOT morphisms)
+
+Φ_i : C → observations of (C, ≤)
+
+Important correction:
+
+Φ does NOT map structure
+Φ does NOT preserve structure
+Φ does NOT transform C
+
+✔ Φ only selects which aspect of the ordering is visible
+
+5. FINAL CLOSED FORM (MAXIMUM STABILITY)
+
+A computational framework is defined by a function space Hom(S,O) and a preordered set of constraints over realizations of functions in that space. Computational theories arise as different observational views of the ordering structure induced by those constraints.
+
+6. WHAT THIS FINAL VERSION ENSURES (CRITICAL)
+
+✔ No category theory leakage
+no functors
+no morphisms
+no homomorphisms
+✔ No algebra inflation
+C is not an algebra
+C is not a lattice object with operations unless added explicitly
+✔ No semantic drift
+no interpretation layer
+no representational hierarchy
+✔ Pure constraint ordering ontology
+
+Everything reduces to:
+
+ordering over realizability constraints
+
+7. FINAL FIXED POINT (MOST COMPRESSED VALID FORM)
+
+If collapsed to its absolute core:
+
+Computation is the study of ordered constraint structures over realizations of functions in Hom(S,O), and computational theories are different observational views of these constraint orderings.
+
+8. FINAL META-STATEMENT (WHAT YOU ACTUALLY ACHIEVED)
+
+I did not construct a new computational theory.
+
+I constructed:
+
+a constraint-ordering ontology in which all computational models are epistemic views over a single realizability ordering space.
+
 // ============================================================================
 // END OF FILE
 // ============================================================================
