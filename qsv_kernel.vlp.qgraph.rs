@@ -479,3 +479,261 @@ pub fn quantum_step(
 // - basis-dependent linear projection only
 // - interpretive, not ontological
 // ------------------------------------------------------------
+// ============================================================
+// QSV / DVSM SECOND ADDENDUM — UNITARY-REFINED QUANTUM LIFT (CLOSED FORM)
+// ============================================================
+//
+// CORE PRINCIPLE:
+//
+// DVSM (S):
+//   - deterministic causal graph invariant
+//   - unchanged by all lifts
+//
+// QUANTUM LIFT (ψ):
+//   - derived Hilbert-space projection
+//   - basis-explicit
+//   - operator-driven evolution
+//
+// IMPORTANT CORRECTION:
+//
+// - Unitarity is guaranteed ONLY in exact exponential form:
+//       U = exp(-i H t)
+//
+// - Any approximation (e.g. I - iHt) is NOT strictly unitary
+//
+// This file explicitly separates:
+//   (A) exact theoretical form
+//   (B) computational approximation layer
+//
+// ============================================================
+
+use std::collections::HashMap;
+use num_complex::Complex;
+
+// ------------------------------------------------------------
+// 1. DVSM INVARIANT GRAPH LAYER (UNCHANGED)
+// ------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub id: usize,
+    pub links: Vec<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub events: HashMap<usize, Event>,
+}
+
+// ------------------------------------------------------------
+// 2. QUANTUM STATE (HILBERT REPRESENTATION)
+// ------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct QuantumState {
+    pub amplitudes: Vec<Complex<f64>>,
+}
+
+// ------------------------------------------------------------
+// 3. EXPLICIT BASIS CONSTRUCTION (NO IMPLICIT ORDERING)
+// ------------------------------------------------------------
+
+fn build_basis(state: &State) -> (HashMap<usize, usize>, Vec<usize>) {
+    let mut ids: Vec<usize> = state.events.keys().cloned().collect();
+    ids.sort_unstable();
+
+    let mut map = HashMap::new();
+    for (i, id) in ids.iter().enumerate() {
+        map.insert(*id, i);
+    }
+
+    (map, ids)
+}
+
+// ------------------------------------------------------------
+// 4. HAMILTONIAN (HERMITIAN CONSTRUCTION OVER GRAPH)
+// ------------------------------------------------------------
+//
+// NOTE:
+// This is a structural Hamiltonian, not a physical one.
+// It is Hermitian by symmetry enforcement.
+//
+
+fn hamiltonian(
+    state: &State,
+    basis: &HashMap<usize, usize>,
+    n: usize,
+) -> Vec<Vec<Complex<f64>>> {
+
+    let mut h = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for (id, event) in &state.events {
+        let Some(&i) = basis.get(id) else { continue };
+
+        for &j_id in &event.links {
+            if let Some(&j) = basis.get(&j_id) {
+
+                let w = Complex::new(1.0, 0.0);
+
+                // enforce Hermitian symmetry
+                h[i][j] += w;
+                h[j][i] += w;
+            }
+        }
+    }
+
+    h
+}
+
+// ------------------------------------------------------------
+// 5. UNITARY OPERATOR CONSTRUCTION
+// ------------------------------------------------------------
+//
+// TWO MODES:
+//
+// (A) EXACT (theoretically correct)
+//     U = exp(-i H t)
+//
+// (B) APPROXIMATED (computational shortcut)
+//     U ≈ I - i H t
+//
+// ONLY (A) is strictly unitary.
+//
+
+fn unitary_operator_approx(
+    h: &Vec<Vec<Complex<f64>>>,
+    dt: f64,
+) -> Vec<Vec<Complex<f64>>> {
+
+    let n = h.len();
+    let mut u = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for i in 0..n {
+        for j in 0..n {
+
+            let base = if i == j {
+                Complex::new(1.0, 0.0)
+            } else {
+                Complex::new(0.0, 0.0)
+            };
+
+            u[i][j] = base - Complex::i() * h[i][j] * dt;
+        }
+    }
+
+    u
+}
+
+// ------------------------------------------------------------
+// 6. EXACT UNITARY CONDITION (FORMAL GUARANTEE)
+// ------------------------------------------------------------
+//
+// U = exp(-i H t)
+// iff H is Hermitian
+// ⇒ U is unitary
+//
+// This establishes the mathematical condition under which
+// the evolution operator preserves norm:
+//
+//     U† U = I
+//
+// Implementation note:
+// Exact computation of exp(-iHt) requires a matrix exponential
+// (e.g., spectral decomposition or Padé approximation).
+//
+// ------------------------------------------------------------
+// 7. EVOLUTION (LINEAR OPERATOR APPLICATION)
+// ------------------------------------------------------------
+
+fn evolve_unitary(
+    psi: &QuantumState,
+    u: &Vec<Vec<Complex<f64>>>,
+) -> QuantumState {
+
+    let n = psi.amplitudes.len();
+    let mut next = vec![Complex::new(0.0, 0.0); n];
+
+    for i in 0..n {
+        for j in 0..n {
+            next[i] += u[i][j] * psi.amplitudes[j];
+        }
+    }
+
+    QuantumState { amplitudes: next }
+}
+
+// ------------------------------------------------------------
+// 8. MEASUREMENT (UNCHANGED DVSM POSTULATE)
+// ------------------------------------------------------------
+
+fn measure(psi: &QuantumState) -> usize {
+    let probs: Vec<f64> = psi
+        .amplitudes
+        .iter()
+        .map(|a| a.norm_sqr())
+        .collect();
+
+    let mut cumulative = 0.0;
+    let r = rand::random::<f64>();
+
+    for (i, p) in probs.iter().enumerate() {
+        cumulative += *p;
+        if r <= cumulative {
+            return i;
+        }
+    }
+
+    probs.len().saturating_sub(1)
+}
+
+// ------------------------------------------------------------
+// 9. DVSM → QUANTUM LIFT (STRUCTURAL EMBEDDING)
+// ------------------------------------------------------------
+
+pub fn lift_to_quantum(state: &State) -> QuantumState {
+    let (_map, basis) = build_basis(state);
+    let n = basis.len().max(1);
+
+    let uniform = Complex::new(1.0 / (n as f64).sqrt(), 0.0);
+
+    QuantumState {
+        amplitudes: vec![uniform; n],
+    }
+}
+
+// ------------------------------------------------------------
+// 10. UNITARY EVOLUTION STEP (APPROXIMATE FORM)
+// ------------------------------------------------------------
+
+pub fn quantum_step_unitary(
+    state: &State,
+    psi: &QuantumState,
+    dt: f64,
+) -> QuantumState {
+
+    let (basis_map, _) = build_basis(state);
+    let n = basis_map.len();
+
+    let h = hamiltonian(state, &basis_map, n);
+    let u = unitary_operator_approx(&h, dt);
+
+    evolve_unitary(psi, &u)
+}
+
+// ------------------------------------------------------------
+// 11. DVSM INVARIANCE GUARANTEE
+// ------------------------------------------------------------
+//
+// DVSM CORE:
+// - graph structure unchanged
+// - reachability invariant preserved
+//
+// QUANTUM LAYER:
+// - linear operator evolution only
+// - basis-dependent Hilbert embedding
+// - no feedback into S
+//
+// IMPORTANT CORRECTION:
+// - strict unitarity requires exp(-iHt)
+// - current implementation is first-order approximation
+// ------------------------------------------------------------
