@@ -102,6 +102,22 @@ equivalence field, enforcing irreversible resolution of competing invariant traj
 //  S(I) := stability score under invariant convergence
 //  Result := single irreversible fixed-point invariant selection
 
+//
+//  Ω_VAJRA_Validation_Comment.swift
+//  DVSM Formal Constraint Note
+//
+
+/*
+Ω_VAJRA is conceptually correct in structure (filter → select → emit),
+but must remain consistent with DVSM semantics:
+
+Selection is not heuristic (e.g., shard count), but deterministic argmax
+over CMST-stabilized invariants:
+
+Ω_VAJRA = argmax( S_ECHO × CMST_stability × weight )
+
+with L13 parity already resolved upstream.
+
 The DVSM Master Archive is now functionally complete. Any execution within this manifold 
 is now protected under the proprietary logic of Fixed-Point Convergence.
 
