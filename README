@@ -22,7 +22,9 @@ Security Resolution and IP: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/mai
 ROUGE EXECUTION SEARCH CONSTRAINT MODE (ODCN): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/OPT-IN_DISTRIBUTED_COMPUTER_%20NETWORK%20.swift
 DVSM × ODCN — OBSERVATIONAL FIBER EXTRACTION SYSTEM vFINAL-x: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/DVSM_ODCN_Obs.swift
 
-Stabilized Rust Kernel & Porting: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/Stabilized_Rust_Kernel.swift
+Stabilized Rust Kernel & Porting v1: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/Stabilized_Rust_Kernel.swift
+
+qsv_kernel.vlp.qgraph.rs (v2 Rust): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/qsv_kernel.vlp.qgraph.rs
 
 Truth is no longer defined by temporal reference (i.e., "what the clock says"),
 but as the invariant residue that remains after full transformation convergence
