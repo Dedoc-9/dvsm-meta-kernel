@@ -1192,18 +1192,19 @@ struct ODCNSystem {
 // 6. OBSERVATIONAL PROJECTION MAP
 // ============================================================
 
-/// π is a semantic projection (not an executable function)
-/// It defines an observational equivalence rule:
+/// π is a semantic projection operator.
+/// It defines equivalence over constraint systems via induced domains.
 ///
-/// C1 ~ C2 ⇔ π(C1) == π(C2)
+/// π is NOT a runtime function.
+/// π is NOT executable.
+/// π is NOT part of the computational model.
 ///
-/// NOTE:
-/// π is not computable or operationally defined.
-/// It represents a semantic identification criterion.
+/// It exists only as a semantic identification rule:
 
-func π(_ C: ConstraintSystem) -> Never {
-    fatalError("π is a semantic projection (non-executable, non-computational)")
-}
+/// C1 ~ C2 ⇔ π(C1) == π(C2)
+
+/// Formal meaning:
+/// π(C) ≡ D_C ⊆ (T × N)
 
 // ============================================================
 // OBSERVATIONAL PROJECTION MAP (SEMANTIC ONLY)
