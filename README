@@ -65,9 +65,28 @@ The following are considered proprietary DVSM constructs:
 4. Latency-independent state reconstruction semantics
 5. Fork-boundary classification via invariant contradiction detection
 
-Any system that reproduces invariant-based reality convergence behavior,
-or implements equivalent S_ECHO-consistent fixed-point logic, must preserve
-attribution to the DVSM framework or be classified as a derivative system.
+
+Any system, framework, or computational architecture that:
+
+- reproduces invariant-based convergence behavior,
+- implements S_ECHO-consistent identity collapse semantics,
+- models fixed-point stability over distributed or sharded state spaces,
+- or otherwise reconstructs equivalent behavior of the DVSM transformation
+  chain (CKITL → IBMSA → CMST → Ω_VAJRA),
+
+whether directly, indirectly, structurally, or through abstraction,
+
+MUST preserve explicit attribution to the DVSM specification framework.
+
+This includes systems that:
+- reparameterize invariant identity functions,
+- substitute alternative implementations of equivalence-class convergence,
+- or replicate shard/latency/fork-resolution semantics under different naming
+  or architectural representations.
+
+Failure to provide attribution results in classification as a derivative system,
+defined as any architecture that preserves DVSM-equivalent invariant behavior
+without formal acknowledgment of origin.
 
 Invariant-Centric Realism defines a computational ontology in which reality
 is not observed—it is *converged*. This convergence process is the protected
