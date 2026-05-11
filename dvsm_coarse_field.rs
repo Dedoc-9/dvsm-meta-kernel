@@ -1998,7 +1998,177 @@ pub trait CMSTMasterArchive: InvariantKernel {
 ///
 /// They function strictly as:
 ///     "Invariant Projection Functors over DVSM state space"
-                       
+
+/*!
+=============================================================================
+DVSM-COARSE-FIELD ADDENDUM: THE Ω_VAJRA OBSERVER COVENANT
+=============================================================================
+
+DOCUMENT TITLE:
+Final Developer Note: The "Observer-Only" Covenant & The Ω_VAJRA Boundary
+
+VERSION:
+3.0.0-FINAL-DEBATE
+
+PURPOSE:
+This addendum defines the strict causal isolation contract between:
+- The DVSM core dynamical engine (P / H / U / M)
+- The Ω_VAJRA meta-observer layer
+- All Invariant Kernel subsystems
+
+It formalizes observation as a pure function over snapshots of state.
+
+=============================================================================
+CORE CONSENSUS
+=============================================================================
+
+All participants converge on a single invariant:
+
+    Observation is causally inert.
+
+Mathematically:
+
+    Ω_VAJRA, Kernels : (ψ, H) → Report
+
+They are:
+- NOT subsystems of DVSM evolution
+- NOT controllers of state
+- NOT participants in topology or Hamiltonian mutation
+
+They are pure evaluators over immutable snapshots.
+
+=============================================================================
+HARD ARCHITECTURAL RULES (NON-NEGOTIABLE)
+=============================================================================
+
+1. NO MUTABLE ACCESS
+   - Kernels MUST NOT accept &mut DVSMSystem
+   - Kernels MUST NOT modify ψ, H, or Graph S
+
+2. SNAPSHOT ISOLATION PRINCIPLE
+   - Kernels receive ONLY:
+         &QuantumState
+         &Hamiltonian
+   - These are treated as read-only mathematical inputs
+
+3. NO DYNAMICAL COUPLING
+   - Kernels MUST NOT call:
+         evolve_cayley()
+         mutate_reset()
+         project_quotient()
+
+4. NO TOPOLOGY VISIBILITY (DEFAULT)
+   - Raw graph S is invisible to kernels
+   - Only derived observables (ψ, H) are permitted
+
+5. CAUSAL CLOSURE OF DVSM CORE
+   - Only P / H / U / M may affect system evolution
+   - Kernels are outside the causal graph entirely
+
+=============================================================================
+Ω_VAJRA LAYER SPECIFICATION
+=============================================================================
+
+The Ω_VAJRA layer is defined as a SEALED OBSERVER INTERFACE.
+
+It is:
+
+    trait OmegaVajra : VajraSeal
+
+Where:
+- VajraSeal is a private marker trait (unimplementable externally)
+- OmegaVajra is non-executable in system control flow
+
+Signature:
+
+    fn observe(&self, psi: &QuantumState, h: &Hamiltonian) -> VajraReport;
+
+Guarantees:
+- No state mutation
+- No reference retention to system memory
+- No feedback channels into DVSM
+
+=============================================================================
+FORMAL INTERPRETATION
+=============================================================================
+
+Let:
+
+    f : (ψ, H) → Rⁿ
+
+Then:
+
+- Ω_VAJRA ∈ C⁰ (continuous, non-causal function space)
+- DVSM evolution ∈ U(n) piecewise-unitary manifold
+- Kernels ∉ End(DVSM state space)
+
+They are:
+    observational functionals, not operators of evolution.
+
+=============================================================================
+SEALING MECHANISM (TYPE SAFETY MODEL)
+=============================================================================
+
+The isolation guarantee is enforced by:
+
+- Private marker traits (VajraSeal)
+- Immutable reference-only APIs
+- No exposure of DVSMSystem internals
+- Snapshot passing only
+
+This ensures:
+
+    "If it cannot mutate state in the type system,
+     it cannot mutate state in reality."
+
+=============================================================================
+FINAL COVENANT STATEMENT
+=============================================================================
+
+In the DVSM-Coarse-Field architecture:
+
+Observation is not interaction.
+
+The Ω_VAJRA layer and all invariant kernels are:
+
+- The eyes of the system, not its hands
+- External to causality, not part of it
+- Mathematically inert functionals over state snapshots
+
+To violate this boundary is to convert:
+    Spectral Dynamics → Control Theory
+
+This is forbidden by design.
+
+=============================================================================
+WARNING
+=============================================================================
+
+Any attempt to use kernels to:
+- steer evolution
+- influence topology
+- bias Hamiltonians
+- or couple observation back into state
+
+constitutes a **COVENANT VIOLATION**
+
+and invalidates the DVSM model assumptions.
+
+What this upgrade achieves (structurally)
+
+Converts philosophical language → formal causal closure contract
+
+Defines Ω_VAJRA as a sealed categorical observer, not a subsystem
+
+Introduces explicit type-theoretic enforcement assumptions
+
+Separates:
+DVSM = dynamical system
+Ω_VAJRA = observational functor
+Kernels = invariant evaluators
+
+Removes any ambiguity that observation could become control
+                   
 =============================================================================
 END OF ADDENDUM: DEVELOPER DEEP DIVE
 =============================================================================
