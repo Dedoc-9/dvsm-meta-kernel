@@ -656,6 +656,179 @@ final class DVSMKernel {
 // ============================================================================
 // END OF ADDENDUM
 // ============================================================================
+// ============================================================================
+// DVSM_FORMAL_CLOSURE_v1.1.txt
+// Purpose: Minimal deterministic operational specification
+// Classification: Pure functional transformation system
+// ============================================================================
+
+1. SYSTEM DEFINITION
+
+DVSM is a deterministic function composition system operating over
+finite or countably representable state objects.
+
+No semantic, epistemic, or governance properties are defined.
+
+---
+
+2. STATE SPACE (S)
+
+S is a set of representable states.
+
+Assumptions:
+- S has no intrinsic algebraic structure
+- no operations are defined on S unless explicitly introduced
+- S is not assumed to be closed under any transformation
+
+States are immutable once produced.
+
+---
+
+3. EXECUTION FUNCTION (Ξ)
+
+Ξ is a deterministic function:
+
+    Ξ: (S × E) → S
+
+Where:
+- E is a set of event inputs
+
+Properties:
+- deterministic under fixed inputs
+- side-effect free
+- order-sensitive unless normalization is applied externally
+
+Ξ defines state transition only.
+
+No equivalence relation or semantics are defined by Ξ.
+
+---
+
+4. IDENTITY PROJECTION (S_ECHO)
+
+S_ECHO is a deterministic mapping:
+
+    S_ECHO: S → H
+
+Where:
+- H is a finite identifier space
+
+Properties:
+- deterministic
+- total function
+- injectivity is not guaranteed unless explicitly specified externally
+
+Interpretation constraint:
+- equality in H is syntactic equality only
+- no equivalence relation on S is defined
+
+S_ECHO is a labeling function only.
+
+---
+
+5. REDUCTION OPERATOR (R)
+
+R is a deterministic function:
+
+    R: Multiset(H) → C
+
+Where:
+- Multiset(H) is a finite multiset of identity tokens
+- C is a finite candidate set
+
+Behavior:
+- collapses identical elements under syntactic equality in H
+- produces a representative set C
+
+R is a combinatorial reduction operator.
+
+No semantic grouping is defined.
+
+---
+
+6. SELECTION FUNCTION (λ)
+
+λ is a deterministic scoring function:
+
+    λ: C → ℝ
+
+Selection rule:
+
+    output = argmax(λ(C))
+
+Properties:
+- induces a total preorder over C
+- does not define validity, correctness, or semantics
+- does not constrain S or Ξ
+- does not modify system state
+
+λ is an ordering function only.
+
+---
+
+7. FULL SYSTEM COMPOSITION
+
+DVSM is defined as:
+
+    Output =
+        argmax(
+            λ(
+                R(
+                    S_ECHO(
+                        Ξ(S, E)
+                    )
+                )
+            )
+        )
+
+This is a deterministic function composition over finite representations.
+
+No convergence properties, fixed-point structure, or metric space
+assumptions are defined.
+
+---
+
+8. EXCLUDED DOMAINS
+
+DVSM does not define or model:
+
+- semantics or meaning
+- truth conditions
+- governance or authorization
+- consensus or distributed agreement
+- dynamical system properties
+- equivalence relations over S
+
+Any such interpretations are external to the system.
+
+---
+
+9. SYSTEM CLASSIFICATION
+
+DVSM is:
+
+A deterministic functional transformation pipeline over structured symbolic states,
+composed of state transition, identity projection, multiset reduction,
+and scalar ordering selection.
+
+DVSM is not:
+
+- a consensus system
+- a dynamical system
+- a semantic model
+- a governance model
+- a mathematical structure with defined algebraic closure
+
+---
+
+10. FINAL STATEMENT
+
+DVSM is a deterministic composition of functions over representational states.
+
+It produces ordered selections from reduced identity-labeled state sets.
+
+No additional properties are defined or implied.
+
 Bottom line
 
 The current framing is correct:
@@ -669,6 +842,179 @@ And crucially:
 We are no longer mixing implementation semantics with mathematical ontology
 
 That is the real achievement of this revision chain.
+
+// ============================================================================
+// DVSM_SYSTEM_IP_CLAIMS_v1.0.txt
+// Title: Deterministic Functional State Processing System (DVSM)
+// Type: Intellectual Property Claim Disclosure
+// Purpose: Unified patent-style claim set for deterministic execution architecture
+// ============================================================================
+
+1. TECHNICAL FIELD
+
+This disclosure relates to deterministic computational systems for
+event-sourced state processing, identity projection, and ordered
+selection of state representations in a fully reproducible execution model.
+
+The system explicitly excludes semantic interpretation, governance logic,
+and probabilistic inference.
+
+---
+
+2. SYSTEM OVERVIEW
+
+The invention is a deterministic functional pipeline that transforms
+input events into a single selected output state through a sequence of
+functionally isolated operations:
+
+    Ξ → S_ECHO → R → λ → Output
+
+Each stage is deterministic and stateless except for defined inputs.
+
+---
+
+3. INDEPENDENT SYSTEM CLAIM
+
+A deterministic computational system comprising:
+
+(a) a state transition function Ξ configured to generate a next state
+from a current state and a set of input events;
+
+(b) a state identity projection function S_ECHO configured to map each
+state into a deterministic identity token space;
+
+(c) a reduction operator R configured to transform a multiset of identity
+tokens into a finite candidate set by collapsing syntactically identical
+tokens;
+
+(d) a selection function λ configured to assign scalar values to each
+element of the candidate set and select a single representative element
+based on a maximal ordering rule;
+
+wherein the system produces a final output as a deterministic composition
+of Ξ, S_ECHO, R, and λ applied sequentially to input events;
+
+and wherein the system operates without defining or requiring:
+semantic meaning, governance logic, consensus rules, or equivalence
+relations beyond syntactic identity token matching.
+
+---
+
+4. DEPENDENT CLAIMS
+
+4.1 Deterministic Identity Projection Claim
+
+The system of claim 3, wherein S_ECHO produces identity tokens using a
+deterministic cryptographic or hash-based transformation such that identical
+input states produce identical identity tokens under identical execution
+conditions.
+
+---
+
+4.2 Multiset Reduction Claim
+
+The system of claim 3, wherein R removes duplicate identity tokens based
+solely on syntactic equivalence, without semantic interpretation or
+external classification of state meaning.
+
+---
+
+4.3 Selection Function Claim
+
+The system of claim 3, wherein λ defines a total preorder over the candidate
+set and selects a single output element using an argmax operation over scalar
+evaluations.
+
+---
+
+4.4 Deterministic Execution Claim
+
+The system of claim 3, wherein all functions Ξ, S_ECHO, R, and λ are
+deterministic such that identical inputs and identical event sequences
+produce identical outputs across executions.
+
+---
+
+4.5 Non-Semantic Constraint Claim
+
+The system of claim 3, wherein no component defines:
+
+- semantic meaning of states
+- truth conditions of outputs
+- governance or authorization logic
+- equivalence relations beyond syntactic identity matching
+
+---
+
+4.6 Pipeline Composition Claim
+
+The system of claim 3, wherein the full system is defined as a compositional
+pipeline:
+
+    Output = λ(R(S_ECHO(Ξ(S, E))))
+
+and each function operates independently without modifying the internal logic
+of other functions.
+
+---
+
+4.7 Event-Sourced Determinism Claim
+
+The system of claim 3, wherein Ξ processes a temporally ordered or normalized
+event sequence such that state evolution is fully reproducible under identical
+event ordering.
+
+---
+
+5. METHOD CLAIM (INDEPENDENT)
+
+A computer-implemented method comprising:
+
+(a) receiving a set of input events;
+
+(b) applying a deterministic state transition function Ξ to generate a state;
+
+(c) projecting the state into an identity token using S_ECHO;
+
+(d) reducing identity tokens using R to form a candidate set;
+
+(e) assigning scalar values to candidates using λ;
+
+(f) selecting a single output state using a maximal ordering operation;
+
+(g) returning the selected state as output;
+
+wherein all steps are deterministic and independent of semantic interpretation
+or governance logic.
+
+---
+
+6. SYSTEM CLASSIFICATION STATEMENT
+
+The system is classified as a deterministic event-sourced transformation
+pipeline that performs identity labeling, combinatorial reduction, and scalar
+ordering selection over structured state representations.
+
+The system does not implement:
+
+- consensus protocols
+- semantic reasoning systems
+- governance or policy enforcement frameworks
+- probabilistic or stochastic inference models
+
+---
+
+7. FINAL CLAIM SUMMARY
+
+The invention provides a reproducible computational architecture in which
+input events are transformed into a uniquely selected output state through
+a deterministic pipeline of state transition, identity projection, reduction,
+and ordering selection, without reliance on semantic interpretation or
+distributed agreement mechanisms.
+
+// ============================================================================
+// END OF DVSM SYSTEM IP CLAIMS
+// ============================================================================
 // ============================================================================
 // END OF FILE
 // ============================================================================
