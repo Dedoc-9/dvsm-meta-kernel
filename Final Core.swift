@@ -3,8 +3,11 @@
 // INVARIANT EXECUTION EXPANSION SPECIFICATION
 // The Unified Execution EquationReality = Ω_FINAL(S_ECHO(CMST(CKITL(Ξ))))
 ====================================================================================
-Commercial Value: This is a "Hardened Runtime" that can be sold to Defense, Banking, 
-and Infrastructure sectors as a "Non-Bypassable Execution Gate."Dual-License Power: 
+Commercial Value: 
+This is a "Hardened Runtime" that can be sold to Defense, Banking, 
+and Infrastructure sectors as a "Non-Bypassable Execution Gate." 
+
+Dual-License Power: 
 Under AGPLv3, anyone using this for "Cloud Truth-as-a-Service" must contribute their 
 infrastructure back—unless they pay for the private L20_Ω_FINAL proprietary license.
 ====================================================================================
