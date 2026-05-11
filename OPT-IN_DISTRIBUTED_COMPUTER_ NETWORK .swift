@@ -1930,7 +1930,204 @@ struct PiFunctor {
         }
     }
 }
+/*
+============================================================
+ODCN ADDENDUM — CONTEXTUAL CHARACTERISTIC MORPHISM v1.4
+(BOUNDED OBSERVATIONAL SEMANTICS FIX — ALL-IN-ONE)
+============================================================
 
+Core correction:
+- χ remains the full theoretical semantic object
+- π is explicitly a bounded observational projection
+- Swift Hashing is treated as implementation-level compression
+- No collapse of quotient semantics into runtime equality
+
+This file preserves:
+✔ χ (semantic truth layer)
+✔ contextual interpretation K
+✔ execution guard semantics
+✔ observational approximation layer π
+
+This file explicitly prevents:
+✘ conflation of π with full equivalence
+✘ hash equality = semantic equality
+✘ global context identity assumptions
+*/
+
+// ============================================================
+// 1. CORE SEMANTIC OBJECT (UNCHANGED)
+// ============================================================
+
+/// Full theoretical constraint semantics (uncomputable in general)
+///
+/// χ : (T × N × K) → Bool
+
+struct ConstraintSystem {
+
+    let χ: (Task, Node, Context) -> Bool
+
+    /// Local context interpretation (no global K space)
+    let contextSpace: ContextSpace
+}
+
+// ============================================================
+// 2. CONTEXT RELATIVITY (UNCHANGED STRUCTURE)
+// ============================================================
+
+/// Contexts are system-local interpretation tokens
+/// NOT globally comparable objects
+
+struct ContextSpace {
+
+    let interpret: (RawContext) -> Context
+}
+
+// ============================================================
+// 3. EXECUTION SEMANTICS (GUARDED EVALUATION)
+// ============================================================
+
+struct ExecutionSystem {
+
+    let run: (Task, Node) -> Output?
+
+    func execute(
+        _ C: ConstraintSystem,
+        _ t: Task,
+        _ n: Node,
+        _ rawK: RawContext
+    ) -> Output? {
+
+        let k = C.contextSpace.interpret(rawK)
+
+        guard C.χ(t, n, k) else {
+            return nil
+        }
+
+        return run(t, n)
+    }
+}
+
+// ============================================================
+// 4. π — BOUNDED OBSERVATIONAL KERNEL (APPROXIMATE)
+// ============================================================
+
+/// IMPORTANT SEMANTIC DISTINCTION:
+///
+/// π is NOT:
+/// - a full quotient map
+/// - a semantic equivalence operator
+/// - a complete representation of χ
+///
+/// π IS:
+/// - a finite observational compression of χ
+/// - dependent on sample selection
+/// - dependent on Swift Hashable behavior
+/// - inherently lossy
+
+struct ObservationalFingerprint {
+    let hash: Int
+}
+
+enum π {
+
+    /// Finite observational projection of constraint behavior
+    ///
+    /// Equivalence here is ONLY sample-relative.
+    ///
+    /// C1 ≈ₛ C2 ⇔ π(C1, sample) == π(C2, sample)
+
+    static func project(
+        _ C: ConstraintSystem,
+        _ rawK: RawContext,
+        sample: [(Task, Node)]
+    ) -> ObservationalFingerprint {
+
+        let k = C.contextSpace.interpret(rawK)
+
+        var hasher = Hasher()
+
+        for (t, n) in sample {
+            // observational trace of χ (NOT full semantics)
+            hasher.combine(C.χ(t, n, k))
+        }
+
+        return ObservationalFingerprint(hash: hasher.finalize())
+    }
+}
+
+// ============================================================
+// 4.1 OBSERVATIONAL COMPLETENESS INVARIANT
+// ============================================================
+
+/// Let Ω = full interaction space (T × N × K)
+///
+/// Then:
+///
+/// π(C) = hash(C restricted to sample ⊂ Ω)
+///
+/// CONSEQUENCES:
+/// - π preserves only sampled behavior
+/// - π is not injective
+/// - π is not a quotient operator
+/// - π is an epistemic approximation layer
+
+// ============================================================
+// 5. EQUATIONAL WARNING (CRITICAL SEMANTIC FIX)
+// ============================================================
+
+/// DO NOT interpret as semantic identity:
+///
+/// C1 ∼ C2 ⇔ π(C1) == π(C2)
+///
+/// Correct interpretation:
+///
+/// C1 ≈ₛ C2 ⇔ π(C1, sample) == π(C2, sample)
+///
+/// where ≈ₛ = sample-relative observational equivalence
+
+// ============================================================
+// 6. STRUCTURAL RESULT (STABLE FORM)
+// ============================================================
+
+/*
+ODCN now consists of three distinct layers:
+
+1. χ-layer (semantic ground truth)
+   - full constraint relation
+   - theoretical equivalence domain
+
+2. K-layer (context interpretation)
+   - system-local semantics
+   - no global context space
+
+3. π-layer (observational compression)
+   - finite sampled projection
+   - Swift Hash-based fingerprinting
+   - lossy equivalence approximation
+*/
+
+// ============================================================
+// 7. FINAL STABLE STATEMENT
+// ============================================================
+
+/*
+ODCN defines computation as:
+
+    χ : (T × N × K) → Bool
+
+execution is gated by χ under interpreted context K,
+
+while π provides a bounded observational projection:
+
+    π : (C, sample) → Fingerprint
+
+used only for approximate indistinguishability,
+not for semantic equivalence.
+*/
+
+// ============================================================
+// END OF ADDENDUM
+// ============================================================
 // ============================================================
 // END OF FILE — ODCN FINAL FORM
 // ============================================================
