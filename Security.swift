@@ -1422,6 +1422,195 @@ Not claim construction guidance.
 // ============================================================================
 END OF ADDENDUM
 // ============================================================================
+Below is a prior-art-aligned IP-style file for your final invariant, written in a way that (a) would survive 
+examiner-style scrutiny and (b) correctly acknowledges that the content is not novel in object-level mathematics,
+but may be framed as a unifying abstraction claim.
+
+IP CLAIM FILE (PRIOR-ART ALIGNED DISCLOSURE)
+
+1. Title
+
+Constraint-Based Characterization of Computational Systems as Realizations of a Function Over a Domain
+
+2. Field of the Disclosure
+
+This disclosure relates to theoretical computer science, including:
+
+category theory
+programming language semantics
+circuit complexity theory
+database query theory
+systems modeling and formal verification
+
+3. Background (Prior Art Summary)
+
+Computational systems are traditionally modeled in multiple equivalent but domain-specific ways:
+
+3.1 Category Theory
+Computation modeled as morphisms:
+h:S→O
+Systems correspond to restricted classes of morphisms in a category.
+
+3.2 Programming Language Semantics
+Computation modeled via evaluation of expressions.
+System structure defined by:
+typing rules
+evaluation strategy
+operational semantics
+
+3.3 Circuit Theory
+Computation modeled as Boolean or arithmetic functions.
+Implementation constrained by:
+gate libraries
+wiring structure
+timing constraints
+
+3.4 Database Theory
+Computation modeled as query functions.
+System structure defined by:
+schema constraints
+relational algebra restrictions
+execution plan constraints
+
+3.5 Systems Theory
+Computation modeled as input-output mappings.
+Realization constrained by:
+physical dynamics
+stability constraints
+realizability conditions
+
+Common prior-art theme:
+
+All systems describe computation as a function subject to constraints on its implementation or realization.
+
+4. Summary of the Invention (Non-Novel Unification Claim)
+
+This disclosure formalizes computational systems under a single abstraction:
+
+All computation is modeled as a function h:S→O, and system structure corresponds to a set of constraints on admissible realizations of h.
+
+5. Formal Statement
+
+Let:
+
+S = input domain
+O = output domain
+h:S→O = extensional computational function
+
+A computational system is defined as:
+
+A constraint system C over the set of admissible realizations of h, where each realization corresponds to a syntactic, structural, or operational implementation of h.
+
+6. Constraint Semantics
+
+The constraint system C may restrict:
+
+syntactic structure of implementation
+decomposition of functions
+evaluation or execution strategy
+representation of intermediate states
+interaction or composition rules
+
+Important clarification:
+These constraints do not alter h itself, only the admissible ways it may be implemented.
+
+7. Prior Art Mapping (Explicit Alignment)
+
+7.1 Category Theory Equivalence
+
+Objects: sets S,O
+Morphisms: functions h:S→O
+Constraints: restricted morphism classes
+
+➡ System ≡ structured subcategory of Hom(S,O)
+
+7.2 Programming Language Semantics
+h: program meaning
+constraints: type system + operational semantics
+
+➡ System ≡ constrained evaluation model
+
+7.3 Circuit Design
+h: Boolean function
+constraints: gate set + wiring restrictions
+
+➡ System ≡ constrained physical realization of function
+
+7.4 Databases
+h: query function
+constraints: schema + query planner restrictions
+
+➡ System ≡ constrained execution of function
+
+7.5 Systems Theory
+h: transfer function
+constraints: physical realizability conditions
+
+➡ System ≡ constrained implementation space
+
+8. Prior Art Conclusion
+
+All known models reduce to:
+
+A function h:S→O together with constraints restricting its realizations.
+
+9. Novelty Assessment (Critical Section)
+
+9.1 What is NOT novel
+
+This formulation does NOT introduce:
+
+new computational primitives
+new classes of functions
+new equivalence relations
+new composition laws
+new execution semantics
+new algebraic structures
+9.2 What is also present in prior art
+
+The abstraction is fully present in:
+
+category theory (restricted morphisms)
+type theory (typing + operational constraints)
+circuit complexity theory (implementation constraints)
+database theory (query plan constraints)
+systems theory (realizability constraints)
+10. Residual Contribution (If any)
+
+If interpreted strictly, the only remaining value is:
+
+A unified restatement that identifies all computational systems as constraint systems over realizations of a single extensional function.
+
+This is:
+
+representational unification
+not structural invention
+not algorithmic novelty
+11. Final Canonical Form (Maximal Compression)
+
+A computational system consists of a function h:S→O, together with a set of constraints on the admissible realizations of h, where such constraints define allowable implementations, decompositions, and execution structures.
+
+12. Closing Classification
+
+Under prior-art analysis, this disclosure is classified as:
+
+✔ valid theoretical unification
+✔ consistent across multiple domains
+✔ fully subsumed by existing formal frameworks
+❌ not novel in computational or mathematical structure
+
+13. Optional Next Research Direction (non-IP)
+
+The only meaningful extension beyond this point is not “refinement,” but:
+
+classification of constraint systems over Hom(S,O)
+
+which corresponds to:
+
+complexity classes
+architectural regimes
+evaluation semantics families
+realizability hierarchies
 
 // ============================================================================
 // END OF FILE
