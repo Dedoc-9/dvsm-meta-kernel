@@ -3,11 +3,21 @@ DVSM MASTER ARCHIVE v1.0
 SELF-RECONSTRUCTING INVARIANT COMPILER SPECIFICATION
 (Equivalence Compiler Model — CMST Locked)
 ================================================================================
-"DVSM is a hard-syntax, noise-resistant compiler that lowers Invariant Truth into Replayable Execution IR."
+DVSM is a hard-syntax compiler.
+It is noise-resistant by design.
+
+It enforces strict structural validity over all inputs.
+
+It does not interpret ambiguous state.
+It rejects non-conforming execution paths.
+
+It lowers Invariant Truth into a deterministic representation.
+
+That representation is Replayable Execution IR.
 
 AUTHORSHIP
 --------------------------------------------------------------------------------
-Primary Architect: Daniel J. Dillberg
+Architect: Daniel J. Dillberg
 
 Classification:
 - Deterministic Distributed Systems Theory
