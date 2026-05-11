@@ -19,23 +19,58 @@ func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
 // DVSM × ODCN — COMPUTATIONAL WHITEPAPER CORE v1.0
 // (TRACE–WITNESS–COLLAPSE MODEL)
 // ============================================================
-//
-// INTRODUCTION:
+// INTRODUCTION (v1 → v9 CONSOLIDATED):
 //
 // This file defines a minimal, implementation-aligned model of a
 // trace-based epistemic computation system.
 //
-// The system is structured around three irreducible layers:
+// OVER EVOLUTION (v1–v9 SUMMARY):
 //
-//   1. Trace space (I*): ordered computation history
-//   2. Witness layer (W*): partial epistemic evaluation
-//   3. Collapse operator (Φ): irreversible observation mapping
+// The model has undergone structural refinement across versions:
 //
-// The only observable quantity is:
+//   v1–v3:  Φ treated as projection operator (later rejected)
+//   v4–v6:  π introduced as explicit entropy morphism (kept)
+//   v6–v7:  trace monoid formalized (I* becomes foundational)
+//   v7–v8:  fiber concept clarified as equivalence class (set-level)
+//   v8–v9:  IP layer demoted to *contingent representation only*
+//
+// FINAL CONSOLIDATED POSITION:
+//
+// The system is structured around four irreducible semantic layers:
+//
+//   1. Trace space (I*):
+//        Free monoid of ordered computation histories
+//
+//   2. Witness layer (W*):
+//        Partial, external, possibly inconsistent evaluation
+//
+//   3. Collapse morphism (Φ or Ω-composition view):
+//        Irreversible, order-sensitive entropy compression
+//
+//   4. Fiber structure:
+//        Equivalence classes induced by Ω
+//        (mathematical object, not representationally closed)
+//
+// CRITICAL DISTINCTION (FINAL FIX v9):
+//
+//   - Fibers are SETS in I*
+//   - IP objects are REPRESENTATIVES only
+//   - No canonical section exists from I*/~Ω → IP space
+//   - Representation is a gauge choice, not structure
+//
+// OBSERVABLE QUANTITY:
 //
 //      Ω = Φ ∘ W*
 //
-// Everything else is unobservable structure.
+// INTERPRETATION:
+//
+//   Ω is the only observable functional,
+//   but it does NOT determine a unique representation of fibers.
+//
+//   Therefore:
+//
+//      semantics (fiber space) is invariant
+//      representation (IP layer) is contingent
 //
 // ============================================================
 
