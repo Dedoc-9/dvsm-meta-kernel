@@ -34,6 +34,16 @@ func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
 //   v7–v8:  fiber concept clarified as equivalence class (set-level)
 //   v8–v9:  IP layer demoted to *contingent representation only*
 //
+// I*        (trace monoid)
+ ↓
+ Ω         (lossy collapse)
+ ↓
+ U64       (observational value)
+ ↓
+ Fiber     (equivalence class in I*)
+ ↓
+ IPFiber   (chosen representative, external encoding)
+//
 // FINAL CONSOLIDATED POSITION:
 //
 // The system is structured around four irreducible semantic layers:
