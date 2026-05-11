@@ -2493,4 +2493,187 @@ Same S_ECHO, same payload : Shared invariant observation : OK
 Same S_ECHO, different payload : Causal contradiction : HARD FORK
 Different S_ECHO : Normal divergence : OK
 ================================================================================
+//
+//  DVSM_FinalResolution_Addendum.swift
+//  DVSM MASTER ARCHIVE — Final Resolution Extension
+//
+//  PURPOSE
+//  ---------------------------------------------------------------------
+//  Implements S_ECHO entropy-to-tension geometry, Φ_DRIFT safety field,
+//  ε(Σ) admissibility bound, and TOPOLOGICAL_SILENCE emission semantics.
+//
+//  This module defines pre-execution invariants only.
+//  No runtime adaptation is permitted.
+//
+
+import Foundation
+
+// =====================================================================
+// MARK: - CORE STRUCTURES
+// =====================================================================
+
+public struct SECHOState {
+    public let probabilities: [Double]
+}
+
+public struct IBMSABasin {
+    public let stabilityGradient: Double
+}
+
+public struct ManifoldSigma {
+    public let secho: SECHOState
+    public let ibmsa: IBMSABasin
+}
+
+// =====================================================================
+// MARK: - S_ECHO ENTROPY MODEL
+// =====================================================================
+
+public struct SECHOEntropyModel {
+
+    /// Shannon entropy over identity distribution
+    public static func entropy(_ state: SECHOState) -> Double {
+        return -state.probabilities
+            .filter { $0 > 0 }
+            .map { $0 * log($0) }
+            .reduce(0, +)
+    }
+}
+
+// =====================================================================
+// MARK: - IBMSA GEOMETRIC DEPTH MODEL
+// =====================================================================
+
+public struct IBMSAModel {
+
+    /// Basin depth as integrated stability field
+    public static func depth(_ basin: IBMSABasin) -> Double {
+        return basin.stabilityGradient
+    }
+}
+
+// =====================================================================
+// MARK: - SIGMA COMPOSITE GEOMETRY
+// =====================================================================
+
+public struct SigmaGeometry {
+
+    public static func complexity(_ sigma: ManifoldSigma) -> Double {
+        let h = SECHOEntropyModel.entropy(sigma.secho)
+        let d = IBMSAModel.depth(sigma.ibmsa)
+        return h + d
+    }
+}
+
+// =====================================================================
+// MARK: - DRIFT FIELD (Φ_DRIFT)
+// =====================================================================
+
+public struct DriftField {
+
+    /// Deterministic geometric tension approximation
+    public static func compute(complexity: Double) -> Double {
+        return complexity * log(1 + complexity)
+    }
+}
+
+// =====================================================================
+// MARK: - EPSILON BOUND (ε(Σ))
+// =====================================================================
+
+public struct EpsilonModel {
+
+    /// Frozen admissibility bound derived from manifold geometry
+    public static func epsilon(for sigma: ManifoldSigma) -> Double {
+        let Σ = SigmaGeometry.complexity(sigma)
+        let instabilityFactor = 1.0 + Σ
+        return 1.0 / (1.0 + Σ * instabilityFactor)
+    }
+}
+
+// =====================================================================
+// MARK: - TOPOLOGICAL SILENCE EMITTER
+// =====================================================================
+
+public enum TopologicalEmission {
+    case collapse
+    case silence
+    case maintenance
+}
+
+public struct TopologicalSilenceEmitter {
+
+    public static func emit(
+        phiPath: Bool,
+        phiDrift: Double,
+        epsilon: Double
+    ) -> TopologicalEmission {
+
+        guard phiPath else {
+            return .silence
+        }
+
+        if phiDrift < epsilon {
+            return .collapse
+        } else {
+            return .silence
+        }
+    }
+}
+
+// =====================================================================
+// MARK: - Ω_VAJRA FINAL GATE
+// =====================================================================
+
+public struct VajraGate {
+
+    public static func admit(
+        phiPath: Bool,
+        sigma: ManifoldSigma
+    ) -> Bool {
+
+        let epsilon = EpsilonModel.epsilon(for: sigma)
+        let drift = DriftField.compute(
+            complexity: SigmaGeometry.complexity(sigma)
+        )
+
+        return phiPath && (drift < epsilon)
+    }
+}
+
+// =====================================================================
+// MARK: - EXECUTION INTERFACE
+// =====================================================================
+
+public struct DVSMFinalKernel {
+
+    public static func evaluate(
+        phiPath: Bool,
+        sigma: ManifoldSigma
+    ) -> String {
+
+        let epsilon = EpsilonModel.epsilon(for: sigma)
+        let drift = DriftField.compute(
+            complexity: SigmaGeometry.complexity(sigma)
+        )
+
+        let emission = TopologicalSilenceEmitter.emit(
+            phiPath: phiPath,
+            phiDrift: drift,
+            epsilon: epsilon
+        )
+
+        switch emission {
+        case .collapse:
+            return "Ω_VAJRA::EXECUTED::INVARIANT_COLLAPSE"
+
+        case .silence:
+            return "IR::NO_COLLAPSE::TOPOLOGICAL_SILENCE"
+
+        case .maintenance:
+            return "IR::MAINTENANCE_REQUIRED"
+        }
+    }
+}
+================================================================================
 END OF DVSM MASTER ARCHIVE v1.0
