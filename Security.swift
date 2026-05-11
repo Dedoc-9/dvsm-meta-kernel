@@ -461,5 +461,201 @@ final class DVSMKernel {
 // Computation is invariant preservation under deterministic
 // transformation across layered observational constraints.
 // ============================================================================
+// DVSM_CLARITY_ADDENDUM_v2.txt
+// Purpose: Structural correction and formal reclassification of DVSM core
+// ============================================================================
+//
+// This addendum clarifies that the revised DVSM specification is
+// mathematically more honest than its original formulation.
+//
+// The primary correction is not stylistic—it is ontological:
+// each component has been reclassified according to what it actually computes,
+// not what prior metaphorical language implied.
+//
+// ============================================================================
+// 1. SYSTEM REDUCTION — CORE RESULT
+// ============================================================================
+//
+// After correction, DVSM collapses into a single coherent computational model:
+//
+//     a deterministic event-sourced state machine
+//     with three auxiliary transformation layers:
+//
+//         (1) S_ECHO      → cryptographic fingerprinting
+//         (2) CONSENSUS   → multiset aggregation over identifiers
+//         (3) λ projection → heuristic scoring / selection bias
+//
+// This eliminates the previous illusion of multi-theory structure.
+//
+// The system is now:
+//
+//     single-paradigm, deterministic, and functionally compositional
+//
+// ============================================================================
+// 2. REMOVAL OF IMPLICIT STRUCTURE (CRITICAL CORRECTION)
+// ============================================================================
+//
+// The revision correctly removes several ungrounded assumptions:
+//
+// - no metric space is defined
+// - no convergence dynamics are defined
+// - no distributed consensus protocol exists
+// - no equivalence relation over hashes is formally specified
+//
+// This is a major correction because those elements previously
+// acted as hidden explanatory scaffolding.
+//
+// After removal:
+//
+//     only explicit computation remains
+//
+// ============================================================================
+// 3. WHAT THE SYSTEM NOW ACTUALLY IS
+// ============================================================================
+//
+// The corrected DVSM is best described as:
+//
+//     a deterministic pipeline over event-sourced state:
+//
+//         State(t)
+//             → Ξ (state transition)
+//             → State(t+1)
+//
+//         State(t)
+//             → S_ECHO
+//             → identity token
+//
+//         tokens
+//             → multiset reduction
+//             → representative selection
+//
+//         candidates
+//             → λ scoring function
+//             → final selection (argmax)
+//
+// This is a fully valid computational structure.
+//
+// ============================================================================
+// 4. WHAT HAS BEEN ELIMINATED (IMPORTANT)
+// ============================================================================
+//
+// The revision correctly eliminates three previously implied but invalid claims:
+//
+// (A) “Consensus” is not distributed agreement
+//     → It is local aggregation over finite hash sets
+//
+// (B) “Ω_FINAL attractor” is not a dynamical system
+//     → It is a deterministic argmax selection over candidates
+//
+// (C) “λ projection layer” is not governance or constraint
+//     → It is only a scoring bias function
+//
+// Result:
+//     all metaphysical or system-level overreach is removed
+//
+// ============================================================================
+// 5. REMAINING STRUCTURAL LIMITATIONS (CORRECTLY IDENTIFIED)
+// ============================================================================
+//
+// The system is now cleanly bounded, but incomplete in formal theory:
+//
+// (A) STATE SPACE IS UNDERDEFINED
+//     - S is not formally structured
+//     - likely treated as untyped or string-based accumulation
+//
+// (B) TRANSITION FUNCTION HAS NO ALGEBRAIC MODEL
+//     - Ξ is operational, not algebraic
+//     - no known properties (commutativity, associativity, closure)
+//
+// (C) NO EQUATIONAL IDENTITY THEORY
+//     - S_ECHO defines hashes only
+//     - no semantic equivalence relation exists
+//
+// These are not flaws in implementation,
+// but limitations in formal expressiveness.
+//
+// ============================================================================
+// 6. MATHEMATICALLY VALID CORE (WHAT REMAINS TRUE)
+// ============================================================================
+//
+// Despite simplification, the system is still valid as:
+//
+//     a deterministic event-sourced computation pipeline
+//     with hashing + reduction + scoring layers
+//
+// This corresponds to:
+//
+// - event sourcing model
+// - content-addressed state snapshots
+// - deterministic fold/reduce operations
+// - ranking-based final selection
+//
+// Importantly:
+//
+//     it is NOT a consensus protocol
+//     it is NOT a dynamical attractor system
+//     it is NOT a fixed-point convergence system
+//
+// These classifications are correctly removed.
+//
+// ============================================================================
+// 7. META-STRUCTURAL RESULT
+// ============================================================================
+//
+// The most important outcome of the revision is conceptual compression:
+//
+// FROM:
+//     multi-layer ontological architecture
+//
+// TO:
+//     single-layer deterministic computation model
+//     with explicitly annotated transformations
+//
+// This removes theoretical inflation and restores strict computational grounding.
+//
+// ============================================================================
+// 8. WHAT WOULD BE REQUIRED FOR FORMAL EXTENSION
+// ============================================================================
+//
+// To elevate this system into a mathematically complete framework,
+// the following must be explicitly defined:
+//
+// 1. STATE SPACE ONTOLOGY
+//    - formal definition of S (graph, tensor, algebraic object)
+//
+// 2. TRANSITION ALGEBRA
+//    - structural properties of Ξ
+//    - compositional rules over state evolution
+//
+// 3. EQUVALENCE RELATION THEORY
+//    - formal semantics for S_ECHO collisions
+//    - definition of semantic equivalence vs identity equality
+//
+// 4. REDUCTION SEMANTICS
+//    - formal meaning of aggregation and collapse operators
+//
+// 5. SCORING FUNCTION ROLE
+//    - λ as policy, optimizer, or constraint system must be fixed
+//
+// ============================================================================
+// FINAL RESULT STATEMENT
+// ============================================================================
+//
+// The corrected DVSM specification is no longer an abstract
+// multi-layer theoretical system.
+//
+// It is a clean deterministic computation pipeline:
+//
+//     state evolution + hashing + aggregation + scoring selection
+//
+// All higher-order interpretations (consensus, attractor, fixed-point)
+// have been correctly removed as unsupported abstractions.
+//
+// What remains is smaller—but formally consistent.
+//
+// ============================================================================
+// END OF ADDENDUM
+// ============================================================================
+// ============================================================================
 // END OF FILE
 // ============================================================================
