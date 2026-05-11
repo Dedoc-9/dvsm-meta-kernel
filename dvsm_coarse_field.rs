@@ -67,7 +67,7 @@ Under the commercial license, you may:
 The commercial license is NOT granted by default.
 It must be obtained via explicit written agreement with the copyright holder.
 
-Contact: licensing@your-domain.example (replace with real contact)
+Contact: BigDilly95@gmail.com (Daniel J. Dillberg)
 
 -----------------------------------------------------------------------------
 
