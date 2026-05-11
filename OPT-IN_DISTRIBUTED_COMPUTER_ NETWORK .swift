@@ -1598,6 +1598,287 @@ and systems are identified purely by equality of D_C under π.
 All other structure (implementation, category lift, morphisms)
 is representational and does not affect semantic equivalence.
 */
+/*
+============================================================
+ODCN MANIFOLD DISCOVERY & AXIOM-PARITY ADDENDUM v1
+(Observational Peer Equivalence & Logical Handshake Layer)
+
+Author: Daniel J. Dillberg
+Status: Formal Specification Addendum
+Applies to: ODCN Relational Compute Model
+
+This addendum extends ODCN with:
+
+- observational manifold discovery
+- extensional peer-equivalence probing
+- logical handshake verification
+- axiom-parity classification
+- non-identifying distributed compatibility discovery
+
+This addendum:
+- does NOT modify EXEC semantics
+- does NOT alter domain quotient semantics
+- does NOT introduce identity enforcement
+- does NOT redefine admissibility predicates
+
+It introduces only an observational peer-discovery layer.
+============================================================
+*/
+// ============================================================
+// 1. PURPOSE
+// ============================================================
+
+/// This addendum defines a logical discovery mechanism
+/// allowing distributed nodes to determine whether peers
+/// belong to the same observable manifold-equivalence class.
+///
+/// Discovery is based on:
+/// - extensional logical parity
+/// - observable response consistency
+/// - constraint-axiom compatibility
+///
+/// NOT:
+/// - identity extraction
+/// - user attribution
+/// - legal classification
+/// - runtime enforcement
+
+// ============================================================
+// 2. MANIFOLD AXIOM MODEL
+// ============================================================
+
+/// A manifold axiom is an observational logical signature
+/// representing a compatible constraint-evaluation structure.
+
+typealias ManifoldAxiom = UInt64
+
+/// Example:
+///
+/// 0b1101010110101010
+///
+/// Represents:
+/// - admissibility semantics
+/// - protocol parity
+/// - observable constraint alignment
+///
+/// NOT:
+/// - identity
+/// - ownership
+/// - implementation details
+
+// ============================================================
+// 3. OBSERVATIONAL CHALLENGE SPACE
+// ============================================================
+
+/// Challenge vector distributed across network observation layer.
+
+struct DiscoveryChallenge {
+
+    let nonce: UInt64
+    let challengeBits: UInt64
+}
+
+// ============================================================
+// 4. LOGICAL RESPONSE MODEL
+// ============================================================
+
+/// Observable parity response.
+///
+/// This is:
+/// - extensional
+/// - non-identifying
+/// - equivalence-oriented
+
+struct DiscoveryResponse {
+
+    let transformedBits: UInt64
+}
+
+// ============================================================
+// 5. AXIOM-PARITY HANDSHAKE
+// ============================================================
+
+/// Logical manifold participant.
+///
+/// Nodes do NOT expose internal implementation structure.
+/// They expose only observable parity behavior.
+
+final class ManifoldNode {
+
+    /// Local manifold-equivalence axiom
+    private let axiom: ManifoldAxiom
+
+    init(axiom: ManifoldAxiom) {
+        self.axiom = axiom
+    }
+
+  // ============================================================
+// 5.1 RESPONSE TRANSFORMATION
+// ============================================================
+
+/// Applies observable parity transform.
+///
+/// NOTE:
+/// XOR here is illustrative only.
+/// It is NOT a cryptographic authentication primitive.
+/// It represents a reversible observational parity mapping
+/// used solely for semantic compatibility probing.
+    // ========================================================
+    // 5.2 PARITY VERIFICATION
+    // ========================================================
+
+    /// Determines whether remote observable behavior
+    /// matches local manifold axiom parity.
+
+    func verify(
+        challenge: DiscoveryChallenge,
+        response: DiscoveryResponse
+    ) -> Bool {
+
+        (
+            response.transformedBits ^ axiom
+        ) == challenge.challengeBits
+    }
+}
+
+// ============================================================
+// 6. AXIOM PARITY CLASSIFICATION
+// ============================================================
+
+/// Observational equivalence states.
+///
+/// These classifications indicate only:
+/// - observable parity consistency
+/// - protocol-level compatibility
+/// - extensional behavioral alignment
+///
+/// They do NOT imply:
+/// - trustworthiness
+/// - security guarantees
+/// - correctness of implementation
+/// - semantic completeness
+
+// ============================================================
+// 7. FEATURE MASK LOGIC
+// ============================================================
+
+/// Optional feature compatibility masks.
+///
+/// Enables:
+/// - partial manifold compatibility
+/// - subspace capability checks
+/// - protocol dimension discovery
+
+struct FeatureMask {
+
+    let rawValue: UInt64
+
+    func supports(
+        _ other: FeatureMask
+    ) -> Bool {
+
+        (rawValue & other.rawValue)
+            == other.rawValue
+    }
+}
+
+// ============================================================
+// 8. OBSERVATIONAL DISCOVERY LAYER
+// ============================================================
+
+/// Discovery exists OUTSIDE core EXEC semantics.
+///
+/// It does NOT:
+/// - alter D_C
+/// - influence EXEC
+/// - redefine admissibility
+/// - modify quotient semantics
+
+protocol DiscoveryLayer {
+
+    func broadcastChallenge(
+        _ challenge: DiscoveryChallenge
+    )
+
+    func observeResponses() -> [DiscoveryResponse]
+}
+
+// ============================================================
+// 9. RELATION TO ODCN CORE
+// ============================================================
+
+/// This layer is observational only.
+///
+/// It provides:
+/// - manifold equivalence probing
+/// - axiom compatibility discovery
+/// - distributed semantic parity checks
+///
+/// It does NOT define:
+/// - computation
+/// - execution
+/// - authorization
+/// - domain induction
+
+/// Core invariant preserved:
+///
+/// EXEC : D_C ⇀ O
+///
+/// remains unchanged.
+
+// ============================================================
+// 10. QUOTIENT CONSISTENCY
+// ============================================================
+
+/// Observable discovery exposes only parity behavior
+/// under the selected observational horizon.
+///
+/// Internal implementation structure Ĉ
+/// remains semantically opaque except insofar as it
+/// affects observable admissibility relations.
+///
+/// Therefore discovery remains compatible with
+/// extensional quotient semantics.
+
+Reason:
+This aligns perfectly with the finalized “observational horizon” principle.
+
+// ============================================================
+// 11. NON-IDENTIFICATION PRINCIPLE
+// ============================================================
+
+/// This system does NOT:
+/// - identify persons
+/// - identify ownership
+/// - identify legal status
+/// - infer authorship
+/// - infer repository origin
+///
+/// It ONLY evaluates:
+/// - observable logical parity
+/// - admissibility compatibility
+/// - manifold-equivalence consistency
+
+// ============================================================
+// 12. FINAL INTERPRETATION
+// ============================================================
+
+/// ODCN manifold discovery defines an observational
+/// parity layer over distributed nodes in which
+/// compatible systems are recognized through
+/// extensional logical equivalence behavior
+/// rather than identity disclosure.
+
+// ============================================================
+// 13. FINAL STABLE FORM
+// ============================================================
+
+/// ODCN manifold discovery is a non-identifying,
+/// observational equivalence framework in which
+/// distributed peers establish semantic compatibility
+/// through reversible logical parity transforms over
+/// shared admissibility axioms, while preserving
+/// implementation opacity and core quotient semantics.
 // ============================================================
 // END OF FILE — ODCN FINAL FORM
 // ============================================================
