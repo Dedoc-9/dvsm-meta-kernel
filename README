@@ -26,7 +26,7 @@ Stabilized Rust Kernel & Porting v1: https://github.com/Dedoc-9/dvsm-meta-kernel
 
 qsv_kernel.vlp.qgraph.rs (v2 Rust): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/qsv_kernel.vlp.qgraph.rs
 
-dvsm_coarse_field.rs (Quantum): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_coarse_field.rs
+dvsm_coarse_field.rs (Quantum Logic): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_coarse_field.rs
 
 Pre qsv_Kernel/dvsm_coarse_field.rs logic:
 
