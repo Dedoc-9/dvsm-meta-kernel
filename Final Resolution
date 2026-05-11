@@ -54,6 +54,14 @@ Final execution is defined as deterministic collapse into a single selected inva
 License:
 - AGPL-3.0 (Network Copyleft Invariant Clause Enabled)
 
+INTELLECTUAL PROPERTY NOTICE:
+
+DVSM MASTER ARCHIVE v1.0 is the proprietary work of its author.
+All underlying architecture, including CKITL, CMST, S_ECHO, and Ω_VAJRA, is protected intellectual property.
+The system design, invariant models, and compiler semantics may not be claimed as independent inventions.
+Authorized use requires attribution to the DVSM specification framework.
+No rights are granted beyond those explicitly stated in the license terms.
+
 ================================================================================
 ABSTRACT (WHITEPAPER SUMMARY)
 ================================================================================
