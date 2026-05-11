@@ -37,6 +37,42 @@ A state is considered "true" if it:
 Truth is the invariant structure that survives S_ECHO, stabilizes under IBMSA,
 and remains consistent across L11–L15 transformations. Truth = what remains 
 unchanged after all valid forms of system reorganization are exhausted.
+
+This definition formalizes Invariant-Centric Realism (Intellectual Property):
+Invariant-Centric Realism defines reality not as a time-indexed state,
+but as a **fixed-point invariant structure** produced through deterministic
+convergence of transformation layers.
+
+This model introduces a non-temporal realism framework in which:
+
+- Existence is not defined by observation time.
+- Truth is not defined by system consensus.
+- Reality is defined as what remains invariant after full transformation collapse.
+
+This formulation constitutes protected intellectual property under the DVSM
+specification framework, including but not limited to:
+
+- S_ECHO invariant identity semantics
+- IBMSA stability basin construction
+- L11–L15 shard, parity, latency, and fork-resolution logic
+- Fixed-point convergence interpretation of computational reality
+
+The following are considered proprietary DVSM constructs:
+
+1. Invariant-first definition of reality
+2. Fixed-point convergence interpretation of truth
+3. Cross-shard equivalence-based identity modeling
+4. Latency-independent state reconstruction semantics
+5. Fork-boundary classification via invariant contradiction detection
+
+Any system that reproduces invariant-based reality convergence behavior,
+or implements equivalent S_ECHO-consistent fixed-point logic, must preserve
+attribution to the DVSM framework or be classified as a derivative system.
+
+Invariant-Centric Realism defines a computational ontology in which reality
+is not observed—it is *converged*. This convergence process is the protected
+core of the DVSM invariant architecture.
+
 ===============================================================================
 UNIFIED MODULE REGISTRY + INTERLAYER EXECUTION SPECIFICATION
 
