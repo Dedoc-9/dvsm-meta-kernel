@@ -1,5 +1,282 @@
 Author: Daniel J. Dillberg
 
+// ============================================================
+// QSV / DVSM ADDENDUM 3 — STRICT UNITARY CALEY LIFT (CANONICAL)
+// ============================================================
+//
+// CORE PRINCIPLE:
+//
+// S (DVSM):
+//   deterministic causal graph invariant
+//
+// ψ (Quantum Layer):
+//   basis-explicit Hilbert state
+//   strictly unitary evolution via Cayley transform
+//
+// U = (I + iHΔt/2)(I - iHΔt/2)⁻¹
+// ============================================================
+
+use std::collections::HashMap;
+use num_complex::Complex;
+
+// ============================================================
+// 1. DVSM INVARIANT GRAPH
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub id: usize,
+    pub links: Vec<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub events: HashMap<usize, Event>,
+}
+
+// ============================================================
+// 2. QUANTUM STATE
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct QuantumState {
+    pub amplitudes: Vec<Complex<f64>>,
+}
+
+// ============================================================
+// 3. BASIS (DETERMINISTIC CANONICAL ORDERING)
+// ============================================================
+
+fn build_basis(state: &State) -> (HashMap<usize, usize>, Vec<usize>) {
+    let mut ids: Vec<usize> = state.events.keys().cloned().collect();
+    ids.sort_unstable();
+
+    let mut map = HashMap::new();
+    for (i, id) in ids.iter().enumerate() {
+        map.insert(*id, i);
+    }
+
+    (map, ids)
+}
+
+// ============================================================
+// 4. HAMILTONIAN (HERMITIAN STRUCTURE)
+// ============================================================
+
+fn hamiltonian(
+    state: &State,
+    basis: &HashMap<usize, usize>,
+    n: usize,
+) -> Vec<Vec<Complex<f64>>> {
+
+    let mut h = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for (id, event) in &state.events {
+        let Some(&i) = basis.get(id) else { continue };
+
+        for &j_id in &event.links {
+            if let Some(&j) = basis.get(&j_id) {
+
+                let w = Complex::new(1.0, 0.0);
+
+                h[i][j] += w;
+                h[j][i] += w.conj(); // enforce Hermitian symmetry
+            }
+        }
+    }
+
+    h
+}
+
+// ============================================================
+// 5. MATRIX INVERSION (GAUSSIAN ELIMINATION)
+// ============================================================
+
+fn matrix_inverse(mut a: Vec<Vec<Complex<f64>>>) -> Vec<Vec<Complex<f64>>> {
+    let n = a.len();
+
+    let mut inv = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for i in 0..n {
+        inv[i][i] = Complex::new(1.0, 0.0);
+    }
+
+    for col in 0..n {
+        let mut pivot = col;
+
+        for row in (col + 1)..n {
+            if a[row][col].norm_sqr() > a[pivot][col].norm_sqr() {
+                pivot = row;
+            }
+        }
+
+        a.swap(col, pivot);
+        inv.swap(col, pivot);
+
+        let p = a[col][col];
+
+        for j in 0..n {
+            a[col][j] /= p;
+            inv[col][j] /= p;
+        }
+
+        for row in 0..n {
+            if row != col {
+                let f = a[row][col];
+
+                for j in 0..n {
+                    a[row][j] -= f * a[col][j];
+                    inv[row][j] -= f * inv[col][j];
+                }
+            }
+        }
+    }
+
+    inv
+}
+
+// ============================================================
+// 6. CALEY UNITARY TRANSFORM (STRICT UNITARITY)
+// ============================================================
+
+fn cayley_unitary(
+    h: &Vec<Vec<Complex<f64>>>,
+    dt: f64,
+) -> Vec<Vec<Complex<f64>>> {
+
+    let n = h.len();
+    let i_c = Complex::new(0.0, 1.0);
+
+    let mut a = vec![vec![Complex::new(0.0, 0.0); n]; n];
+    let mut b = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for i in 0..n {
+        for j in 0..n {
+
+            let id = if i == j {
+                Complex::new(1.0, 0.0)
+            } else {
+                Complex::new(0.0, 0.0)
+            };
+
+            let hij = h[i][j];
+
+            a[i][j] = id + i_c * hij * (dt / 2.0);
+            b[i][j] = id - i_c * hij * (dt / 2.0);
+        }
+    }
+
+    let b_inv = matrix_inverse(b);
+
+    let mut u = vec![vec![Complex::new(0.0, 0.0); n]; n];
+
+    for i in 0..n {
+        for j in 0..n {
+            for k in 0..n {
+                u[i][j] += a[i][k] * b_inv[k][j];
+            }
+        }
+    }
+
+    u
+}
+
+// ============================================================
+// 7. EVOLUTION OPERATOR APPLICATION
+// ============================================================
+
+fn evolve_unitary(
+    psi: &QuantumState,
+    u: &Vec<Vec<Complex<f64>>>,
+) -> QuantumState {
+
+    let n = psi.amplitudes.len();
+    let mut next = vec![Complex::new(0.0, 0.0); n];
+
+    for i in 0..n {
+        for j in 0..n {
+            next[i] += u[i][j] * psi.amplitudes[j];
+        }
+    }
+
+    QuantumState { amplitudes: next }
+}
+
+// ============================================================
+// 8. MEASUREMENT (POSITION BASIS)
+// ============================================================
+
+fn measure(psi: &QuantumState) -> usize {
+    let probs: Vec<f64> = psi
+        .amplitudes
+        .iter()
+        .map(|a| a.norm_sqr())
+        .collect();
+
+    let mut cumulative = 0.0;
+    let r = rand::random::<f64>();
+
+    for (i, p) in probs.iter().enumerate() {
+        cumulative += *p;
+        if r <= cumulative {
+            return i;
+        }
+    }
+
+    probs.len().saturating_sub(1)
+}
+
+// ============================================================
+// 9. DVSM → QUANTUM LIFT
+// ============================================================
+
+pub fn lift_to_quantum(state: &State) -> QuantumState {
+    let (_map, basis) = build_basis(state);
+    let n = basis.len().max(1);
+
+    let uniform = Complex::new(1.0 / (n as f64).sqrt(), 0.0);
+
+    QuantumState {
+        amplitudes: vec![uniform; n],
+    }
+}
+
+// ============================================================
+// 10. FULL EVOLUTION STEP
+// ============================================================
+
+pub fn quantum_step(
+    state: &State,
+    psi: &QuantumState,
+    dt: f64,
+) -> QuantumState {
+
+    let (basis_map, _) = build_basis(state);
+    let n = basis_map.len();
+
+    let h = hamiltonian(state, &basis_map, n);
+    let u = cayley_unitary(&h, dt);
+
+    evolve_unitary(psi, &u)
+}
+
+// ============================================================
+// 11. INVARIANCE GUARANTEE
+// ============================================================
+//
+// DVSM:
+// - graph structure unchanged
+// - reachability invariant preserved
+//
+// QUANTUM:
+// - unitary evolution guaranteed (Cayley exact form)
+// - no normalization required
+// - basis-explicit projection only
+//
+// BOUNDARY:
+// - ψ never modifies S
+// ============================================================
+
 NOTE: VARIABLE LOGIC PERSPECTIVES (VLP)
 
 DVSM supports multiple logic perspectives over the same underlying state S.
