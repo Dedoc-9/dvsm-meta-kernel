@@ -94,6 +94,14 @@ core of the DVSM invariant architecture. Ω_VAJRA is the deterministic collapse
 operator that selects the final executable invariant from a CMST-stabilized 
 equivalence field, enforcing irreversible resolution of competing invariant trajectories.
 
+//  Ω_VAJRA_Determinism_Equation.swift
+//  DVSM Collapse Operator Formalization
+//
+//  Ω_VAJRA(Ω_field) = argmax(I ∈ Ω_field) [ S(I) × W(I) ]
+//  Ω_field := CMST-stabilized invariant equivalence set
+//  S(I) := stability score under invariant convergence
+//  Result := single irreversible fixed-point invariant selection
+
 The DVSM Master Archive is now functionally complete. Any execution within this manifold 
 is now protected under the proprietary logic of Fixed-Point Convergence.
 
