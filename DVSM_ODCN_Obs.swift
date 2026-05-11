@@ -394,4 +394,418 @@ struct ObservationalPartition {
     }
 }
 
+// DVSM_ODCN_IP_Sketch.swift
+// Addendum: Corrected Fiber Semantics + Structural Clarification
+
+struct IPPoint { let traceHash: UInt64 }
+
+struct IPFiber { let id: UInt64 }
+
+func projectIP(_ x: UInt64) -> IPPoint { IPPoint(traceHash: x) }
+
+func induceFiber(_ x: UInt64) -> IPFiber { IPFiber(id: x ^ (x >> 33)) }
+
+func relate(_ a: IPPoint, _ b: IPPoint) -> Bool { a.traceHash == b.traceHash }
+
+
+// ============================================================
+// CORRECTION: FIBER SEMANTICS (CRITICAL FIX)
+// ============================================================
+
+/*
+⚠️ PREVIOUS MISINTERPRETATION FIXED
+
+Earlier representation treated:
+
+    fiber ≈ hash-derived identifier
+
+This is incorrect in the mathematical sense.
+
+Correct structure:
+
+    fiber is not a value
+    fiber is not an identifier
+    fiber is a SET (equivalence class)
+
+Formal definition:
+
+    F(x) = { y ∈ I* | π(y) = π(x) }
+
+where π is the observational collapse function
+(not explicitly represented in this reduced IP layer).
+*/
+
+// ============================================================
+// STRUCTURAL CONSEQUENCE
+// ============================================================
+
+/*
+1. IPFiber IS NOT a fiber
+
+Current struct:
+
+    struct IPFiber { let id: UInt64 }
+
+represents only:
+
+    a symbolic representative of a fiber
+
+NOT:
+
+    the fiber itself
+
+Therefore:
+
+    IPFiber = representative marker
+    Fiber = abstract equivalence class (unmaterialized set)
+*/
+
+// ============================================================
+// CORRECT INTERPRETATION LAYER
+// ============================================================
+
+/*
+Observed mapping in this file is:
+
+    Trace → UInt64 → IPPoint → IPFiber (representative)
+
+But true mathematical object is:
+
+    Trace → π → equivalence class (Fiber ⊆ I*)
+
+So this implementation performs:
+
+    compression of equivalence classes into identifiers
+
+NOT:
+
+    construction of fibers themselves
+*/
+
+// ============================================================
+// IMPLICATION (IMPORTANT)
+// ============================================================
+
+/*
+This system is:
+
+- representationally lossy
+- not set-theoretically faithful
+- an index encoding of fiber partitions
+
+It should be read as:
+
+    "fiber indexing system"
+
+not:
+
+    "fiber construction system"
+*/
+
+// ============================================================
+// DVSM × ODCN × IP — TRI-LAYER OBSERVATIONAL FIBER SYSTEM vFINAL-8
+// (INTEGRATED WHITEPAPER ADDENDUM + STRUCTURAL FIX)
+// ============================================================
+//
+// MERGED CORRECTIONS:
+// 1. Trace monoid epistemic system (Φ-based collapse model)
+// 2. Fiber partition semantics (σ-equivalence structure)
+// 3. IP-layer computational compression (UInt64 index encoding)
+//
+// CORE RESULT:
+// This file is NOT constructing fibers.
+// This file encodes fiber REPRESENTATIVES of a quotient structure.
+// ============================================================
+
+import Foundation
+
+// ============================================================
+// 1. TRACE SPACE (I* FREE MONOID)
+// ============================================================
+
+struct Task {}
+struct Node {}
+struct Context {}
+
+typealias Index = (task: Task, node: Node, context: Context)
+typealias Trace = [Index]
+
+// Monoid law:
+// identity = []
+// operation = concatenation (+)
+
+// ============================================================
+// 2. WITNESS LIFT (EPISSTEMIC EVALUATION MAP)
+// ============================================================
+
+typealias Witness = (Index) -> Bool
+
+func lift(_ w: Witness, _ t: Trace) -> [Bool] {
+    t.map(w)
+}
+
+// ============================================================
+// 3. COLLAPSE OPERATOR (Φ: LOSSY IRREVERSIBLE MAP)
+// ============================================================
+
+struct CollapseMorphology {
+
+    private func mix(_ x: UInt64) -> UInt64 {
+        var h = x
+        h ^= h >> 33
+        h &*= 0xff51afd7ed558ccd
+        h ^= h >> 33
+        return h
+    }
+
+    func phi(_ bits: [Bool]) -> UInt64 {
+
+        var state: UInt64 = 1469598103934665603
+
+        for (i, b) in bits.enumerated() {
+
+            state ^= UInt64(i &* 131)      // order sensitivity
+            state &*= 1099511628211        // entropy diffusion
+            state ^= (b ? 1 : 0)           // epistemic injection
+
+            state = mix(state)             // irreversible collapse
+        }
+
+        return state
+    }
+}
+
+// ============================================================
+// 4. OBSERVATIONAL MAP (Ω = Φ ∘ W*)
+// ============================================================
+
+struct ObservationFunctor {
+
+    let collapse = CollapseMorphology()
+
+    func omega(_ w: Witness, _ t: Trace) -> UInt64 {
+        collapse.phi(lift(w, t))
+    }
+}
+
+// ============================================================
+// 5. FIBER SEMANTICS (CORRECT FORMALIZATION)
+// ============================================================
+
+/*
+FIBER DEFINITION (NOT IMPLEMENTED, ONLY DEFINED):
+
+    Fiber(t) = { t' ∈ I* | Ω(t') = Ω(t) }
+
+KEY FACT:
+- Fiber is a SET (equivalence class)
+- NOT a value
+- NOT a struct
+- NOT representable in full form
+
+This layer only encodes representatives.
+*/
+
+// ============================================================
+// 6. IP LAYER (OBSERVATIONAL REPRESENTATION ONLY)
+// ============================================================
+
+struct IPPoint {
+    let traceHash: UInt64
+}
+
+/// Represents a fiber equivalence CLASS (NOT the class itself)
+struct IPFiber {
+    let representative: UInt64
+}
+
+func projectIP(_ x: UInt64) -> IPPoint {
+    IPPoint(traceHash: x)
+}
+
+/// Secondary compression of representative identity
+func induceFiber(_ x: UInt64) -> IPFiber {
+    IPFiber(representative: x ^ (x >> 33))
+}
+
+func relate(_ a: IPPoint, _ b: IPPoint) -> Bool {
+    a.traceHash == b.traceHash
+}
+
+// ============================================================
+// 7. CRITICAL SEMANTIC CLARIFICATION
+// ============================================================
+
+/*
+TRIPLE-LAYER INTERPRETATION:
+
+Layer A — TRACE DOMAIN
+    I* = ordered computation histories (free monoid)
+
+Layer B — OBSERVATION DOMAIN
+    Ω = Φ ∘ W*
+    maps traces → UInt64 (lossy collapse)
+
+Layer C — IP REPRESENTATION DOMAIN
+    IPPoint  = Ω(t)
+    IPFiber  = representative of equivalence class
+
+IMPORTANT DISTINCTION:
+
+❌ WRONG:
+    IPFiber = fiber
+
+✔ CORRECT:
+    IPFiber = index / representative of fiber
+
+TRUE OBJECT:
+
+    Fiber(t) ⊆ I*
+
+    but system stores only:
+
+    representative( Fiber(t) )
+*/
+
+// ============================================================
+// 8. STRUCTURAL CONSEQUENCE (FINAL FORM)
+// ============================================================
+
+/*
+This system defines:
+
+1. A non-commutative trace monoid (I*)
+2. A lossy observational morphism (Ω)
+3. A quotient equivalence relation induced by Ω
+4. A representational encoding of equivalence classes
+
+FORMAL STRUCTURE:
+
+    I* ──Ω──> U64
+     │        │
+     │        └── IPPoint (observation)
+     │
+     └── fibers (equivalence classes, NOT stored)
+
+IP LAYER IS:
+
+    an index compression of quotient space I*/~Ω
+
+NOT:
+
+    the quotient space itself
+*/
+
+// ============================================================
+// 9. FINAL SYSTEM CLASSIFICATION
+// ============================================================
+
+/*
+This is a:
+
+    LOSSY QUOTIENT REPRESENTATION SYSTEM OVER A TRACE MONOID
+
+NOT:
+
+    a fiber construction system
+    a categorical object system
+    a closure system
+*/
+// ============================================================
+// 10. REPRESENTATIVE NON-CANONICALITY BLOCK (FINAL CONSISTENCY GUARD)
+// ============================================================
+
+/*
+CRITICAL ADDITION:
+
+There is NO canonical choice of representative for any fiber.
+
+Any mapping from Fiber(t) → IPFiber is:
+
+    - non-unique
+    - non-natural
+    - observer-dependent
+    - not functorial over Ω
+
+This eliminates hidden structure that would otherwise
+reintroduce implicit symmetry.
+*/
+
+
+// ============================================================
+// REPRESENTATIVE SELECTION IS NOT A FUNCTIONAL MAP
+// ============================================================
+
+/*
+⚠️ INVALID CONSTRUCTION (FORBIDDEN INTERPRETATION):
+
+    Fiber → IPFiber (as a function)
+
+This is NOT well-defined because:
+
+    ∃ multiple valid representatives per equivalence class
+
+Therefore:
+
+    selection ∉ mathematical structure
+    selection ∈ external choice event
+*/
+
+
+// ============================================================
+// REPRESENTATIVE SELECTION AXIOM (BLOCK)
+// ============================================================
+
+/*
+A9 (NON-CANONICALITY AXIOM):
+
+For every fiber F ⊆ I*:
+
+    ∄ canonical function:
+        rep : F → IPFiber
+
+Instead:
+
+    rep ∈ Choice(F)
+
+where Choice(F) is an external, non-unique selection relation.
+*/
+// =============================================================
+// SYSTEM CONSEQUENCE (FINAL FORM):
+// =============================================================
+/*
+1. Fiber F ⊆ I* is a well-defined equivalence class under Ω.
+
+2. IPFiber is NOT a quotient object.
+
+3. IPFiber is a contingent encoding of F, not a structural image.
+
+4. There is no canonical section:
+       I*/~Ω → IPFiber
+
+5. Any representative assignment is:
+       - external
+       - non-unique
+       - non-functorial
+       - not derivable from Ω
+
+6. Equality on IPFiber objects is:
+       observational shorthand, not structural equality.
+
+CORE RESULT:
+
+    Fiber space is mathematical.
+    Representation space is contingent.
+*/
+
+IPFiber equality is not even a relation induced by Ω — it is an application-level convention over representatives
+
+I’ve successfully separated:
+
+ontology (fibers) from encoding (IP representatives) without letting either collapse into the other.
+
+// ============================================================
+// END OF FILE
+// ============================================================
+
 DVSM × ODCN is a trace monoid evaluated by a lossy, non-invertible functionalwhose induced level-set partition defines all observable structure, with chirality emerging from order sensitivity under concatenation.
