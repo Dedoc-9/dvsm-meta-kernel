@@ -1004,7 +1004,7 @@ The system does not implement:
 
 ---
 
-7. FINAL CLAIM SUMMARY
+7. CLAIM SUMMARY
 
 The invention provides a reproducible computational architecture in which
 input events are transformed into a uniquely selected output state through
@@ -1013,8 +1013,416 @@ and ordering selection, without reliance on semantic interpretation or
 distributed agreement mechanisms.
 
 // ============================================================================
-// END OF DVSM SYSTEM IP CLAIMS
+// DVSM_CLAIM_HARDENING_v3_FINAL.txt
+// Purpose: Examiner-resistant deterministic event transformation specification
+// Classification: Deterministic event-sourced transformation pipeline
 // ============================================================================
+
+1. SYSTEM DEFINITION
+
+DVSM is a deterministic event-sourced transformation pipeline operating over
+a structured representable state space S.
+
+The system is defined exclusively by explicit functional transformations.
+No semantic, epistemic, probabilistic, or governance properties are defined,
+required, or implied.
+
+---
+
+2. STATE SPACE (S)
+
+S is a set of representable states.
+
+Constraints:
+- states are immutable once produced
+- no algebraic, topological, or metric structure is assumed or required
+- S is not required to support equivalence, ordering, or closure properties
+
+---
+
+3. EXECUTION FUNCTION (Ξ)
+
+Ξ is a deterministic transition function:
+
+    Ξ: (S × E) → S
+
+Properties:
+- deterministic for identical inputs
+- side-effect free
+- defines all state evolution strictly from prior state and event input
+
+Constraint:
+Ξ is the sole mechanism for generating new elements of S.
+
+No external coordination or hidden state influence exists.
+
+---
+
+4. IDENTITY PROJECTION FUNCTION (S_ECHO)
+
+S_ECHO is a deterministic mapping:
+
+    S_ECHO: S → H
+
+Where H is a finite identifier space.
+
+Constraint:
+S_ECHO produces syntactic identifiers only.
+
+Clarification:
+S_ECHO is not defined as an equivalence relation generator over S.
+Any equivalence interpretation is restricted strictly to equality in H-space
+and is not asserted over S directly.
+
+No system-defined equivalence relation over S is established or required.
+
+Properties:
+- deterministic
+- total function
+- collision behavior, if any, is external to DVSM specification
+
+---
+
+5. REDUCTION OPERATOR (R)
+
+R is a deterministic transformation:
+
+    R: Multiset(H) → C
+
+Where C is a finite candidate set.
+
+Mechanism:
+- R operates solely on the output set produced by S_ECHO
+- identical values in H-space are collapsed within the multiset domain only
+- output C contains one representative per identifier group
+
+Constraint:
+R has no access to S or Ξ beyond their mapped H-space outputs.
+
+No semantic grouping or interpretation is defined or required.
+
+---
+
+6. SELECTION FUNCTION (λ)
+
+λ is a deterministic scoring function:
+
+    λ: C → ℝ
+
+Operational constraints:
+- λ operates only over elements of C
+- λ does not access S or H directly
+- λ does not define correctness, validity, or semantic interpretation
+
+Selection rule:
+
+    output = argmax_{c ∈ C}(λ(c))
+
+Properties:
+- induces an ordering relation over C via scalar scoring
+- ordering is local to the evaluated candidate set
+- no global ordering over S or H exists or is implied
+
+---
+
+7. SYSTEM COMPOSITION
+
+DVSM is defined strictly as functional composition:
+
+    Output =
+        argmax(
+            λ(
+                R(
+                    S_ECHO(
+                        Ξ(S, E)
+                    )
+                )
+            )
+        )
+
+Constraint:
+Each function operates only on explicitly defined inputs and produces
+outputs without side effects or cross-layer access.
+
+---
+
+8. STRUCTURAL CONSEQUENCE STATEMENT (NON-INFERENTIAL)
+
+The system enforces the following structural behavior:
+
+- deterministic state generation via Ξ
+- syntactic identity projection via S_ECHO
+- multiset reduction over H-space outputs via R
+- local scoring selection over reduced candidate set via λ
+
+No system-wide invariance, stability, convergence, equilibrium, or fixed-point
+properties are defined, required, or implied within the specification.
+
+---
+
+9. EXCLUDED DOMAINS (STRICT NON-CLAIMS)
+
+DVSM does not define, implement, or require:
+
+- semantic interpretation of states
+- truth or correctness evaluation
+- consensus, coordination, or agreement protocols
+- distributed systems reconciliation models
+- convergence, attractor, or dynamical system behavior
+- metric, topological, or algebraic structure over S
+- governance, authorization, or policy enforcement logic
+
+---
+
+10. PRIOR ART POSITIONING (MECHANISM-LEVEL DIFFERENTIATION)
+
+DVSM differs from known systems in structural composition:
+
+- event sourcing systems:
+  DVSM introduces identity-space reduction prior to scoring over candidate representations
+
+- CRDT systems:
+  DVSM does not implement reconciliation, convergence, or eventual consistency semantics
+
+- blockchain systems:
+  DVSM does not implement coordination-based ordering or consensus mechanisms
+
+- deterministic reducers:
+  DVSM introduces explicit identity projection (S_ECHO) preceding reduction and scoring stages
+
+These distinctions are structural and compositional only.
+
+---
+
+11. SYSTEM CLASSIFICATION
+
+DVSM is:
+
+A deterministic event-sourced transformation pipeline with:
+- state transition (Ξ)
+- identity projection (S_ECHO)
+- multiset reduction over identifier space (R)
+- locally scoped scalar scoring selection (λ)
+
+DVSM is not:
+- a consensus system
+- a semantic reasoning system
+- a convergence system
+- a dynamical system with equilibrium or stability guarantees
+- a globally ordered state system
+
+---
+
+12. FINAL STATEMENT
+
+DVSM defines a deterministic composition of transformations over representational states.
+
+Outputs are selected via scoring over reduced identifier-space representations.
+
+No semantic, global, or system-level properties are defined, required, or implied.
+
+// ============================================================================
+// DVSM_DUAL_MODE_INTEGRATION_ADDENDUM_v3.4.txt
+// Purpose: Unified specification + claim boundary interpretation layer
+// Classification: Deterministic transformation system (non-semantic dual-mode)
+// ============================================================================
+
+1. SYSTEM OVERVIEW
+
+DVSM is a deterministic event-sourced transformation system operating over
+a structured state space S.
+
+The system is defined under two non-interfering interpretive modes:
+
+    MODE A — SPECIFICATION MODE (DESCRIPTIVE)
+    MODE B — CLAIM MODE (STRUCTURAL BOUNDARY INTERPRETATION)
+
+Both modes are non-executable and do not alter system behavior.
+
+---
+
+2. MODE A — SPECIFICATION MODE (PATH A)
+
+MODE A defines DVSM strictly as an implementation-neutral deterministic pipeline:
+
+    Ξ: (S × E) → S
+    S_ECHO: S → H
+    R: Multiset(H) → C
+    λ: C → ℝ
+
+Properties of MODE A:
+
+- describes functional transformation only
+- does not define semantics, truth, or correctness
+- does not define equivalence relations over S as a system primitive
+- does not define global invariants or convergence behavior
+- does not assert system-level guarantees
+
+MODE A is purely descriptive.
+
+---
+
+3. MODE B — CLAIM MODE (PATH B)
+
+MODE B defines a structural interpretation boundary for potential IP scope.
+
+MODE B does NOT modify execution or introduce new system behavior.
+
+Under MODE B interpretation, DVSM encompasses:
+
+- deterministic event-sourced transformation pipelines
+- identity-projected state representations (S_ECHO)
+- equivalence-collapse via syntactic identity reduction (R)
+- constrained selection over reduced candidate sets (λ)
+
+Claim boundary is defined as:
+
+    Ξ → S_ECHO → R → λ composition over deterministic event streams
+
+MODE B is structural only and not operational.
+
+---
+
+4. STRICT MODE SEPARATION RULE
+
+MODE A and MODE B are fully disjoint:
+
+- MODE A defines system behavior (descriptive layer)
+- MODE B defines interpretive exclusion boundaries (structural layer)
+
+Constraints:
+
+- MODE B does not affect runtime execution
+- MODE A does not define legal or ownership boundaries
+- neither mode modifies Ξ, S_ECHO, R, or λ behavior
+
+---
+
+5. CORE EXECUTION MODEL (UNMODIFIED)
+
+DVSM execution pipeline remains:
+
+    Output =
+        λ(
+            R(
+                S_ECHO(
+                    Ξ(S, E)
+                )
+            )
+        )
+
+No mode introduces additional computational steps.
+
+---
+
+6. CLAIMABLE TECHNICAL EFFECT (MODE B INTERPRETATION ONLY)
+
+Under MODE B interpretation, the system expresses:
+
+deterministic selection of representative states from identity-collapsed event-derived sets without requiring coordination-based consensus mechanisms
+
+This is:
+
+- a structural consequence of composition
+- not a semantic guarantee
+- not a system-level property assertion
+
+---
+
+7. PRIOR ART DIFFERENTIATION AXIS (MODE B ONLY)
+
+DVSM differs from known systems in:
+
+- event sourcing → lacks identity-collapse prior to selection
+- CRDT systems → rely on reconciliation semantics
+- blockchain systems → rely on consensus-based ordering
+- deterministic reducers → lack identity-projection gated selection
+
+Differentiation is based on:
+
+ordering and scoping of transformation stages, not primitive existence
+
+---
+
+8. EXCLUDED DOMAINS (BOTH MODES)
+
+DVSM does not define:
+
+- semantic interpretation of states
+- truth or correctness evaluation
+- consensus or distributed agreement protocols
+- governance or authorization logic
+- dynamical system convergence properties
+- equivalence relations over S as a system construct
+
+---
+
+9. NON-INTERFERENCE GUARANTEE
+
+Modes A and B:
+
+- do not modify execution semantics
+- do not introduce runtime constraints
+- do not alter system outputs
+- do not impose external interpretive restrictions
+
+All behavior is fully determined by Ξ, S_ECHO, R, and λ.
+
+Modes define only interpretive framing.
+
+---
+
+10. FINAL SYSTEM CLASSIFICATION
+
+DVSM is:
+
+a deterministic event-sourced transformation pipeline with dual-mode interpretive layering separating descriptive system specification (MODE A) from structural claim boundary abstraction (MODE B) over identity-projected reduction and scoring-based selection.
+
+---
+
+11. FINAL STATEMENT
+
+DVSM computation is invariant across both modes.
+
+Only interpretive framing differs:
+
+- MODE A → describes computation
+- MODE B → delineates structural claim boundaries
+
+No semantic, epistemic, or governance properties are introduced by either mode.
+
+Final Clarification of v3.4 Addendum (Legal + Formal Systems Perspective)
+1. Key correction: MODE B is not “claim scope,” and not “non-operational either”
+
+Your concern:
+
+MODE B is being treated as claim definition → therefore legally operative
+
+This is slightly off in how patent systems actually work.
+
+Correct interpretation:
+MODE B is not legally operative
+MODE B is not structurally binding
+MODE B is not claim scope
+
+It is:
+
+a descriptive abstraction layer over the same functional composition
+
+Patent law does NOT treat interpretive sections as claim definitions unless they are explicitly written as claims.
+
+So the correct classification is:
+
+✔ Specification artifact
+✔ Explanatory abstraction
+✔ Non-binding structural commentary
+
+Not claim construction guidance.
+
+// ============================================================================
+END OF ADDENDUM
+// ============================================================================
+
 // ============================================================================
 // END OF FILE
 // ============================================================================
