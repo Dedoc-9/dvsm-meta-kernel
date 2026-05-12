@@ -1,0 +1,292 @@
+// ============================================================================
+// DVSM / EIL RUST REPOSITORY — FILE-BY-FILE PURPOSE README
+// Author: Daniel J. Dillberg
+// ============================================================================
+//
+// PURPOSE:
+// This document explains each major Rust file in the DVSM system,
+// describing BOTH:
+//
+//   1. Unique purpose (what distinguishes the file)
+//   2. Broad role (how it fits DVSM overall)
+//
+// CORE UNIFICATION:
+//
+// All files are variations of:
+//
+//   w_{t+1} = T(w_t, σ_t)
+//
+// with strict separation:
+//
+//   T = dynamics (state evolution)
+//   O = observation (projection only)
+//   L = evaluation (loss only)
+//   C = constraint deformation (geometry only)
+//
+// ============================================================================
+// 🧠 dvsm_contraction_kernel.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Defines the minimal stochastic contraction operator.
+//
+// BROAD ROLE:
+//   This is the mathematical core of the entire system.
+//
+// WHAT IT DOES:
+//   - Implements contraction update rule
+//   - Defines η-stability behavior
+//   - Provides abstract state evolution primitive
+//
+// WHAT IT DOES NOT DO:
+//   - No memory
+//   - No system structure
+//   - No application logic
+//
+// SIGNIFICANCE:
+//   This is the “atomic equation” everything else wraps or constrains.
+//
+// ============================================================================
+// 🧠 dvsm_bounded_state_machine.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Adds bounded execution semantics to DVSM kernel.
+//
+// BROAD ROLE:
+//   Turns abstract contraction into a safe runtime system.
+//
+// WHAT IT DOES:
+//   - Enforces bounded scalar state space
+//   - Applies stability constraints (η ∈ (0,1))
+//   - Adds execution guards (ghost invariants)
+//
+// WHAT MAKES IT DISTINCT:
+//   - Focuses on *single-state evolution*
+//   - No temporal memory (no history buffer)
+//
+// SIGNIFICANCE:
+//   This is DVSM as a minimal safe “machine” rather than equation.
+//
+// ============================================================================
+// 🧠 dvsm_bounded_fifo_dynamical_system.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Extends DVSM with explicit temporal memory (FIFO window).
+//
+// BROAD ROLE:
+//   Introduces history-aware contraction dynamics.
+//
+// WHAT IT DOES:
+//   - Stores state history (VecDeque buffer)
+//   - Enables rolling statistics (variance, trend signals)
+//   - Introduces temporal smoothing behavior
+//
+// WHAT MAKES IT DISTINCT:
+//   - Adds memory dimension to system
+//   - State is now a *trajectory window*, not a point
+//
+// SIGNIFICANCE:
+//   Represents DVSM with finite horizon temporal structure.
+//
+// ============================================================================
+// 🧠 inverse_adaptive_filter.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Implements DVSM as an adaptive signal cancellation system.
+//
+// BROAD ROLE:
+//   Applies contraction dynamics to real-world signal correction.
+//
+// WHAT IT DOES:
+//   - Error-driven feedback loop
+//   - Adaptive inverse filtering (ANC-style behavior)
+//   - Noise cancellation / signal reconstruction
+//
+// WHAT MAKES IT DISTINCT:
+//   - Explicit feedback correction loop
+//   - Uses DVSM as estimator, not just dynamical system
+//
+// SIGNIFICANCE:
+//   This is the closest file to real DSP / engineering application.
+//
+// ============================================================================
+// 🧠 compression_rust_intro.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Provides interpretive mapping of DVSM contraction to compression.
+//
+// BROAD ROLE:
+//   Explains DVSM as a lossy information compression process.
+//
+// WHAT IT DOES:
+//   - Reframes contraction as information reduction
+//   - Documents performance intuition
+//   - Connects DVSM to encoding/representation collapse
+//
+// WHAT MAKES IT DISTINCT:
+//   - No new dynamics introduced
+//   - Pure conceptual + performance framing layer
+//
+// SIGNIFICANCE:
+//   This is a semantic bridge file (math → intuition)
+//
+// ============================================================================
+// 🧠 stochastic_control_loop.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Implements DVSM as a repeated stochastic decision loop.
+//
+// BROAD ROLE:
+//   Wraps contraction kernel into iterative control system.
+//
+// WHAT IT DOES:
+//   - Repeated sampling of σ_t
+//   - Iterative state updates
+//   - Feedback-driven execution cycles
+//
+// WHAT MAKES IT DISTINCT:
+//   - Explicit looped control logic
+//   - System-level temporal orchestration
+//
+// SIGNIFICANCE:
+//   Converts DVSM from step function → control process.
+//
+// ============================================================================
+// 🧠 StochasticContractionSystem.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Canonical system-level abstraction of DVSM.
+//
+// BROAD ROLE:
+//   Provides unified system wrapper around kernel + execution logic.
+//
+// WHAT IT DOES:
+//   - Encapsulates contraction kernel
+//   - Manages runtime state lifecycle
+//   - Standardizes system execution interface
+//
+// WHAT MAKES IT DISTINCT:
+//   - Highest-level “clean system API”
+//   - Abstracts away internal implementation details
+//
+// SIGNIFICANCE:
+//   This is the reference implementation of DVSM system design.
+//
+// ============================================================================
+// 🧠 Shared_State.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Enables controlled coupling between multiple DVSM systems.
+//
+// BROAD ROLE:
+//   Introduces shared memory / cross-system interaction layer.
+//
+// WHAT IT DOES:
+//   - Shared state containers
+//   - Cross-system synchronization
+//   - Inter-system data visibility
+//
+// WHAT MAKES IT DISTINCT:
+//   - Breaks isolation between independent systems (carefully)
+//
+// SIGNIFICANCE:
+//   This is the only explicit coupling mechanism in repository.
+//
+// WARNING:
+//   If misused, it can reintroduce hidden feedback loops.
+//
+// ============================================================================
+// 🧠 Variable_State_v1_v2.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Tracks evolution of state interpretation over time.
+//
+// BROAD ROLE:
+//   Separates state dynamics from semantic meaning changes.
+//
+// WHAT IT DOES:
+//   - Versioned state metadata
+//   - Interpretation refinement layers
+//   - Schema evolution (v1 → v2 etc.)
+//
+// WHAT MAKES IT DISTINCT:
+//   - Does NOT change system dynamics
+//   - Only changes meaning of state representation
+//
+// SIGNIFICANCE:
+//   Enables long-term evolution of system interpretation without rewriting kernel.
+//
+// ============================================================================
+// 🧠 EIL_Hardended.rs
+// ============================================================================
+//
+// UNIQUE PURPOSE:
+//   Enforces strict structural invariants across DVSM system.
+//
+// BROAD ROLE:
+//   Acts as global constraint enforcement and system hardening layer.
+//
+// WHAT IT DOES:
+//   - Enforces T/O/L separation discipline
+//   - Prevents illegal cross-layer coupling
+//   - Applies formal reduction rules
+//   - Validates structural integrity of systems
+//
+// WHAT MAKES IT DISTINCT:
+//   - Not tied to any single DVSM layer
+//   - Applies system-wide enforcement rules
+//
+// SIGNIFICANCE:
+//   This is the “safety kernel” of the entire architecture.
+//
+// ============================================================================
+// 🧭 GLOBAL SYSTEM SUMMARY
+// ============================================================================
+//
+// Across all files, the DVSM repository is:
+//
+//   NOT a collection of independent systems
+//   NOT multiple models
+//   NOT separate frameworks
+//
+// It is:
+//
+//   a stratified implementation of a single stochastic contraction operator
+//
+// Each file is a controlled transformation of:
+//
+//   - dynamics (T)
+//   - observation (O)
+//   - evaluation (L)
+//   - constraint geometry (C)
+//
+// across different structural layers:
+//
+//   Kernel → Machine → Memory → Control → Coupling → Interpretation → Hardening
+//
+// ============================================================================
+// 🧠 FINAL INVARIANT
+// ============================================================================
+//
+// No file introduces new fundamental dynamics.
+//
+// Each file only:
+//
+//   - constrains behavior
+//   - adds structure
+//   - introduces memory or coupling
+//   - or enforces invariants
+//
+// All reduce back to:
+//
+//       w_{t+1} = T(w_t, σ_t)
+//
+// ============================================================================```
