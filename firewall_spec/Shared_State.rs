@@ -1,10 +1,10 @@
 // ============================================================================
 // 🔷 DVSM / EIL / DQSDv2 — SYSTEM INDEX MANIFEST (SHARED STATE ARCHITECTURE)
-// ============================================================================
 //
-// PURPOSE:
+// Author: Daniel J. Dillberg
+// ============================================================================
 // ---------------------------------------------------------------------------
-// This file provides a structural index of the repository.
+// This provides a structural index of the repository.
 //
 // It does NOT define runtime behavior.
 // It does NOT introduce additional state spaces.
