@@ -3,6 +3,129 @@
 // Rust core with external C++ physics boundary
 // Author: Daniel J. Dillberg
 // ============================================================================
+// ============================================================================
+// LEAK DETECTION LOGIC (WP SECTION — WEAK POINT ANALYSIS)
+// ============================================================================
+//
+// PURPOSE:
+// Detect *observable statistical anomalies only* in TraceLog streams
+// WITHOUT reconstructing geometry, physics, or cross-instance structure.
+//
+// CRITICAL CONSTRAINT:
+// This module MUST NOT:
+//   - infer Kirsch field structure
+//   - reconstruct spatial coordinates
+//   - compute cross-instance correlations
+//   - define failure semantics
+//   - introduce optimization targets
+//
+// It is strictly a *scalar irregularity detector*.
+// ============================================================================
+
+pub struct LeakDetector;
+
+#[derive(Debug, Clone)]
+pub enum LeakSignature {
+    DriftBurst,        // sudden change in variance
+    PlateauLock,       // repeated identical values
+    EntropySpike,      // high randomness window
+    AnchorDeviation,   // sustained distance from anchor
+    Undefined,         // fallback non-classification
+}
+
+impl LeakDetector {
+
+    // ------------------------------------------------------------------------
+    // MAIN ENTRY POINT
+    // ------------------------------------------------------------------------
+    pub fn analyze(trace: &TraceLog, anchor: f64) -> LeakSignature {
+
+        if Self::detect_plateau(trace) {
+            return LeakSignature::PlateauLock;
+        }
+
+        if Self::detect_entropy_spike(trace) {
+            return LeakSignature::EntropySpike;
+        }
+
+        if Self::detect_drift(trace, anchor) {
+            return LeakSignature::AnchorDeviation;
+        }
+
+        if Self::detect_burst(trace) {
+            return LeakSignature::DriftBurst;
+        }
+
+        LeakSignature::Undefined
+    }
+
+    // ------------------------------------------------------------------------
+    // PLATEAU DETECTION
+    // ------------------------------------------------------------------------
+    fn detect_plateau(trace: &TraceLog) -> bool {
+        trace.values
+            .windows(2)
+            .all(|w| (w[0] - w[1]).abs() < f64::EPSILON)
+    }
+
+    // ------------------------------------------------------------------------
+    // ENTROPY SPIKE (SIMPLE VARIANCE PROXY)
+    // ------------------------------------------------------------------------
+    fn detect_entropy_spike(trace: &TraceLog) -> bool {
+        let mean = trace.values.iter().sum::<f64>() / trace.values.len().max(1) as f64;
+
+        let var = trace.values.iter()
+            .map(|v| (v - mean).powi(2))
+            .sum::<f64>() / trace.values.len().max(1) as f64;
+
+        var > 1.0  // threshold is arbitrary, non-semantic
+    }
+
+    // ------------------------------------------------------------------------
+    // ANCHOR DEVIATION (DVSM-SAFE: NO SEMANTIC INTERPRETATION)
+    // ------------------------------------------------------------------------
+    fn detect_drift(trace: &TraceLog, anchor: f64) -> bool {
+        let avg = trace.values.iter().sum::<f64>() / trace.values.len().max(1) as f64;
+        (avg - anchor).abs() > 0.5
+    }
+
+    // ------------------------------------------------------------------------
+    // BURST DETECTION (LOCAL GRADIENT IRREGULARITY ONLY)
+    // ------------------------------------------------------------------------
+    fn detect_burst(trace: &TraceLog) -> bool {
+        trace.values
+            .windows(3)
+            .any(|w| {
+                let d1 = (w[1] - w[0]).abs();
+                let d2 = (w[2] - w[1]).abs();
+                d1 > 1.0 && d2 > 1.0
+            })
+    }
+}
+
+// ============================================================================
+// WEAK POINT (WP) INTERPRETATION RULES
+// ============================================================================
+//
+// IMPORTANT SEMANTIC FIREWALL:
+//
+// Any LeakSignature MUST be interpreted ONLY as:
+//   "statistical irregularity in scalar observation stream"
+//
+// AND MUST NOT be interpreted as:
+//   - physical failure
+//   - geometric instability
+//   - Kirsch field anomaly
+//   - system damage
+//   - cross-instance coupling
+//
+// ============================================================================
+//
+// DESIGN PRINCIPLE:
+// Leak detection = pattern recognition over numbers
+// NOT diagnosis of underlying reality
+//
+// ============================================================================
 
 use std::sync::Arc;
 use std::f64::consts::PI;
