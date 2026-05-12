@@ -908,7 +908,12 @@ impl System {
 //
 //   enforced non-closure across all representation strata.
 //
-// Any emergence of structure beyond this specification
-// is classified as external theory construction.
+// Any interpretation that reconstructs additional structure
+// (including geometry, topology, category structure, or transport laws)
+// is considered an external theory layer and is NOT derivable
+// from this specification.
+//
+// No completion, enrichment, or closure operation is permitted
+// within the axioms of this system.
 //
 // ============================================================================
