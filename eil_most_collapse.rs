@@ -847,3 +847,183 @@ JSON layer → enforces isolation constraints
 
 Result:
 A multi-domain irreversible projection lattice with strict epistemic isolation.
+
+/// ============================================================================
+/// DVSM / DQSDv2 — KERNEL ISOLATION ADDENDUM (REPOSITORY FIREWALL SPEC)
+/// ============================================================================
+///
+/// PURPOSE:
+/// ---------------------------------------------------------------------------
+/// This module defines *structural repository rules* for enforcing
+/// Kernel Isolation Principle (KIP) at compile-time and filesystem level.
+///
+/// IMPORTANT:
+/// ---------------------------------------------------------------------------
+/// This is NOT runtime logic.
+/// This is NOT simulation logic.
+/// This is a *structural enforcement specification* for architecture design.
+///
+/// ============================================================================
+
+allow(dead_code) is a local suppression of observability pressure, not a structural invariant.
+
+So it should be treated like:
+
+debugging insulation
+not part of the epistemic firewall itself
+         
+#![allow(dead_code)]
+
+         #[allow(dead_code)]
+mod kernel_registry_types;
+
+         #[allow(dead_code)] // only for experimental isolation scaffolding
+pub struct KirschClass;
+
+/// ============================================================================
+/// 1. CORE DESIGN PRINCIPLE
+/// ============================================================================
+///
+/// Isolation is NOT semantic.
+/// Isolation is NOT logical.
+///
+/// Isolation is STRUCTURAL (filesystem + crate boundary level).
+///
+/// If kernels share a file, they are NOT isolated — even if:
+///   - no variables are shared
+///   - no functions are called
+///   - no traits are implemented together
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 2. REQUIRED REPOSITORY LAYOUT (WORKSPACE MODEL)
+/// ============================================================================
+
+/// /physics_boundary_cpp
+/// ---------------------------------------------------------------------------
+/// External irreversible generator layer (C++).
+/// Contains ONLY Φ_C implementations.
+///
+/// MUST NOT:
+///   - define DVSM state (V)
+///   - define trace logic
+///   - define kernel traits
+///
+///
+/// /dvsm_core_rust
+/// ---------------------------------------------------------------------------
+/// Frozen-core execution engine.
+///
+/// Contains:
+///   - V (ontic state)
+///   - Interaction layer
+///   - Sigma (representation index set)
+///   - TraceLog
+///
+/// MUST NOT:
+///   - link physics implementations directly
+///   - import collapse functors
+///
+///
+/// /vajra_observer
+/// ---------------------------------------------------------------------------
+/// Stateless diagnostic layer.
+///
+/// Contains:
+///   - Vajra evaluator
+///   - LeakAnalyzer
+///
+/// MUST NOT:
+///   - influence DVSM state
+///   - modify traces
+///
+///
+/// /kernel_registry_types
+/// ---------------------------------------------------------------------------
+/// Type-level isolation firewall.
+///
+/// Contains ONLY:
+///   - CollapseClass trait
+///   - KirschClass
+///   - BubbleClass
+///   - MOSTClass
+///   - EventHorizonClass
+///
+/// MUST NOT:
+///   - implement physics logic
+///   - implement DVSM logic
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 3. CRITICAL FIREWALL AXIOM
+/// ============================================================================
+///
+/// If two Collapse Classes can coexist in the same Rust file,
+/// then Kernel Isolation has already been violated at design level.
+///
+/// Reason:
+/// ---------------------------------------------------------------------------
+/// Even without runtime coupling, shared compilation context enables:
+///   - implicit metric unification
+///   - accidental abstraction leakage
+///   - cross-domain inference during refactoring
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 4. FORMAL ISOLATION GUARANTEE
+/// ============================================================================
+///
+/// A1 (Non-Invertibility):
+///   enforced by C++ Φ_C boundary
+///
+/// A2 (Non-Commensurability):
+///   enforced by crate + file separation
+///
+/// A3 (No Transport Law):
+///   enforced by absence of shared module linkage
+///
+/// A4 (Epistemic Closure):
+///   enforced by DVSM blind-state design
+///
+/// A5 (Frozen Core):
+///   enforced by zero feedback edges across modules
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 5. IMPLEMENTATION RULE (HARD REQUIREMENT)
+/// ============================================================================
+///
+/// DO NOT:
+///   - place multiple Collapse Classes in same file
+///   - co-locate kernels across domains
+///   - merge physics + DVSM + observer logic
+///
+/// DO:
+///   - isolate per kernel per module
+///   - enforce compile boundaries
+///   - treat filesystem as part of the firewall
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 6. STATEMENT
+/// ============================================================================
+///
+/// The system is not defined by code behavior alone.
+///
+/// It is defined by:
+///   structural separation of interpretive domains.
+///
+/// Collapse of this separation = collapse of the model.
+///
+/// ============================================================================
+allow(dead_code) is a local suppression of observability pressure, not a structural invariant.
+
+So it should be treated like:
+
+debugging insulation
+not part of the epistemic firewall itself
