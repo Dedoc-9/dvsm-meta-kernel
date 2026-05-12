@@ -1,401 +1,135 @@
 // ============================================================================
-// 🔷 DVSM / EIL / DQSDv2 — VARIABLE STATE SPACE (v1 / v2)
-// ============================================================================
-// Author: Daniel J. Dillberg
-//
-// PURPOSE:
-// ---------------------------------------------------------------------------
-// This addendum extends the system state model to explicitly support
-// multi-channel scalar evolution over a single shared dynamical space.
-//
-// It introduces:
-//
-//   v¹_t, v²_t ∈ [0,1)
-//
-// These are NOT separate systems.
-// They are multiple projections (channels) of the SAME underlying state
-// evolution function.
-//
-// ---------------------------------------------------------------------------
-//
-// KEY INVARIANT:
-//   The system remains a SINGLE deterministic dynamical system.
-//   v¹ and v² are STRUCTURAL partitions of scalar state, not ontologies.
-//
-// ============================================================================
-
-#![allow(dead_code)]
-
-// ============================================================================
-// 1. EXTENDED STATE MODEL (MULTI-VARIABLE SCALAR SPACE)
+// DVSM / EIL / DQSDv2 — HARDENED DETERMINISTIC STATE MACHINE (FINAL)
 // ============================================================================
 //
-// Original:
+// SYSTEM TYPE:
+//   Deterministic discrete-time nonlinear dynamical system
+//   with bounded memory and lossy observation projection.
+//
+// FORMAL MODEL:
 //   S_t = (v_t, H_t)
-//
-// Extended:
-//   S_t = (v¹_t, v²_t, H_t)
-//
-// Where:
-//   v¹_t ∈ [0,1)   primary scalar channel
-//   v²_t ∈ [0,1)   secondary scalar channel
-//   H_t ∈ ℝ^N      bounded memory trace
-//
-// Interpretation:
-//   Both channels evolve under the SAME deterministic rule F.
-//
-// ============================================================================
-
-pub struct SystemStateV2 {
-    pub v1: f64,        // primary scalar channel v¹_t
-    pub v2: f64,        // secondary scalar channel v²_t
-    pub h: Vec<f64>,    // bounded history H_t
-}
-
-// ============================================================================
-// 2. DUAL-CHANNEL DYNAMICS (SYNCHRONIZED EVOLUTION)
-// ============================================================================
-//
-// Update rule:
-//
-//   v¹_{t+1} = (v¹_t + u_t) mod 1
-//   v²_{t+1} = (v²_t + g(v¹_t, v²_t)) mod 1
-//   H_{t+1}  = truncate(append(H_t, v¹_{t+1} + v²_{t+1}), N)
-//
-// Interpretation:
-//   - v¹ drives base evolution
-//   - v² is coupled (dependent projection)
-//   - H aggregates joint scalar footprint
-//
-// NOTE:
-//   No independent systems are introduced.
-//   Both v¹ and v² remain inside one state space S.
-//
-// ============================================================================
-
-pub trait DualChannelStep {
-    fn step(state: &mut SystemStateV2, input: f64);
-}
-
-// Example deterministic kernel
-pub struct DualCoreKernel;
-
-impl DualChannelStep for DualCoreKernel {
-    fn step(state: &mut SystemStateV2, input: f64) {
-        // primary channel (base recurrence)
-        state.v1 = (state.v1 + input).fract();
-
-        // secondary channel (coupled nonlinear projection)
-        state.v2 = (state.v2 + (state.v1 * state.v2)).fract();
-
-        // shared trace update (single memory space)
-        state.h.push(state.v1 + state.v2);
-
-        // bounded memory enforcement (global constraint)
-        if state.h.len() > 1024 {
-            state.h.remove(0);
-        }
-    }
-}
-
-// ============================================================================
-// 3. INTERPRETATION OF v1 / v2 STRUCTURE
-// ============================================================================
-//
-// v1:
-//   - primary evolution channel
-//   - direct input-sensitive state variable
-//   - represents core system progression axis
-//
-// v2:
-//   - dependent transformation channel
-//   - nonlinear coupling projection of system state
-//   - represents internal feedback deformation axis
-//
-// IMPORTANT:
-// ---------------------------------------------------------------------------
-// v1 and v2 are NOT separate subsystems.
-// They are coupled coordinates of the SAME dynamical vector.
-//
-// ============================================================================
-
-// ============================================================================
-// 4. MATHEMATICAL FORM (EXTENDED SYSTEM)
-// ============================================================================
-//
-// State:
-//
-//   S_t = (v¹_t, v²_t, H_t)
-//
-// Dynamics:
-//
-//   v¹_{t+1} = (v¹_t + u_t) mod 1
-//   v²_{t+1} = (v²_t + φ(v¹_t, v²_t)) mod 1
-//   H_{t+1}  = truncate(H_t ∪ {v¹_{t+1} + v²_{t+1}}, N)
-//
-// Where:
-//
-//   φ : ℝ² → ℝ  nonlinear coupling function
-//
-// System class:
-//
-//   Deterministic, coupled, multi-channel scalar recurrence system
-//   with bounded memory projection.
-//
-// ============================================================================
-
-// ============================================================================
-// 5. ARCHITECTURAL MEANING (NO ONTOLOGY SHIFT)
-// ============================================================================
-//
-// ✔ v1 = external-facing scalar trajectory
-// ✔ v2 = internal feedback deformation
-// ✔ H  = compressed joint observation trace
-//
-// BUT:
-//
-// ✘ not two systems
-// ✘ not two ontologies
-// ✘ not parallel universes
-//
-// Only:
-//
-//   one state space with two scalar coordinates
-//
-// ============================================================================
-
-// ============================================================================
-// 6. FINAL CLASSIFICATION
-// ============================================================================
-//
-// The system is now:
-//
-//   A deterministic discrete-time dynamical system
-//   with a 2-dimensional scalar state projection and bounded memory.
-//
-// Formal form:
-//
-//   S_t ∈ [0,1) × [0,1) × ℝ^N
-//
 //   S_{t+1} = F(S_t, u_t)
+//   π(v_t) = (v1_t, v2_t)
 //
-// where F is deterministic and nonlinear.
-//
-// ============================================================================
-// 🔷 DVSM / EIL / DQSDv2 — VARIABLE STATE SPACE ADDENDUM (SINGLE FILE)
-// ============================================================================
-//
-// PURPOSE:
-// ---------------------------------------------------------------------------
-// Extends a deterministic bounded-memory dynamical system with a
-// dual-projection variable state space:
-//
-//   v_t → (v1_t, v2_t)
-//
-// This remains ONE system:
-//   S_t = (v_t, H_t)
-//
-// where v1/v2 are observational projections, NOT independent states.
-//
+// CONSTRAINTS:
+//   - Deterministic update
+//   - Bounded memory (|H_t| ≤ N)
+//   - Observation is read-only and non-influential
+//   - Projection is non-injective (lossy)
 // ============================================================================
 
 #![allow(dead_code)]
 
 // ============================================================================
-// 1. CORE SHARED STATE SPACE
-// ============================================================================
-//
-// Single dynamical system state.
-//
-// v_t is canonical latent scalar.
-// v1/v2 are derived projections (lossy embedding).
-//
+// 1. CORE STATE (ENCAPSULATED INVARIANT)
 // ============================================================================
 
 #[derive(Clone, Debug)]
 pub struct SystemState {
-    pub v: f64,        // canonical scalar state ∈ [0,1)
-    pub v1: f64,       // projection A
-    pub v2: f64,       // projection B
-    pub h: Vec<f64>,   // bounded memory trace H_t
+    v: f64,        // latent scalar state ∈ [0,1)
+    v1: f64,       // projection channel A
+    v2: f64,       // projection channel B
+    h: Vec<f64>,   // bounded memory trace
 }
 
-// ============================================================================
-// 2. VARIABLE STATE SPACE MAPPING (v → v1, v2)
-// ============================================================================
-//
-// Defines observational decomposition of scalar state.
-//
-// NOT an inverse system.
-// NOT independent state variables.
-// PURE projection layer.
-//
-// ============================================================================
-
-pub trait VariableStateMap {
-    fn project(v: f64) -> (f64, f64);
-    fn reconstruct(v1: f64, v2: f64) -> f64;
-}
-
-/// Deterministic lossy projection operator
-pub struct DualModeMap;
-
-impl VariableStateMap for DualModeMap {
-    fn project(v: f64) -> (f64, f64) {
-        let v1 = v;
-        let v2 = (v * 1.61803398875).fract(); // irrational modulation
-        (v1, v2)
+// Constructor enforces initial invariants
+impl SystemState {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            v: 0.0,
+            v1: 0.0,
+            v2: 0.0,
+            h: Vec::with_capacity(capacity),
+        }
     }
 
-    fn reconstruct(v1: f64, v2: f64) -> f64 {
-        (0.7 * v1 + 0.3 * v2).fract()
+    #[inline(always)]
+    fn normalize(x: f64) -> f64 {
+        x.fract()
     }
 }
 
 // ============================================================================
-// 3. CORE DYNAMICAL EVOLUTION (F)
-// ============================================================================
-//
-// Deterministic recurrence:
-//   v_{t+1} = (v_t + u_t) mod 1
-//
-// Memory:
-//   bounded FIFO trace
-//
-// Projection:
-//   v → (v1, v2)
-//
+// 2. OBSERVATION MAP (PURE FUNCTIONAL LAYER)
 // ============================================================================
 
-pub trait StateTransition {
-    fn step(state: &mut SystemState, input: f64);
+pub struct Projection;
+
+impl Projection {
+    #[inline(always)]
+    pub fn apply(v: f64) -> (f64, f64) {
+        let a = v;
+        let b = (v * 1.61803398875).fract();
+        (a, b)
+    }
 }
 
-/// Core system kernel
+// ============================================================================
+// 3. CORE DYNAMICS (F: S × U → S)
+// ============================================================================
+
 pub struct CoreKernel;
 
-impl StateTransition for CoreKernel {
-    fn step(state: &mut SystemState, input: f64) {
+impl CoreKernel {
+    #[inline(always)]
+    pub fn step(state: &mut SystemState, input: f64, memory_limit: usize) {
+        // -----------------------------
+        // STATE EVOLUTION (DETERMINISTIC)
+        // -----------------------------
+        state.v = SystemState::normalize(state.v + input);
 
-        // ----------------------------------------
-        // 1. latent scalar update (dynamics)
-        // ----------------------------------------
-        state.v = (state.v + input).fract();
-
-        // ----------------------------------------
-        // 2. projection into variable state space
-        // ----------------------------------------
-        let (a, b) = DualModeMap::project(state.v);
+        // -----------------------------
+        // OBSERVATION UPDATE (DERIVED ONLY)
+        // -----------------------------
+        let (a, b) = Projection::apply(state.v);
         state.v1 = a;
         state.v2 = b;
 
-        // ----------------------------------------
-        // 3. bounded memory update
-        // ----------------------------------------
+        // -----------------------------
+        // MEMORY UPDATE (BOUNDED FIFO)
+        // -----------------------------
         state.h.push(state.v);
 
-        if state.h.len() > 1024 {
-            state.h.remove(0);
+        if state.h.len() > memory_limit {
+            let excess = state.h.len() - memory_limit;
+            state.h.drain(0..excess);
         }
     }
 }
 
 // ============================================================================
-// 4. SYSTEM VARIABLE LAYER (π: S → ℝ)
-// ============================================================================
-//
-// Accessors over shared state space only.
-//
+// 4. MEMORY POLICY (BOUND ENFORCEMENT LAYER)
 // ============================================================================
 
-pub trait SystemVariable {
-    fn read(state: &SystemState) -> f64;
-    fn write(state: &mut SystemState, value: f64);
+pub struct MemoryPolicy {
+    pub max: usize,
 }
 
-pub struct V1Channel;
-
-impl SystemVariable for V1Channel {
-    fn read(state: &SystemState) -> f64 {
-        state.v1
-    }
-
-    fn write(state: &mut SystemState, value: f64) {
-        state.v = value.fract();
-    }
-}
-
-pub struct V2Channel;
-
-impl SystemVariable for V2Channel {
-    fn read(state: &SystemState) -> f64 {
-        state.v2
-    }
-
-    fn write(state: &mut SystemState, value: f64) {
-        state.v = value.fract();
+impl MemoryPolicy {
+    #[inline(always)]
+    pub fn enforce(&self, h: &mut Vec<f64>) {
+        if h.len() > self.max {
+            let excess = h.len() - self.max;
+            h.drain(0..excess);
+        }
     }
 }
 
 // ============================================================================
-// 5. LOSSY TRANSFORM LAYER
+// 5. CLOCK MODEL (DISCRETE TIME)
 // ============================================================================
-//
-// Non-injective mappings over scalar domain.
-//
-// ============================================================================
-
-pub trait LossyTransform {
-    fn compress(x: f64) -> f64;
-}
-
-pub struct SimpleCompression;
-
-impl LossyTransform for SimpleCompression {
-    fn compress(x: f64) -> f64 {
-        (x * x).fract()
-    }
-}
-
-// ============================================================================
-// 6. CLOCK (DISCRETE TIME BASE)
-// ============================================================================
-
-pub trait Clocked {
-    fn tick(t: u64) -> u64;
-}
 
 pub struct Clock;
 
-impl Clocked for Clock {
-    fn tick(t: u64) -> u64 {
+impl Clock {
+    #[inline(always)]
+    pub fn tick(t: u64) -> u64 {
         t + 1
     }
 }
 
 // ============================================================================
-// 7. MEMORY POLICY (BOUNDED HISTORY)
-// ============================================================================
-
-pub trait MemoryBounded {
-    fn enforce(state: &mut SystemState);
-}
-
-pub struct BoundedMemory {
-    pub max: usize,
-}
-
-impl MemoryBounded for BoundedMemory {
-    fn enforce(&self, state: &mut SystemState) {
-        if state.h.len() > self.max {
-            let drain = state.h.len() - self.max;
-            state.h.drain(0..drain);
-        }
-    }
-}
-
-// ============================================================================
-// 8. SYSTEM EVENTS (REGIME SIGNALS)
+// 6. SYSTEM EVENTS (READ-ONLY CLASSIFICATION)
 // ============================================================================
 
 #[derive(Debug, Clone)]
@@ -419,64 +153,391 @@ pub fn classify(state: &SystemState) -> SystemEvent {
 }
 
 // ============================================================================
-// 9. SYSTEM STEP INTERFACE (PIPELINE ABSTRACTION)
+// 7. LEAK ANALYZER (READ-ONLY DIAGNOSTIC FUNCTION)
 // ============================================================================
 
-pub trait SystemStep {
-    fn step(state: SystemState, input: f64) -> SystemState;
+pub struct LeakAnalyzer;
+
+impl LeakAnalyzer {
+    pub fn analyze(trace: &[f64]) -> &'static str {
+        if trace.len() < 10 {
+            return "InsufficientData";
+        }
+
+        let var = Self::variance(trace);
+
+        if var < 0.0001 {
+            "LowVariancePattern"
+        } else if var > 0.25 {
+            "HighVariancePattern"
+        } else {
+            "StablePattern"
+        }
+    }
+
+    fn variance(x: &[f64]) -> f64 {
+        let mean = x.iter().sum::<f64>() / x.len() as f64;
+        x.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / x.len() as f64
+    }
 }
+
+// ============================================================================
+// 8. EXECUTION PIPELINE (SINGLE ENTRY POINT)
+// ============================================================================
 
 pub struct Pipeline;
 
-impl SystemStep for Pipeline {
-    fn step(mut state: SystemState, input: f64) -> SystemState {
-        CoreKernel::step(&mut state, input);
+impl Pipeline {
+    pub fn step(mut state: SystemState, input: f64, memory_limit: usize) -> SystemState {
+        CoreKernel::step(&mut state, input, memory_limit);
         state
     }
 }
 
 // ============================================================================
-// 10. INITIALIZATION HELPERS
+// 9. INITIALIZATION (INVARIANT SAFE)
 // ============================================================================
 
-pub fn init_state() -> SystemState {
-    SystemState {
-        v: 0.0,
-        v1: 0.0,
-        v2: 0.0,
-        h: Vec::new(),
+pub fn init_state(memory_capacity: usize) -> SystemState {
+    SystemState::new(memory_capacity)
+}
+
+// ============================================================================
+// 10. ARCHITECTURE LAYERS (INFORMATION MODEL)
+// ============================================================================
+//
+// L1 CoreKernel     → deterministic state transition F
+// L2 Projection     → lossy observation π(v)
+// L3 MemoryPolicy   → bounded FIFO enforcement
+// L4 Clock          → discrete time progression
+// L5 SystemEvent    → read-only classification
+// L6 LeakAnalyzer   → statistical diagnostics (no influence)
+// L7 Pipeline       → execution wrapper
+// L8 SystemState    → unified state container
+//
+// ============================================================================
+// 11. HARD SYSTEM INVARIANTS (ENFORCEABLE CONTRACT)
+// ============================================================================
+//
+// I1 — SINGLE STATE SPACE
+//     All computation derives from SystemState only
+//
+// I2 — DETERMINISM
+//     (S_t, u_t) ⇒ uniquely defined S_{t+1}
+//
+// I3 — OBSERVER INERTNESS
+//     Classification cannot modify state
+//
+// I4 — BOUNDED MEMORY
+//     |H_t| ≤ memory_limit enforced per step
+//
+// I5 — LOSSY OBSERVATION
+//     Projection π is non-injective by construction
+//
+// I6 — DISCRETE TIME
+//     State evolves only via explicit step calls
+//
+// ============================================================================
+// 12. FINAL SYSTEM CLASSIFICATION
+// ============================================================================
+//
+// Deterministic bounded-memory nonlinear recurrence system
+// with structurally lossy observation channel and strict state encapsulation.
+//
+// Formal form:
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// Interpretation:
+//
+//   - Single latent scalar state
+//   - One bounded memory buffer
+//   - Two derived observation channels
+//   - No feedback from observation layer into dynamics
+//
+// ============================================================================
+// DVSM — HARDENED DETERMINISTIC STATE MACHINE (FINAL CONSISTENT FORM)
+// ============================================================================
+
+#![allow(dead_code)]
+
+// ============================================================================
+// 1. CORE STATE SPACE (S_t = (v_t, H_t))
+// ============================================================================
+//
+// Invariant:
+//   - v_t ∈ [0,1)
+//   - H_t is bounded FIFO history
+//   - No external mutation allowed outside kernel
+
+#[derive(Clone, Debug)]
+pub struct SystemState {
+    v: f64,            // latent scalar state (PRIVATE INVARIANT)
+    h: Vec<f64>,       // bounded memory trace
+    hash: u64,         // derived fingerprint (NON-STATE, diagnostic only)
+}
+
+impl SystemState {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            v: 0.0,
+            h: Vec::with_capacity(capacity),
+            hash: 0,
+        }
+    }
+
+    // ----------------------------
+    // READ ACCESS ONLY
+    // ----------------------------
+    #[inline(always)]
+    pub fn v(&self) -> f64 {
+        self.v
+    }
+
+    #[inline(always)]
+    pub fn history(&self) -> &[f64] {
+        &self.h
+    }
+
+    #[inline(always)]
+    pub fn fingerprint(&self) -> u64 {
+        self.hash
+    }
+
+    // ----------------------------
+    // INVARIANT ENFORCEMENT
+    // ----------------------------
+    #[inline(always)]
+    fn set_v(&mut self, value: f64) {
+        self.v = value.fract();
+    }
+
+    #[inline(always)]
+    fn push_history(&mut self, value: f64, limit: usize) {
+        self.h.push(value);
+
+        if self.h.len() > limit {
+            let excess = self.h.len() - limit;
+            self.h.drain(0..excess);
+        }
+    }
+
+    // ----------------------------
+    // DERIVED FINGERPRINT (NON-STATE)
+    // ----------------------------
+    #[inline(always)]
+    fn compute_hash(v: f64, h: &[f64]) -> u64 {
+        let mut acc = v.to_bits().wrapping_mul(0x9E3779B97F4A7C15);
+
+        for x in h.iter().take(16) {
+            acc ^= x.to_bits().wrapping_mul(0xBF58476D1CE4E5B9);
+            acc = acc.rotate_left(5);
+        }
+
+        acc
+    }
+
+    fn update_hash(&mut self) {
+        self.hash = Self::compute_hash(self.v, &self.h);
+    }
+}
+
+//  Minor refinement (optional but important for precision)
+
+//    1. “hash is NON-STATE” is now correctly implemented but semantically strong
+
+// You currently label:
+
+// hash: u64 // NON-STATE, diagnostic only
+
+// ✔ This is fine conceptually
+
+// ⚠ but Rust still stores it inside state struct
+
+// So strictly speaking:
+
+// It is state-contained but not state-semantic
+
+// If you ever want maximum rigor, rename mentally as:
+
+// derived_hash (cached projection)
+
+// Not required — just tightening terminology.
+
+// ============================================================================
+// 2. OBSERVATION MAP (PURE FUNCTIONAL PROJECTION)
+// ============================================================================
+//
+// Property:
+//   - read-only
+//   - no access to SystemState internals
+//   - no causality into system dynamics
+
+pub struct Observation;
+
+impl Observation {
+    #[inline(always)]
+    pub fn project(v: f64) -> (f64, f64) {
+        (f1(v), f2(v))
+    }
+}
+
+#[inline(always)]
+fn f1(v: f64) -> f64 {
+    v
+}
+
+#[inline(always)]
+fn f2(v: f64) -> f64 {
+    (v * 1.61803398875).fract()
+}
+
+// ============================================================================
+// 3. CORE DYNAMICS (F: S × U → S)
+// ============================================================================
+//
+// Deterministic discrete-time recurrence system
+
+pub struct DVSM;
+
+impl DVSM {
+    #[inline(always)]
+    pub fn step(state: &mut SystemState, input: f64, memory_limit: usize) {
+
+        // ----------------------------------------
+        // STATE EVOLUTION (DETERMINISTIC)
+        // ----------------------------------------
+        let new_v = (state.v() + input).fract();
+        state.set_v(new_v);
+
+        // ----------------------------------------
+        // MEMORY UPDATE (BOUNDED FIFO)
+        // ----------------------------------------
+        state.push_history(state.v(), memory_limit);
+
+        // ----------------------------------------
+        // DERIVED FINGERPRINT UPDATE
+        // ----------------------------------------
+        state.update_hash();
     }
 }
 
 // ============================================================================
-// 11. ARCHITECTURAL INVARIANT (CORE SEMANTICS)
+// 4. MEMORY POLICY (OPTIONAL EXTERNAL SAFETY LAYER)
+// ============================================================================
+
+pub struct MemoryPolicy;
+
+impl MemoryPolicy {
+    #[inline(always)]
+    pub fn enforce(h: &mut Vec<f64>, limit: usize) {
+        if h.len() > limit {
+            let excess = h.len() - limit;
+            h.drain(0..excess);
+        }
+    }
+}
+
+// ============================================================================
+// 5. CONSTRAINT MODEL (SPECIFICATION LAYER ONLY)
 // ============================================================================
 //
-// ✔ One scalar latent system (v)
-// ✔ Two derived observational channels (v1, v2)
-// ✔ One bounded memory (H)
-// ✔ One deterministic evolution function (F)
-// ✔ No independent state spaces
-//
-// Interpretation:
-// ---------------------------------------------------------------------------
-// v1/v2 are *coordinate projections*, not new physics.
-//
+// NOTE:
+// These are NOT runtime-enforced guarantees,
+// but invariants of intended execution semantics.
+
+pub struct Constraints;
+
+impl Constraints {
+
+    pub fn deterministic() -> bool {
+        true
+    }
+
+    pub fn bounded_memory(h: &[f64], n: usize) -> bool {
+        h.len() <= n
+    }
+
+    pub fn observation_isolated() -> bool {
+        true
+    }
+
+    pub fn lossy_observation() -> bool {
+        true
+    }
+
+    pub fn no_state_feedback_from_observation() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 6. GHOST MODEL (PURE DIAGNOSTIC METRIC — NON-ONTOLOGICAL)
 // ============================================================================
 //
-// FINAL MODEL:
+// Interpretation rule:
+//   "ghosts" are NOT entities
+//   they are statistical compression artifacts of trace structure
+
+pub struct GhostModel;
+
+impl GhostModel {
+
+    #[inline(always)]
+    pub fn drift_risk(trace_len: usize) -> &'static str {
+        match trace_len {
+            0..=31 => "Low",
+            32..=255 => "Medium",
+            _ => "High",
+        }
+    }
+}
+
+// ============================================================================
+// 7. SYSTEM CLASSIFICATION
+// ============================================================================
+
+pub struct System;
+
+impl System {
+    pub fn classify() -> &'static str {
+        "Deterministic bounded-memory nonlinear recurrence system with lossy observation and derived diagnostic fingerprint"
+    }
+}
+
+// ============================================================================
+// 8. FORMAL MATHEMATICAL MODEL (FINAL CONSISTENT FORM)
+// ============================================================================
 //
+// STATE:
 //   S_t = (v_t, H_t)
-//   π(v_t) → (v1_t, v2_t)
-//   S_{t+1} = F(S_t, u_t)
+//
+// DYNAMICS:
+//   v_{t+1} = fract(v_t + u_t)
+//   H_{t+1} = truncate(H_t ∪ {v_{t+1}})
+//
+// OBSERVATION:
+//   O(v_t) = (v_t, fract(αv_t))
+//
+// DERIVED FUNCTIONAL:
+//   Φ_t = hash(v_t, H_t[0:k])
+//
+// KEY PROPERTY:
+//   Φ is NOT part of state evolution
+//   Φ_t = Ψ(S_t) computed after F(S_t, u_t)
+//   Φ is a diagnostic projection of trajectory history
 //
 // ============================================================================
+
+// ============================================================================
+// FINAL SYSTEM CLASSIFICATION
+// ============================================================================
 //
-// SYSTEM CLASS:
-// ---------------------------------------------------------------------------
-// Deterministic nonlinear recurrence system with multi-channel observation.
+// Deterministic bounded-memory discrete-time dynamical system
+// with lossy observation channel and non-state diagnostic fingerprint.
+//
+// No auxiliary state dimensions exist beyond (v, H).
 //
 // ============================================================================
 // END FILE
 // ============================================================================
-
