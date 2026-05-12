@@ -2,6 +2,106 @@
 // DVSM — HARDENED AXIOMATIC STATE MACHINE (SINGLE-AUTHORITY FORM)
 // Author: Daniel J. Dillberg
 // ============================================================================
+// ============================================================================
+// DVSM — WHITEPAPER ADDENDUM (SYSTEM INTRO + FUNDAMENTAL EQUATION)
+// ============================================================================
+
+pub struct Whitepaper;
+
+impl Whitepaper {
+
+    // =========================================================================
+    // 1. SYSTEM INTRODUCTION
+    // =========================================================================
+    //
+    // The DVSM (Deterministic Vector State Machine) is a bounded-memory
+    // discrete-time dynamical system with a single scalar state variable and
+    // a finite FIFO trace.
+    //
+    // The system is defined such that:
+    //
+    //   - All evolution is deterministic
+    //   - State is fully represented by (v_t, H_t)
+    //   - Memory is strictly bounded via truncation
+    //   - Observation is a fixed lossy projection
+    //   - No auxiliary or hidden state exists
+    //
+    // The system is intentionally minimal: it is not designed to simulate
+    // complexity, but to constrain representational degrees of freedom.
+
+    // =========================================================================
+    // 2. BOUNDED STATE DEFINITION
+    // =========================================================================
+    //
+    // The system state is defined as:
+    //
+    //   S_t = (v_t, H_t)
+    //
+    // where:
+    //
+    //   v_t ∈ [0,1)        canonical scalar state (normalized phase variable)
+    //   H_t ∈ ℝ^N          FIFO-truncated history buffer of size N
+    //
+    // Constraint:
+    //   |H_t| ≤ N  for all t
+    //
+    // The bounded nature of H_t enforces a finite epistemic horizon:
+    // only the most recent N transitions are retained.
+
+    // =========================================================================
+    // 3. FUNDAMENTAL EVOLUTION EQUATION
+    // =========================================================================
+    //
+    // The system evolves according to a single recurrence relation:
+    //
+    //   v_{t+1} = fract(v_t + u_t)
+    //
+    //   H_{t+1} = FIFO(H_t ∪ {v_{t+1}})
+    //
+    // where:
+    //
+    //   u_t ∈ ℝ is a bounded external input
+    //   fract(x) = x mod 1 ensures compact state space
+    //
+    // This defines a deterministic nonlinear rotation on the unit interval
+    // coupled with a lossy finite history embedding.
+
+    // =========================================================================
+    // 4. OBSERVATION EQUATION (LOSSY PROJECTION)
+    // =========================================================================
+    //
+    // Observations are defined by a fixed projection operator:
+    //
+    //   O(v_t) = (v_t, fract(φ · v_t))
+    //
+    // where φ is the golden ratio constant.
+    //
+    // This projection:
+    //   - does NOT affect state evolution
+    //   - does NOT feed back into dynamics
+    //   - introduces controlled aliasing structure
+    //
+    // Observation space is therefore non-injective by design.
+
+    // =========================================================================
+    // 5. FUNDAMENTAL SYSTEM INTERPRETATION
+    // =========================================================================
+    //
+    // The DVSM defines a constrained dynamical system where:
+    //
+    //   - state is a single scalar phase variable
+    //   - memory is a bounded causal trace
+    //   - evolution is a deterministic recurrence map
+    //   - observation is a fixed lossy embedding
+    //
+    // The system can be interpreted as:
+    //
+    //   A compact state-space automaton with finite observational horizon
+    //   and invariant-preserving transition semantics.
+    // =========================================================================
+       // END WHITEPAPER ADDENDUM
+    // =========================================================================
+}
 
 #![allow(dead_code)]
 
