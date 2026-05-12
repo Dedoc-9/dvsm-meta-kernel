@@ -97,10 +97,15 @@ Thus:
 //   observation is only defined relative to a chosen section.
 //   it is not invariant under changes of σ_t.
 //
-// ============================================================
+// Final takeaway
 
+The model is now in a clean 3-layer causal architecture:
+
+I layer: reality evolution
+K layer: representation selection
+Ω layer: evaluation of representation
 //
-// ============================================================================
+// ============================================================
 
 #![allow(dead_code)]
 
