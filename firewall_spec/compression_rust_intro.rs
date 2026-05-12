@@ -588,17 +588,107 @@ pub fn run_stream(inputs: Vec<f64>, mut state: State, cfg: Config) -> State {
 //
 // ============================================================================
 //
-// RESULTING OVERALL RANGE (TYPICAL BOUNDED SYSTEMS)
+// ============================================================================
+// DEV NOTE — COMPRESSION PERFORMANCE CONTEXT (INDUSTRY COMPARISON LAYER)
 // ============================================================================
 //
-// Conservative systems:
-//   → 40% – 65% total compression
+// This system is NOT a literal entropy compressor (like zstd/lz4/deflate).
+// Instead, it behaves as:
 //
-// Moderate redundancy systems:
-//   → 65% – 85% total compression
+//   → state-space compression via structural redundancy reduction
+//   → observational compression via projection (O)
+//   → optional quotient enforcement (loss-controlled invariance)
 //
-// Highly structured / repetitive streams:
-//   → 85% – 95% total compression
+// This means “compression rate” is conceptual:
+// it reflects structural redundancy reduction in state evolution,
+// NOT bit-level entropy coding.
+//
+// ----------------------------------------------------------------------------
+// COMPARISON AGAINST STANDARD COMPRESSION MODELS
+// ----------------------------------------------------------------------------
+//
+// 1. LOSSLESS GENERAL-PURPOSE COMPRESSION (e.g., zstd, gzip, lz4)
+// ----------------------------------------------------------------------------
+// Typical behavior:
+//   → entropy coding + dictionary compression
+//   → guaranteed exact reconstruction
+//
+// Real-world compression ratios:
+//   - Text / logs:        ~2:1 to 5:1   (50% – 80% size retention)
+//   - JSON / telemetry:   ~3:1 to 10:1  (10% – 35% size retention)
+//   - Binary blobs:       ~1.2:1 to 3:1
+//
+// Interpretation:
+//   → purely statistical redundancy removal
+//   → no semantic or dynamical structure awareness
+//
+// ----------------------------------------------------------------------------
+// 2. DVSM / ODCN STYLE STRUCTURAL COMPRESSION (THIS SYSTEM)
+// ----------------------------------------------------------------------------
+//
+// Compression here is achieved by:
+//
+//   - bounded state (FIFO memory truncation)
+//   - modular arithmetic collapse (mod-1 dynamics)
+//   - observational projection (O)
+//   - optional equivalence-class enforcement (quotient mode)
+//
+// EFFECTIVE COMPRESSION BEHAVIOR:
+//
+//   Conservative systems (low redundancy, chaotic inputs):
+//     → ~40% – 65% effective compression
+//     → minimal structural collapse (mostly raw state preserved)
+//
+//   Moderate redundancy systems:
+//     → ~65% – 85% effective compression
+//     → FIFO + projection removes repeated trajectories
+//
+//   Highly structured / repetitive streams:
+//     → ~85% – 95% effective compression
+//     → strong collapse of state-history redundancy
+//
+// IMPORTANT:
+//   These values are NOT Shannon-optimal guarantees.
+//   They represent structural trajectory compression,
+//   not bit-level entropy encoding.
+//
+// ----------------------------------------------------------------------------
+// 3. KEY DIFFERENCE VS CLASSICAL COMPRESSION
+// ----------------------------------------------------------------------------
+//
+// Classical compressors:
+//   compression(x) = encode(statistical_redundancy(x))
+//
+// This system:
+//   compression(x) = O(evolve(F(x)))
+//
+// Meaning:
+//   → compresses evolution, not just representation
+//   → compresses trajectories, not static symbols
+//
+// ----------------------------------------------------------------------------
+// 4. UPPER BOUND LIMITATION (IMPORTANT)
+// ----------------------------------------------------------------------------
+//
+// This architecture cannot exceed entropy bounds:
+//
+//   max_compression ≤ information-theoretic entropy limit
+//
+// If input is already near-random:
+//   → compression collapses toward ~0% gain
+//
+// ----------------------------------------------------------------------------
+// 5. SUMMARY POSITIONING
+// ----------------------------------------------------------------------------
+//
+// This system is best classified as:
+//
+//   “trajectory-space structural compressor with lossy observational collapse”
+//
+// NOT:
+//   - entropy encoder
+//   - lossless codec
+//   - statistical compression engine
 //
 // ============================================================================
 //
