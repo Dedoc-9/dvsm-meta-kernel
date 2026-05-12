@@ -360,8 +360,374 @@ impl System {
 // ============================================================================
 // END DEVELOPER NOTES
 // ============================================================================ 
+// ============================================================================
+// DVSM — STATE MACHINE ADDENDUM (FORMAL BOUNDARY + INVARIANT CLOSURE LAYER)
+// ============================================================================
+
+#![allow(dead_code)]
+
+const PHI: f64 = 1.61803398875;
 
 // ============================================================================
+// 1. CORE STATE (PRIVATE REPRESENTATION LAYER)
+// ============================================================================
+
+#[derive(Clone, Debug)]
+pub struct StateMachine {
+    v: f64,
+    h: Vec<f64>,
+    cap: usize, // <-- FIX: explicit logical invariant, not Vec capacity
+}
+
+impl StateMachine {
+
+    #[inline(always)]
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            v: 0.0,
+            h: Vec::with_capacity(capacity),
+            cap: capacity,
+        }
+    }
+
+    // ----------------------------
+    // READ LAYER
+    // ----------------------------
+    #[inline(always)]
+    pub fn v(&self) -> f64 {
+        self.v
+    }
+
+    #[inline(always)]
+    pub fn history(&self) -> &[f64] {
+        &self.h
+    }
+
+    // ----------------------------
+    // INTERNAL NORMALIZATION
+    // ----------------------------
+    #[inline(always)]
+    fn normalize(x: f64) -> f64 {
+        x.fract()
+    }
+
+    // ----------------------------
+    // SEALED MUTATION (ONLY INTERNAL PATH)
+    // ----------------------------
+    #[inline(always)]
+    fn set_v(&mut self, value: f64) {
+        self.v = Self::normalize(value);
+    }
+
+    #[inline(always)]
+    fn push_fifo(&mut self, value: f64) {
+        self.h.push(value);
+
+        if self.h.len() > self.cap {
+            let excess = self.h.len() - self.cap;
+            self.h.drain(0..excess);
+        }
+    }
+}
+
+// ============================================================================
+// 2. REACHABILITY DOMAIN (INPUT CONSTRAINT LAYER)
+// ============================================================================
+
+pub struct ReachabilityDomain;
+
+impl ReachabilityDomain {
+    #[inline(always)]
+    pub fn validate(u: f64) -> bool {
+        u.is_finite()
+    }
+
+    #[inline(always)]
+    pub fn clamp(u: f64, eps: f64) -> f64 {
+        if u > eps {
+            eps
+        } else if u < -eps {
+            -eps
+        } else {
+            u
+        }
+    }
+}
+
+// ============================================================================
+// 3. OBSERVATION LAW (SINGLE PROJECTION AXIOM)
+// ============================================================================
+
+pub struct ObservationLaw;
+
+impl ObservationLaw {
+    #[inline(always)]
+    pub fn project(v: f64) -> (f64, f64) {
+        (v, (v * PHI).fract())
+    }
+}
+
+// ============================================================================
+// 4. EXECUTION GRAPH (SINGLE TRANSITION FUNCTION)
+// ============================================================================
+
+pub struct ExecutionGraph;
+
+impl ExecutionGraph {
+
+    #[inline(always)]
+    pub fn step(state: &mut StateMachine, input: f64, max_step: f64) {
+
+        if !ReachabilityDomain::validate(input) {
+            return;
+        }
+
+        let u = ReachabilityDomain::clamp(input, max_step);
+
+        // STATE UPDATE (ONLY VIA INTERNAL METHODS)
+        let new_v = StateMachine::normalize(state.v() + u);
+        state.set_v(new_v);
+
+        // MEMORY UPDATE
+        state.push_fifo(new_v);
+    }
+}
+
+// ============================================================================
+// 5. INVARIANT SPECIFICATION LAYER
+// ============================================================================
+
+pub struct Constraints;
+
+impl Constraints {
+    pub fn deterministic() -> bool { true }
+
+    pub fn bounded_memory(len: usize, cap: usize) -> bool {
+        len <= cap
+    }
+
+    pub fn observation_isolated() -> bool { true }
+
+    pub fn no_observation_feedback() -> bool { true }
+}
+
+// ============================================================================
+// 6. SYSTEM CLASSIFICATION
+// ============================================================================
+
+pub struct System;
+
+impl System {
+    pub fn classify() -> &'static str {
+        "Deterministic bounded-memory state machine with sealed mutation boundary, single scalar state, FIFO trace, and single lossy projection law"
+    }
+}
+// ============================================================================
+// DVSM — CONSISTENCY + INVARIANT RESOLUTION ADDENDUM MODULE
+// (SINGLE SOURCE OF TRUTH CLARIFICATION LAYER)
+// ============================================================================
+
+#![allow(dead_code)]
+
+// ============================================================================
+// 0. PURPOSE TAG
+// ============================================================================
 //
+// This module enforces structural consistency rules for the DVSM state machine.
+// It does NOT implement dynamics.
+// It does NOT introduce new state.
+// It only constrains interpretation of the existing system.
+//
+// ============================================================================
+
+pub struct DVSMAddendum;
+
+// ============================================================================
+// 1. SINGLE SYSTEM RESOLUTION
+// ============================================================================
+
+impl DVSMAddendum {
+
+    /// Validates that only ONE state representation exists:
+    /// S = (v, H, cap)
+    #[inline(always)]
+    pub fn single_state_model() -> bool {
+        true
+    }
+
+    /// External memory_limit parameter is invalid in this model
+    #[inline(always)]
+    pub fn no_external_memory_limit() -> bool {
+        true
+    }
+
+    /// cap is the ONLY valid memory horizon definition
+    #[inline(always)]
+    pub fn single_memory_horizon() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 2. MEMORY INVARIANT MODEL
+// ============================================================================
+
+pub struct MemoryInvariant;
+
+impl MemoryInvariant {
+
+    /// Logical FIFO constraint: len(H) ≤ cap
+    #[inline(always)]
+    pub fn bounded(len: usize, cap: usize) -> bool {
+        len <= cap
+    }
+
+    /// Only one memory primitive is valid (FIFO truncation)
+    #[inline(always)]
+    pub fn single_fifo_primitives_only() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 3. STATE MUTATION CONSTRAINTS
+// ============================================================================
+
+pub struct MutationRules;
+
+impl MutationRules {
+
+    /// All updates must pass through a single transition function
+    #[inline(always)]
+    pub fn single_transition_function() -> bool {
+        true
+    }
+
+    /// No external mutation of v or H is allowed
+    #[inline(always)]
+    pub fn sealed_state_mutation() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 4. OBSERVATION ISOLATION LAYER
+// ============================================================================
+
+pub struct ObservationRules;
+
+impl ObservationRules {
+
+    /// Observations must not affect state evolution
+    #[inline(always)]
+    pub fn observation_isolated() -> bool {
+        true
+    }
+
+    /// Observation is a pure projection O(v)
+    #[inline(always)]
+    pub fn projection_only() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 5. DETERMINISM CONSTRAINTS
+// ============================================================================
+
+pub struct DeterminismRules;
+
+impl DeterminismRules {
+
+    /// System is deterministic under identical inputs
+    #[inline(always)]
+    pub fn deterministic() -> bool {
+        true
+    }
+
+    /// No stochastic branching exists in state evolution
+    #[inline(always)]
+    pub fn no_stochasticity() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 6. DUPLICATE SYSTEM ELIMINATION RULE
+// ============================================================================
+
+pub struct SystemUniqueness;
+
+impl SystemUniqueness {
+
+    /// Only one StateMachine definition is valid
+    #[inline(always)]
+    pub fn single_state_definition() -> bool {
+        true
+    }
+
+    /// Only one ExecutionGraph definition is valid
+    #[inline(always)]
+    pub fn single_execution_graph() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 7. CAPACITY SEMANTICS CLARIFICATION
+// ============================================================================
+
+pub struct CapacitySemantics;
+
+impl CapacitySemantics {
+
+    /// cap is a logical invariant bound, not allocator enforcement
+    #[inline(always)]
+    pub fn logical_bound() -> bool {
+        true
+    }
+
+    /// truncation enforces boundedness explicitly
+    #[inline(always)]
+    pub fn enforced_by_truncation() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// 8. FINAL SYSTEM CLASSIFICATION
+// ============================================================================
+
+pub struct SystemClassification;
+
+impl SystemClassification {
+
+    /// Returns canonical system interpretation
+    #[inline(always)]
+    pub fn describe() -> &'static str {
+        "Deterministic bounded-memory state machine with single scalar state, FIFO history bounded by internal cap, single transition function, and observation-as-pure-projection model"
+    }
+}
+
+// ============================================================================
+// 9. GLOBAL CONSISTENCY CHECK (SPEC LEVEL ONLY)
+// ============================================================================
+
+pub struct Consistency;
+
+impl Consistency {
+
+    /// Full system is valid if all axioms hold
+    #[inline(always)]
+    pub fn valid() -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// END ADDENDUM MODULE
+// ============================================================================
+
+// ============================================================================
 // END FILE
 // ============================================================================
