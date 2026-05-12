@@ -3,6 +3,98 @@
 //
 // Author: Daniel J. Dillberg
 // ============================================================================
+// It is now formally:
+
+// A surjective functor-induced quotient dynamical system with commutative observation semantics
+// ============================================================================
+// ADDENDUM FILE OVERVIEW — EXECUTION CONSTRAINTS LAYER
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This file defines the *operational semantics layer* for the system:
+//
+//   S_t = (v_t, H_t)
+//   S_{t+1} = F(S_t, u_t)
+//
+// It does NOT modify the mathematical definition of F.
+// It specifies how F must be implemented in any valid runtime.
+//
+// The file distinguishes between:
+//   - STRICT implementation semantics (canonical reference behavior)
+//   - EQUIVALENCE-class implementations (observationally equivalent behavior)
+//
+// ============================================================================
+//
+// STRUCTURE / PROGRESSION:
+// ============================================================================
+//
+// A. NUMERICAL CONSTRAINTS
+// ---------------------------------------------------------------------------
+// Defines scalar normalization rules mapping ℝ → [0,1).
+// Establishes canonical projection behavior for v_t.
+//
+// Key idea:
+//   Multiple implementations allowed only if they preserve mod-1 equivalence.
+//
+// ---------------------------------------------------------------------------
+//
+// B. INPUT CONSTRAINTS
+// ---------------------------------------------------------------------------
+// Defines admissible domain for u_t.
+//
+// Key idea:
+//   Ensures closure of deterministic recurrence system by rejecting
+//   non-finite inputs (NaN/∞).
+//
+// ---------------------------------------------------------------------------
+//
+// C. MEMORY CONSTRAINTS
+// ---------------------------------------------------------------------------
+// Defines FIFO bounded-history semantics for H_t.
+//
+// Key idea:
+//   All valid implementations must enforce bounded memory while preserving
+//   recency ordering semantics.
+//
+// ---------------------------------------------------------------------------
+//
+// D. EXECUTION ORDER INVARIANT
+// ---------------------------------------------------------------------------
+// Defines required sequencing of operations within F.
+//
+// Key idea:
+//   Order defines canonical reference semantics.
+//   Equivalent implementations may optimize internally, but must preserve
+//   observable output equivalence.
+//
+// ---------------------------------------------------------------------------
+//
+// E. SEMANTIC BOUNDARY STATEMENT
+// ---------------------------------------------------------------------------
+// Explicit separation between:
+//
+//   - mathematical system definition (unchanged)
+//   - implementation semantics (this file)
+//
+// Key idea:
+//   This layer defines equivalence conditions for valid implementations,
+//   not additional structure of the system itself.
+//
+// ============================================================================
+//
+// DESIGN PRINCIPLE:
+// ---------------------------------------------------------------------------
+// This file formalizes:
+//
+//   "What it means to correctly implement F"
+//   not
+//   "What F is"
+//
+// ============================================================================
+//
+// END OVERVIEW
+// ============================================================================
 // ---------------------------------------------------------------------------
 // This provides a structural index of the repository.
 //
@@ -28,6 +120,270 @@
 //   All modules operate over ONE shared state space.
 //   Separation is structural (typing), not ontological.
 //
+// ============================================================================
+// ============================================================================
+// ADDENDUM — EXECUTION CONSTRAINTS + OBSERVATION FUNCTOR LAYER
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This file defines the operational semantics layer for:
+//
+//   S_t = (v_t, H_t)
+//   S_{t+1} = F(S_t, u_t)
+//
+// It does NOT modify F.
+// It defines admissible implementations under observational equivalence.
+//
+// ============================================================================
+//
+// CORE EXTENSION: OBSERVATION FUNCTOR
+// ============================================================================
+//
+// O : S → 𝒪   (SURJECTIVE PROJECTION FUNCTOR)
+//
+// Properties:
+//   - surjective (every observable state has at least one preimage)
+//   - many-to-one mapping (information-losing projection)
+//   - induces quotient structure on S
+//
+// Induced relation:
+//
+//   S₁ ~ S₂  ⇔  O(S₁) = O(S₂)
+//
+// This defines kernel equivalence classes (fibers of O).
+//
+// ============================================================================
+
+pub struct Addendum;
+
+// ============================================================================
+// A. OBSERVATION FUNCTOR (SURJECTIVE PROJECTION)
+// ============================================================================
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ObservableState {
+    pub v_obs: f64,
+    pub h_obs: Vec<f64>,
+}
+
+pub struct ObservationFunctor;
+
+impl ObservationFunctor {
+
+    // SURJECTIVE PROJECTION:
+    // Every observable state has at least one preimage in S.
+    #[inline(always)]
+    pub fn O(state: &SystemState) -> ObservableState {
+        ObservableState {
+            v_obs: normalize(state.v),
+            h_obs: state.h.clone(),
+        }
+    }
+
+    // Kernel membership test (equivalence class check)
+    #[inline(always)]
+    pub fn in_kernel(a: &SystemState, b: &SystemState) -> bool {
+        Self::O(a) == Self::O(b)
+    }
+}
+
+// ============================================================================
+// B. KERNEL EQUIVALENCE CLASSES (FIBERS OF O)
+// ============================================================================
+//
+// Definition:
+//
+//   ker(o) = { S ∈ S | O(S) = o }
+//
+// Each observable state defines a fiber (equivalence class)
+// in the original state space.
+//
+// ---------------------------------------------------------------------------
+
+pub struct Kernel;
+
+impl Kernel {
+
+    #[inline(always)]
+    pub fn fiber(o: &ObservableState, candidates: &[SystemState]) -> Vec<SystemState> {
+        candidates
+            .iter()
+            .filter(|s| ObservationFunctor::O(s) == *o)
+            .cloned()
+            .collect()
+    }
+}
+
+// ============================================================================
+// C. EQUIVALENCE RELATION (INDUCED BY O)
+// ============================================================================
+
+pub struct Equivalence;
+
+impl Equivalence {
+
+    #[inline(always)]
+    pub fn equivalent(a: &SystemState, b: &SystemState) -> bool {
+        ObservationFunctor::O(a) == ObservationFunctor::O(b)
+    }
+}
+
+// ============================================================================
+// D. NUMERICAL CONSTRAINTS
+// ============================================================================
+
+pub const V_DOMAIN: (f64, f64) = (0.0, 1.0);
+
+#[inline(always)]
+pub fn normalize(v: f64) -> f64 {
+    v - v.floor()
+}
+
+// ============================================================================
+// E. INPUT CONSTRAINTS
+// ============================================================================
+
+#[inline(always)]
+pub fn validate_input(u: f64) -> bool {
+    u.is_finite()
+}
+
+// ============================================================================
+// F. MEMORY CONSTRAINTS
+// ============================================================================
+
+#[inline(always)]
+pub fn enforce_fifo<T: Clone>(buf: &mut Vec<T>, cap: usize) {
+    if buf.len() > cap {
+        let excess = buf.len() - cap;
+        buf.drain(0..excess);
+    }
+}
+
+// ============================================================================
+// G. STATE SPACE
+// ============================================================================
+
+#[derive(Clone, Debug)]
+pub struct SystemState {
+    pub v: f64,
+    pub h: Vec<f64>,
+}
+
+// ============================================================================
+// H. DYNAMICS (F)
+// ============================================================================
+
+pub struct DVSMCore;
+
+impl DVSMCore {
+
+    #[inline(always)]
+    pub fn F(state: &mut SystemState, u: f64, cap: usize) {
+
+        if !validate_input(u) {
+            return;
+        }
+
+        let v_next = normalize(state.v + u);
+
+        state.v = v_next;
+        state.h.push(v_next);
+
+        enforce_fifo(&mut state.h, cap);
+    }
+}
+
+// ============================================================================
+// I. OBSERVABLE DYNAMICS (f)
+// ============================================================================
+
+pub struct ObservableDynamics;
+
+impl ObservableDynamics {
+
+    #[inline(always)]
+    pub fn f(o: &ObservableState, u: f64, cap: usize) -> ObservableState {
+
+        if !validate_input(u) {
+            return o.clone();
+        }
+
+        let v_next = normalize(o.v_obs + u);
+
+        let mut h = o.h_obs.clone();
+        h.push(v_next);
+
+        enforce_fifo(&mut h, cap);
+
+        ObservableState {
+            v_obs: v_next,
+            h_obs: h,
+        }
+    }
+}
+
+// ============================================================================
+// J. COMMUTATIVITY CONDITION (WEAK / OBSERVATIONAL)
+// ============================================================================
+//
+// Requirement:
+//
+//   O(F(S, u)) ≈ f(O(S), u)
+//
+// where ≈ means equality in observable space 𝒪.
+//
+// ---------------------------------------------------------------------------
+
+pub struct CommutativityCheck;
+
+impl CommutativityCheck {
+
+    #[inline(always)]
+    pub fn verify(mut s: SystemState, u: f64, cap: usize) -> bool {
+
+        let o_before = ObservationFunctor::O(&s);
+
+        DVSMCore::F(&mut s, u, cap);
+
+        let o_after = ObservationFunctor::O(&s);
+
+        let o_expected = ObservableDynamics::f(&o_before, u, cap);
+
+        o_after == o_expected
+    }
+}
+
+// ============================================================================
+// K. IMPLEMENTATION MODES
+// ============================================================================
+//
+// STRICT MODE:
+//   single canonical F implementation
+//
+// EQUIVALENCE MODE:
+//   any F_impl satisfying:
+//
+//     O(F_impl(S, u)) = f(O(S), u)
+//
+// ============================================================================
+//
+// L. STRUCTURAL SUMMARY
+// ============================================================================
+//
+// - O is a SURJECTIVE projection functor
+// - equivalence classes are kernel fibers of O
+// - system reduces to quotient structure S / ~
+// - dynamics respect commutative diagram:
+//
+//       S → F → S
+//       ↓     ↓
+//       O →  f → O
+//
+// ============================================================================
+//
+// END ADDENDUM
 // ============================================================================
 
 #![allow(dead_code)]
@@ -1853,6 +2209,184 @@ impl Invariants {
 // ============================================================================
 //
 // END OF HARDENED ADDENDUM
+// ============================================================================
+// ============================================================================
+// ADDENDUM: EXECUTION CONSTRAINTS (OPERATIONAL SEMANTICS LAYER)
+// ============================================================================
+//
+// This section does NOT modify the mathematical system definition:
+//
+//   S_t = (v_t, H_t)
+//   S_{t+1} = F(S_t, u_t)
+//
+// It defines the operational semantics required for any implementation of F
+// that is either:
+//
+//   (A) STRICT IMPLEMENTATION
+//   (B) EQUIVALENCE-CLASS IMPLEMENTATION (OBSERVATIONALLY EQUIVALENT)
+//
+// These constraints are implementation-level invariants only.
+// They do NOT extend the mathematical object itself.
+// ============================================================================
+
+pub struct Addendum;
+
+// ============================================================================
+// A. NUMERICAL CONSTRAINTS (PROJECTION DOMAIN)
+// ============================================================================
+//
+// Invariant:
+//   v_t ∈ [0,1) via canonical projection.
+//
+// Two valid interpretations:
+//   - STRICT: only one canonical reference implementation is defined
+//   - EQUIVALENCE: any function observationally equivalent to mod 1 projection
+// ============================================================================
+
+pub const V_DOMAIN: (f64, f64) = (0.0, 1.0);
+
+#[inline(always)]
+pub fn normalize_strict(v: f64) -> f64 {
+    // STRICT CANONICAL FORM (reference implementation)
+    v - v.floor()
+}
+
+#[inline(always)]
+pub fn normalize_equiv(v: f64) -> f64 {
+    // EQUIVALENCE CLASS ALLOWANCE:
+    // Any function satisfying:
+    //   normalize(v) ≡ v (mod 1)
+    //
+    // Example alternate implementation:
+    v.rem_euclid(1.0)
+}
+
+// DEV NOTE:
+// - STRICT: required for reproducible canonical runtime traces
+// - EQUIV: allowed in distributed or hardware-divergent implementations
+// - Mixing both in same runtime invalidates determinism guarantees
+
+// ============================================================================
+// B. INPUT CONSTRAINTS (DOMAIN OF DEFINITION)
+// ============================================================================
+//
+// Only finite inputs are admissible for deterministic closure.
+// STRICT and EQUIVALENCE are identical here.
+
+#[inline(always)]
+pub fn validate_input(u: f64) -> bool {
+    u.is_finite()
+}
+
+// ============================================================================
+// C. MEMORY CONSTRAINT (FIFO INVARIANT)
+// ============================================================================
+//
+// Invariant:
+//   |H_t| ≤ cap after every transition
+//
+// STRICT: exact FIFO truncation
+// EQUIVALENCE: any ordering-preserving bounded projection
+// ============================================================================
+
+#[inline(always)]
+pub fn enforce_fifo_strict<T: Clone>(buf: &mut Vec<T>, cap: usize) {
+    if buf.len() > cap {
+        let excess = buf.len() - cap;
+        buf.drain(0..excess);
+    }
+}
+
+#[inline(always)]
+pub fn enforce_fifo_equiv<T: Clone>(buf: &mut Vec<T>, cap: usize) {
+    // EQUIVALENCE CLASS:
+    // Any operation satisfying:
+    //   1. final length ≤ cap
+    //   2. preserves most recent elements
+    //
+    if buf.len() > cap {
+        buf.truncate(cap);
+    }
+}
+
+// ============================================================================
+// D. EXECUTION ORDER INVARIANT (DETERMINISTIC EQUIVALENCE RULE)
+// ============================================================================
+//
+// Any valid implementation of F MUST be observationally equivalent to:
+//
+// STRICT ORDER:
+//
+//   1. validate input
+//   2. compute raw update
+//   3. normalize scalar state
+//   4. update v
+//   5. append to H
+//   6. enforce FIFO bound on H
+//
+// EQUIVALENCE CLASS:
+//   Any reordering or fusion that preserves final state equivalence:
+//
+//   F_impl(S, u) ≡ F_strict(S, u)
+//
+// over all admissible states and inputs.
+// ============================================================================
+
+#[inline(always)]
+pub fn execute_strict_pipeline(
+    v: f64,
+    h: &mut Vec<f64>,
+    u: f64,
+    cap: usize
+) -> (f64, Vec<f64>) {
+
+    if !validate_input(u) {
+        return (v, h.clone());
+    }
+
+    let raw = v + u;
+    let v_next = normalize_strict(raw);
+
+    h.push(v_next);
+    enforce_fifo_strict(h, cap);
+
+    (v_next, h.clone())
+}
+
+// ============================================================================
+// E. SEMANTIC BOUNDARY STATEMENT
+// ============================================================================
+//
+// STRICT MODE:
+//   Exactly one canonical reference implementation of F is defined.
+//
+// EQUIVALENCE MODE:
+//   Multiple implementations are allowed iff:
+//
+//     F_impl(S, u) ≡ F_strict(S, u)
+//
+//   (observational equivalence over all admissible states and inputs)
+//
+// No additional state, ontology, or domain separation is introduced.
+// ============================================================================
+//
+// DEV DECISION GUIDE:
+// ---------------------------------------------------------------------------
+//
+// Use STRICT MODE when:
+//   - formal proofs required
+//   - deterministic replay systems
+//   - canonical logging / audit trails
+//
+// Use EQUIVALENCE MODE when:
+//   - distributed execution
+//   - hardware-accelerated pipelines
+//   - performance-optimized implementations
+//
+// NEVER MIX MODES WITHIN SINGLE RUNTIME INSTANCE
+// ============================================================================
+//
+// END ADDENDUM
 // ============================================================================
 //
 // ============================================================================
