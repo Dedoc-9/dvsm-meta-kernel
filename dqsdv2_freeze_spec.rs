@@ -4,19 +4,34 @@
 // ============================================================================
 //
 // WARNING:
+// ------------------------------------------------------------
+//
 // This file is NOT a simulation.
-// This file is a CONSTRAINT LANGUAGE.
+// This file is NOT a generative model.
+//
+// It is a CONSTRAINT + DIAGNOSTIC LANGUAGE.
 //
 // It encodes:
-//   - allowed structural interpretations
-//   - forbidden completion paths
+//   - allowed structural interpretations (non-generative)
+//   - forbidden reconstruction pathways
 //   - stratified non-closure invariants
+//   - diagnostic-only leak signatures (no causal role)
 //
-// It explicitly prevents reconstruction of:
-//   - geometry
-//   - category structure
-//   - functorial time evolution
-//   - epistemic feedback loops
+// It explicitly blocks reconstruction of:
+//
+//   - geometric structure (explicit or emergent)
+//   - categorical structure (objects, morphisms, closure)
+//   - functorial time evolution (or equivalent compositional flow)
+//   - transport laws (parallel, continuity, or persistence maps)
+//   - optimization landscapes (argmin / variational recovery)
+//   - epistemic feedback loops (Ω → V or Ω → Σ coupling)
+//
+// NOTE:
+// ------------------------------------------------------------
+//
+// Any apparent structure in this file is descriptive only.
+// No definition here is allowed to become generative in a
+// mathematical, geometric, or dynamical sense.
 //
     // mental rule:
 
