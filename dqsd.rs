@@ -1733,6 +1733,302 @@ impl ComparisonStructure {
 // partially constrains (2),
 // and leaves (3) underdetermined.
 
+// DVSM fixes (1),
+// constrains (2) up to representation,
+// and leaves (3) structurally underdetermined.
+
+// DVSM specifies (1) intrinsically,
+// constrains (2) modulo representation isomorphism,
+// and leaves (3) non-canonically parametrized.
+
+// DVSM defines (1) canonically,
+// determines (2) only up to quotient representation equivalence,
+// and leaves (3) as a non-canonical choice space of inter-fiber lifts.
+
+// ============================================================================
+// DVSM / DCF — GLOBAL STRUCTURE INVARIANT (FULLY INTEGRATED SPECIFICATION)
+// SINGLE-FILE ARCHITECTURAL FORM
+// ============================================================================
+
+#![allow(dead_code)]
+
+// ============================================================================
+// 0. CORE ABSTRACT TYPES (INTRINSIC LAYER)
+// ============================================================================
+
+pub struct Graph;
+
+pub struct QuotientSpace {
+    pub classes: usize,
+}
+
+pub struct HilbertFiber {
+    pub dim: usize,
+}
+
+pub struct Hamiltonian {
+    pub dim: usize,
+}
+
+pub struct State {
+    pub amplitudes: Vec<f64>,
+}
+
+pub struct TransportOperator;
+
+// ============================================================================
+// 1. INTRINSIC DVSM LAYER (AXIOMATIC CORE)
+// ============================================================================
+//
+// This layer defines what DVSM *is*, independent of representation.
+// It is the only canonical structure.
+//
+// ============================================================================
+
+pub fn build_quotient(_g: &Graph) -> QuotientSpace {
+    QuotientSpace { classes: 1 }
+}
+
+pub fn hilbert_from_quotient(q: &QuotientSpace) -> HilbertFiber {
+    HilbertFiber { dim: q.classes }
+}
+
+pub fn hamiltonian(f: &HilbertFiber) -> Hamiltonian {
+    Hamiltonian { dim: f.dim }
+}
+
+// ============================================================================
+// 2. REPRESENTATION RELATIVITY LAYER
+// ============================================================================
+//
+// KEY FACT:
+// Hom-spaces exist in ambient mathematics:
+//
+//     Hom(H_t, H_{t+1})
+//
+// BUT DVSM does NOT canonically select elements.
+//
+// Therefore:
+// transport is representation-relative.
+//
+// ============================================================================
+
+pub fn hom_space(
+    _a: &HilbertFiber,
+    _b: &HilbertFiber,
+) -> Vec<TransportOperator> {
+    vec![]
+}
+
+// ============================================================================
+// 3. COMPARISON STRUCTURE (UNDERDETERMINED LAYER)
+// ============================================================================
+
+pub struct ComparisonStructure {
+    pub relational_data: (),
+}
+
+impl ComparisonStructure {
+    pub fn admissible_lifts(&self) -> Vec<TransportOperator> {
+        vec![]
+    }
+}
+
+// ============================================================================
+// 4. GLOBAL STRUCTURE INVARIANT (CRITICAL)
+// ============================================================================
+//
+// DVSM does NOT define:
+//
+//   - canonical composition across time
+//   - identity transport between fibers
+//   - curvature or holonomy
+//   - global moduli space of comparisons
+//   - fiber bundle over time
+//
+// These may be constructed externally,
+// but are NOT axioms of DVSM.
+//
+// ============================================================================
+
+// ============================================================================
+// 5. OPERATIONAL LAYER (NON-INVARIANT STRUCTURES)
+// ============================================================================
+
+pub fn compose(
+    _t1: &TransportOperator,
+    _t2: &TransportOperator,
+) -> TransportOperator {
+    TransportOperator
+}
+
+pub fn identity(_h: &HilbertFiber) -> TransportOperator {
+    TransportOperator
+}
+
+pub fn curvature_placeholder() -> Option<f64> {
+    None
+}
+
+// ============================================================================
+// 6. SYSTEM INTERPRETATION SUMMARY
+// ============================================================================
+//
+// DVSM axiomatizes:
+//   (1) quotient spectral dynamics (Q_t, H_t, U_t)
+//
+// partially constrains:
+//   (2) representation choice of Hilbert fibers
+//
+// leaves underdetermined:
+//   (3) inter-fiber comparison structure
+//
+// ============================================================================
+
+// ============================================================================
+// 7. FINAL SYSTEM CLASSIFICATION
+// ============================================================================
+//
+// DVSM is:
+//
+//   - a non-autonomous quotient spectral system
+//   - with representation-dependent Hilbert fibers
+//   - with non-canonical inter-fiber comparison data
+//
+// NOT:
+//
+//   - a category
+//   - a fiber bundle over time
+//   - a geometric moduli space
+//   - a connection theory
+//
+// BUT ALSO NOT:
+//
+//   - structureless
+//   - Hom-free
+//
+// IT IS:
+//
+//   → structured but canonically underdetermined
+//
+// ============================================================================
+
+
+// ============================================================================
+// 8. DEV NOTES (FORMALIZED ENGINEERING CONSTRAINTS)
+// ============================================================================
+
+pub mod dev_notes {
+
+    /// -----------------------------
+    /// HASH IS OBSERVATIONAL ONLY
+    /// -----------------------------
+    ///
+    /// The hash function is a fingerprint of state.
+    /// It MUST NOT influence:
+    ///   - Hamiltonian
+    ///   - Quotient structure
+    ///   - Mutation events
+    ///
+    pub fn safe_hash_observer(_state: &super::State) -> u64 {
+        0
+    }
+
+    /// -----------------------------
+    /// INVARIANTS TO MAINTAIN
+    /// -----------------------------
+    ///
+    /// - Unitary evolution applies only within fixed fiber
+    /// - Mutation = topology reset (non-unitary event)
+    /// - No hidden feedback from observers
+    /// - No implicit coupling between VLP and dynamics
+    ///
+    pub const INVARIANTS: [&str; 4] = [
+        "fiberwise_unitarity",
+        "mutation_is_non_unitary",
+        "observer_is_read_only",
+        "no_feedback_loops",
+    ];
+}
+
+// ============================================================================
+// 9. PORTING GUIDE (LANGUAGE INTEGRATION LAYER)
+// ============================================================================
+
+pub mod porting {
+
+    /// -----------------------------
+    /// PYTHON PORTING
+    /// -----------------------------
+    ///
+    /// - Use PyO3 or ctypes for DVSMSystem exposure
+    /// - Map State → NumPy array (complex dtype)
+    /// - Hamiltonian → SciPy sparse matrix
+    /// - Evolution → vectorized linear algebra
+    ///
+    /// IMPORTANT:
+    /// Keep mutation (graph rewrite) outside Python hot loop.
+    pub const PYTHON: &str = r#"
+Use PyO3 or ctypes bindings.
+State -> numpy.ndarray (complex128)
+Hamiltonian -> scipy.sparse or dense ndarray
+Evolution -> SciPy linear solver or Rust backend calls
+Mutation -> separate control layer (not in Python loop)
+"#;
+
+    /// -----------------------------
+    /// C++ PORTING
+    /// -----------------------------
+    ///
+    /// - TransportOperator → std::variant or class hierarchy
+    /// - Hamiltonian → Eigen::MatrixXd
+    /// - Evolution → Eigen LU / decomposition
+    ///
+    pub const CPP: &str = r#"
+Use Eigen for Hamiltonian operations.
+TransportOperator -> std::variant or polymorphic base class.
+Evolution uses LU decomposition or matrix exponential approximations.
+"#;
+
+    /// -----------------------------
+    /// GO PORTING
+    /// -----------------------------
+    ///
+    /// - State → []complex128
+    /// - Hamiltonian → [][]float64 or custom complex struct
+    ///
+    pub const GO: &str = r#"
+Represent complex state as []complex128.
+Hamiltonian as [][]float64 or custom complex struct.
+No native linear algebra; use gonum or custom solver.
+"#;
+
+    /// -----------------------------
+    /// FUNCTIONAL PARADIGM NOTES
+    /// -----------------------------
+    ///
+    /// DVSM maps cleanly to:
+    /// - pure functions (projection, evolution)
+    /// - monadic state threading (time evolution)
+    /// - immutable graph transformations
+    ///
+    pub const FUNCTIONAL: &str = r#"
+Treat DVSM as pure transformations:
+Graph -> Quotient -> Hilbert -> State
+Use State monad or pure recursion over time steps.
+Mutation = discontinuous state rewrite event.
+"#;
+}
+
+// ============================================================================
+// 10. EXECUTION PLACEHOLDER
+// ============================================================================
+
+fn main() {
+    // DVSM is not executed as a single deterministic program.
+    // It is a layered structural system.
+}
+
 // -----------------------------------------------------------------------------
 // END
 // -----------------------------------------------------------------------------
