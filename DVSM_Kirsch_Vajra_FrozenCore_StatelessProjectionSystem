@@ -668,7 +668,195 @@ impl Vajra<FractureClass> {
 // - No unified metric space
 // - No transport between domains
 // - No implicit geometry reconstruction
-//
-// ============================================================================
-//
-// ============================================================================
+
+```text id="eil_whitepaper_file"
+===============================================================================
+EPistemic Isolation Lattice (EIL)
+Security Policy Whitepaper
+Frozen-Core Observational Architecture Specification
+===============================================================================
+
+1. ABSTRACT
+-------------------------------------------------------------------------------
+The Epistemic Isolation Lattice (EIL) defines a type-level security framework
+for multi-domain observational systems where heterogeneous physical processes
+are reduced to scalar traces without permitting cross-domain compositionality.
+
+Goal:
+    Prevent lateral leakage between independent Collapse Classes by enforcing
+    compile-time non-commensurability.
+
+Security primitive:
+    Type isolation > runtime encryption
+
+-------------------------------------------------------------------------------
+
+2. SYSTEM OVERVIEW
+-------------------------------------------------------------------------------
+
+EIL is a constraint architecture composed of:
+
+- Collapse Classes (domain markers)
+- Vajra evaluators (domain-local scalar reducers)
+- TraceLog (domain-agnostic scalar residue)
+- Phantom type separation lattice
+
+Key invariant:
+    No structural or mathematical operator exists that can unify domains.
+
+-------------------------------------------------------------------------------
+
+3. COLLAPSE CLASSES
+-------------------------------------------------------------------------------
+
+Each physical domain is represented as a phantom type:
+
+    KirschClass    -> spatial boundary collapse systems
+    BubbleClass    -> temporal fluid collapse systems
+    FractureClass  -> material failure systems
+
+Definition:
+
+    trait CollapseClass {}
+
+Constraint:
+    - No methods
+    - No shared behavior
+    - No runtime semantics
+
+Purpose:
+    Enforce irreducible domain separation at compile time.
+
+-------------------------------------------------------------------------------
+
+4. VAJRA EVALUATOR FAMILY
+-------------------------------------------------------------------------------
+
+Each CollapseClass has a dedicated evaluator:
+
+    Vajra<KirschClass>
+    Vajra<BubbleClass>
+    Vajra<FractureClass>
+
+Behavior:
+    - Accepts only matching CollapseClass TraceLog streams
+    - Computes scalar deviation from anchor
+    - Produces independent scalar output
+
+Invariant:
+    Identical computation ≠ shared meaning
+
+Security property:
+    No cross-type instantiation or aggregation is allowed.
+
+-------------------------------------------------------------------------------
+
+5. TRACE LAYER
+-------------------------------------------------------------------------------
+
+struct TraceLog {
+    values: Vec<f64>
+}
+
+Properties:
+    - domain-agnostic scalar container
+    - no metadata linking to CollapseClass
+    - no structural encoding of origin
+
+Security function:
+    Prevent provenance leakage across domains.
+
+-------------------------------------------------------------------------------
+
+6. SECURITY PROPERTIES
+-------------------------------------------------------------------------------
+
+6.1 Type-Level Isolation
+    - No function accepts mixed CollapseClass parameters
+    - No polymorphic reduction across domains
+    - No shared evaluator interface
+
+6.2 No Metric Space
+    - No global norm
+    - No inter-domain distance function
+    - No embedding or normalization layer
+
+6.3 No Compositional Closure
+    - No aggregation across CollapseClasses
+    - No summation, averaging, or fusion operators
+    - No latent joint representation allowed
+
+Result:
+    Each domain is computationally isolated.
+
+-------------------------------------------------------------------------------
+
+7. THREAT MODEL
+-------------------------------------------------------------------------------
+
+Prevented threats:
+
+    - Cross-domain correlation mining
+    - Latent geometry reconstruction
+    - Unified system health inference
+    - Multi-physics embedding attacks
+
+External threats NOT mitigated:
+
+    - Human interpretation of outputs
+    - External statistical post-processing
+    - Off-system reconstruction pipelines
+
+-------------------------------------------------------------------------------
+
+8. DESIGN PHILOSOPHY
+-------------------------------------------------------------------------------
+
+EIL is not a simulation model.
+
+It is a constraint enforcement system:
+
+    Observation ≠ Knowledge fusion
+    Scalar output ≠ shared meaning
+    Multiple systems ≠ unified space
+
+Core principle:
+    Prevent formation of structure, not just protect data.
+
+-------------------------------------------------------------------------------
+
+9. FORMAL GUARANTEE
+-------------------------------------------------------------------------------
+
+Within system boundaries:
+
+    ∄ operator O such that:
+        O(KirschTrace, BubbleTrace, FractureTrace)
+        → metric space / geometry / causal graph
+
+Enforced by:
+    - Rust type system
+    - Phantom type isolation
+    - Absence of cross-domain traits
+
+-------------------------------------------------------------------------------
+
+10. CONCLUSION
+-------------------------------------------------------------------------------
+
+The Epistemic Isolation Lattice enforces a strict separation of observational
+domains such that:
+
+    - Physical systems remain irreducible
+    - Observations remain scalar-only
+    - Cross-domain structure is unrepresentable
+
+This shifts system security from:
+    “protecting data integrity”
+to:
+    “preventing meaning synthesis across domains”
+
+===============================================================================
+END OF FILE
+===============================================================================
+```
