@@ -24,35 +24,81 @@ Thus:
 // OBSERVATION–INTERACTION SEPARATION (DQSD CORE AXIOM)
 // ============================================================
 //
-//   Ω(V) := O(V) ∘ π(V)              // observation is projection only
-//   I(V) := U_t(V) ∘ M_t(V)          // interaction = evolution + mutation
+// CORE STRUCTURAL SPLIT:
 //
-//   Ω(V) ∩ I(V) = ∅                  // no causal overlap
+//   V := full system state (fibered / representation-dependent)
 //
-//   K(V) : selects section σ_t       // kernel fixes representation only
+// ------------------------------------------------------------
+// OBSERVATION LAYER (epistemic / projectional)
+// ------------------------------------------------------------
 //
-//   Ω(V; σ_t) := (f ∘ σ_t)(V)        // observation depends on chosen gauge
+//   π : V → V_red
+//   O : V_red → R
 //
-// ============================================================================
+//   Ω(V) := O(π(V))
 //
-// impl CanonicalKernel {
+// Interpretation:
+//   Ω is a projection-followed-by-evaluation functional.
+//   It does not participate in state evolution.
+//
+// ------------------------------------------------------------
+// INTERACTION LAYER (dynamical / generative)
+// ------------------------------------------------------------
+//
+//   U_t : V → V
+//   M_t : V → V
+//
+//   I_t(V) := (U_t ∘ M_t)(V)
+//
+// Interpretation:
+//   I_t is the sole state-update operator.
+//
+// ------------------------------------------------------------
+// SEPARATION AXIOM (CAUSAL DIRECTIONALITY)
+// ------------------------------------------------------------
+//
+//   I → Ω allowed
+//   Ω → I forbidden
+//
+// Meaning:
+//   - Ω does not influence state updates
+//   - I does not depend on observational output
+//
+// NOTE:
+// This is a directional dependency constraint,
+// not a set-theoretic orthogonality claim.
+//
+// ------------------------------------------------------------
+// KERNEL (REPRESENTATION SELECTION)
+// ------------------------------------------------------------
+//
+//   σ_t ∈ Σ(V)
+//
+//   K(V) := σ_t
+//
+// Kernel role:
+//   selects a representation section from admissible structures
+//   without modifying V
+//
+// Interpretation:
+//   contextual re-description, not causal transformation
+//
+// ------------------------------------------------------------
+// SECTION-RELATIVE OBSERVATION
+// ------------------------------------------------------------
+//
+//   Ω(V; σ_t) := O( σ_t(V) )
+//
+// Equivalently:
+//
+//   Ω_σt := O ∘ σ_t
+//
+// Interpretation:
+//   observation is only defined relative to a chosen section.
+//   it is not invariant under changes of σ_t.
+//
+// ============================================================
 
-    // ============================================================
-    // OBSERVATION–INTERACTION SEPARATION (DQSD CORE AXIOM)
-    // ============================================================
-    //
-    // Ω(V) := O(V) ∘ π(V)
-    // I(V) := U_t(V) ∘ M_t(V)
-    //
-    // Ω(V) ∩ I(V) = ∅
-    //
-    // K(V) : σ_t (gauge section selection)
-    //
-    // Ω(V; σ_t) := (f ∘ σ_t)(V)
-    //
-    // ============================================================
-
-}
 //
 // ============================================================================
 
