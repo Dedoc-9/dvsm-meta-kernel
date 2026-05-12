@@ -32,6 +32,176 @@
 // Any apparent structure in this file is descriptive only.
 // No definition here is allowed to become generative in a
 // mathematical, geometric, or dynamical sense.
+// ============================================================================
+// ADDENDUM — RUNTIME EXECUTION + DIAGNOSTIC PIPELINE
+// ============================================================================
+//
+// PURPOSE:
+// ------------------------------------------------------------
+//
+// This block defines operational execution semantics ONLY.
+// It does NOT extend the theory.
+//
+// It provides:
+//   - deterministic state evolution
+//   - trace generation
+//   - section-relative observation
+//   - leak signature classification
+//
+// It explicitly avoids:
+//   - optimization
+//   - learning
+//   - adaptation
+//   - representational closure
+//   - feedback coupling
+// ============================================================================
+
+// ============================================================================
+// CORE STATE UPDATE LOOP (ONTOLOGICALLY LOCAL ONLY)
+// ============================================================================
+
+pub struct Interaction;
+
+impl Interaction {
+    /// Pure state transition (no external dependency)
+    pub fn evolve(v: V) -> V {
+        V {
+            _m: PhantomData,
+            state: v.state.wrapping_add(1),
+        }
+    }
+}
+
+// ============================================================================
+// OBSERVATION PIPELINE (EPISTEMIC PROJECTION ONLY)
+// ============================================================================
+
+pub struct Observation;
+
+impl Observation {
+    /// Section-relative scalar projection
+    pub fn observe(v: &V, _sigma: &Sigma) -> f64 {
+        // NOTE:
+        // σ is context-only; no causal influence permitted.
+        (v.state % 97) as f64
+    }
+}
+
+// ============================================================================
+// KERNEL (NON-CANONICAL SECTION SELECTOR)
+// ============================================================================
+
+pub struct Kernel;
+
+impl Kernel {
+    /// Selects an arbitrary representation index
+    pub fn select(&self, sigma: &Sigma) -> Option<String> {
+        sigma.sigma.first().cloned()
+    }
+}
+
+// ============================================================================
+// SYSTEM EXECUTION LOOP (CAUSAL DIRECTION ONLY)
+// ============================================================================
+
+pub struct System {
+    pub v: V,
+    pub sigma: Sigma,
+}
+
+pub struct TraceLog {
+    pub values: Vec<f64>,
+}
+
+impl System {
+    /// Single execution tick
+    pub fn step(&mut self, kernel: &Kernel, trace: &mut TraceLog) {
+
+        // 1. Ontic update (closed internal evolution)
+        self.v = Interaction::evolve(self.v.clone());
+
+        // 2. Observation (epistemic projection only)
+        let obs = Observation::observe(&self.v, &self.sigma);
+        trace.values.push(obs);
+
+        // 3. Kernel selection (inert indexing only)
+        let _ = kernel.select(&self.sigma);
+    }
+}
+
+// ============================================================================
+// TRACE-LEVEL META EVALUATION (NON-INTERVENTIVE)
+// ============================================================================
+
+pub struct Vajra;
+
+impl Vajra {
+    /// Aggregates trace only — no system interaction
+    pub fn evaluate(trace: &TraceLog) -> f64 {
+        trace.values.iter().sum()
+    }
+}
+
+// ============================================================================
+// INCONSISTENCY FUNCTIONAL (SCALAR COMPARISON ONLY)
+// ============================================================================
+
+pub struct Delta;
+
+impl Delta {
+    /// Non-structural comparison between representation sizes
+    pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
+        (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
+    }
+}
+
+// ============================================================================
+// LEAK ANALYZER (DIAGNOSTIC ONLY — NO CAUSAL ROLE)
+// ============================================================================
+
+pub enum LeakSignature {
+    OptimizationPattern,
+    MemoryPattern,
+    CompositionalPattern,
+    TransportPattern,
+    FeedbackPattern,
+}
+
+pub struct LeakAnalyzer;
+
+impl LeakAnalyzer {
+
+    /// Pure classification over trace history
+    pub fn classify(trace: &TraceLog) -> Option<LeakSignature> {
+
+        // Memory-like plateau detection (heuristic only)
+        if trace.values.windows(2).any(|w| (w[1] - w[0]).abs() < f64::EPSILON) {
+            return Some(LeakSignature::MemoryPattern);
+        }
+
+        // Instability signature (heuristic only)
+        if trace.values.iter().any(|v| v.is_nan() || v.is_infinite()) {
+            return Some(LeakSignature::OptimizationPattern);
+        }
+
+        None
+    }
+}
+
+// ============================================================================
+// GLOBAL CONSTRAINT (HARD NON-INTERVENTION GUARANTEE)
+// ============================================================================
+//
+// LeakAnalyzer and Vajra:
+//
+//   MUST NOT influence:
+//     - V
+//     - Sigma
+//     - Kernel
+//     - Interaction
+//
+// They are strictly observational and post-hoc only.
+// ============================================================================
 //
     // mental rule:
 
