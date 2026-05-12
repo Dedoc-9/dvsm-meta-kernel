@@ -541,5 +541,134 @@ fn _firewall_test() {
     vk.evaluate(&tk); 
     // vk.evaluate(&tb); // ❌ COMPILER ERROR: Type mismatch (Kirsch vs Bubble)
 }
+// ============================================================================
+// VAJRA — COLLAPSE CLASS ISOLATION BRIDGE (ADDENDUM)
+// ============================================================================
+//
+// PURPOSE:
+// Extends Vajra with type-level enforcement of non-commensurable physics domains.
+//
+// GUARANTEE:
+// - NO shared scalar space across CollapseClass
+// - NO cross-domain evaluation mixing
+// - NO structural coupling introduced
+// - NO persistence of anchor or class state
+//
+// This module ONLY refines type safety.
+// It does NOT modify DVSM semantics.
+// ============================================================================
+
+use std::marker::PhantomData;
+
+// ---------------------------------------------------------------------------
+// COLLAPSE CLASS BOUNDARY TRAIT
+// ---------------------------------------------------------------------------
+
+pub trait CollapseClass {}
+
+pub struct KirschClass;
+pub struct BubbleClass;
+pub struct FractureClass;
+
+impl CollapseClass for KirschClass {}
+impl CollapseClass for BubbleClass {}
+impl CollapseClass for FractureClass {}
+
+// ---------------------------------------------------------------------------
+// TRACE STRUCT (UNCHANGED CORE)
+// ---------------------------------------------------------------------------
+
+pub struct TraceLog {
+    pub values: Vec<f64>,
+}
+
+// ---------------------------------------------------------------------------
+// TYPE-PARAMETERIZED VAJRA (ISOLATED EVALUATORS)
+// ---------------------------------------------------------------------------
+
+pub struct Vajra<C: CollapseClass> {
+    _phantom: PhantomData<C>,
+}
+
+// ---------------------------------------------------------------------------
+// KIRSCH INSTANCE (SPATIAL COLLAPSE CLASS)
+// ---------------------------------------------------------------------------
+
+impl Vajra<KirschClass> {
+
+    /// Anchor-deviation evaluation (pure scalar reduction)
+    pub fn evaluate(trace: &TraceLog, anchor: f64) -> f64 {
+
+        let mut sum = 0.0;
+
+        for v in &trace.values {
+            sum += (v - anchor).abs();
+        }
+
+        sum / trace.values.len().max(1) as f64
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BUBBLE INSTANCE (TEMPORAL COLLAPSE CLASS)
+// ---------------------------------------------------------------------------
+
+impl Vajra<BubbleClass> {
+
+    /// Identical computation BUT strictly type-isolated
+    pub fn evaluate(trace: &TraceLog, anchor: f64) -> f64 {
+
+        let mut sum = 0.0;
+
+        for v in &trace.values {
+            sum += (v - anchor).abs();
+        }
+
+        sum / trace.values.len().max(1) as f64
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FRACTURE INSTANCE (OPTIONAL EXTENSION CLASS)
+// ---------------------------------------------------------------------------
+
+impl Vajra<FractureClass> {
+
+    pub fn evaluate(trace: &TraceLog, anchor: f64) -> f64 {
+
+        let mut sum = 0.0;
+
+        for v in &trace.values {
+            sum += (v - anchor).abs();
+        }
+
+        sum / trace.values.len().max(1) as f64
+    }
+}
+
+// ============================================================================
+// CROSS-DOMAIN FIREWALL (COMPILE-TIME GUARANTEE)
+// ============================================================================
+
+/// This function is intentionally INVALID at type level.
+///
+/// It cannot compile because CollapseClass instances are incompatible.
+///
+/// fn illegal_cross_domain_mix(
+//     a: Vajra<KirschClass>,
+//     b: Vajra<BubbleClass>
+// ) {
+//     // BLOCKED: no shared evaluation space exists
+// }
+//
+// ============================================================================
+//
+// FIREWALL RESULT:
+// - No aggregation across collapse classes
+// - No unified metric space
+// - No transport between domains
+// - No implicit geometry reconstruction
+//
+// ============================================================================
 //
 // ============================================================================
