@@ -2021,7 +2021,67 @@ Mutation = discontinuous state rewrite event.
 }
 
 // ============================================================================
-// 10. EXECUTION PLACEHOLDER
+// 10. EXECUTION PLACEHOLDER (REFINED)
+// ============================================================================
+//
+// PURPOSE:
+// This section does NOT define a canonical execution semantics.
+// It defines the boundary where execution semantics must be *selected*
+// rather than assumed from the structure.
+//
+// CORE INVARIANT:
+// Local evolution is well-defined.
+// Global execution order depends on an external or chosen alignment policy.
+//
+// IMPLICATION:
+// Any runtime behavior here is a *realization* of DVSM,
+// not the unique interpretation of DVSM.
+
+pub struct ExecutionContext {
+    /// Selected (non-canonical) alignment / transport policy
+    pub alignment_policy: Option<AlignmentPolicy>,
+
+    /// Local evolution engine (fiber-wise correct)
+    pub local_step: fn(State) -> State,
+}
+
+pub enum AlignmentPolicy {
+    DeterministicReplay,
+    BestEffortConsistency,
+    LatentAlignment,
+    ExternalOrchestrated,
+}
+
+impl ExecutionContext {
+
+    /// Executes one step of local evolution.
+    /// This is canonical within a fiber, not across time-indexed fibers.
+    pub fn step(&self, state: State) -> State {
+        (self.local_step)(state)
+    }
+
+    /// Cross-time interpretation hook.
+    /// NOTE:
+    /// Output depends on chosen alignment policy.
+    /// No policy implies non-unique reconstruction.
+    pub fn reconstruct_global(&self, history: Vec<State>) -> Option<GlobalView> {
+        match self.alignment_policy {
+            Some(_) => Some(GlobalView::from(history)), // policy-dependent interpretation
+            None => None, // explicitly underconstrained
+        }
+    }
+}
+
+// ============================================================================
+// DESIGN STATEMENT
+// ============================================================================
+//
+// Execution is not a single canonical function.
+// It is a family of realizations over locally valid dynamics,
+// parameterized by an explicit alignment choice.
+//
+// In absence of a policy:
+//     global execution is not defined, only local evolution is.
 // ============================================================================
 
 fn main() {
