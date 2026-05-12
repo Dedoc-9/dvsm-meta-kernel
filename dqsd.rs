@@ -104,7 +104,7 @@ Thus:
 //   Ω_VAJRA is a second-order evaluator:
 //   it observes observations without participating in them.
 //
-// // ============================================================
+// ============================================================
 // 5. CATEGORICAL STRUCTURE (CAUSAL + REPRESENTATION DIAGRAM)
 // ============================================================
 //
