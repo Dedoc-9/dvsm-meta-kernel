@@ -1101,3 +1101,35 @@ pub const FROZEN_CORE: bool = true;
 /// It exists ONLY as structural constraint documentation.
 ///
 /// ============================================================================
+    
+    /physics_boundary_cpp/
+    → reality generator (Φ_C)
+
+// ----------------------------------------
+
+/kernel_registry_types/
+    → type ontology only (CollapseClass)
+
+// ----------------------------------------
+
+/dvsm_core/
+    → blind state evolution engine (V)
+
+// ----------------------------------------
+
+/vajra_observer/
+    → scalar residue analyzer (Ω only)
+
+// ----------------------------------------
+
+/firewall_spec/
+    → structural constraint system (NO runtime role)
+
+/firewall_spec/ must satisfy:
+
+Firewall ∩ Runtime = ∅
+
+or more explicitly:
+
+∀ x ∈ Firewall:
+    x ∉ DVSM ∧ x ∉ Physics ∧ x ∉ Observer
