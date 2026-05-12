@@ -2,7 +2,11 @@
 // DVSM / EIL / DQSDv2 — COLLAPSED QUOTIENT DYNAMICAL SYSTEM (C-STYLE RUST)
 // Author: Daniel J. Dillberg
 // ============================================================================
-//
+// Deterministic bounded-memory dynamical system in Rust:
+// state evolves via pure update rules with FIFO memory constraint,
+// mod-1 scalar normalization, and projection-based observation layer.
+// Suitable for simulation, control systems, and time-series modeling.
+
 // CORE MATHEMATICAL MODEL:
 //
 //   S_{t+1} = F(S_t, u_t)
