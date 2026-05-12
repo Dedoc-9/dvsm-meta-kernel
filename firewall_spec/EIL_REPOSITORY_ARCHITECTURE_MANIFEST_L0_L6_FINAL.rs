@@ -11,17 +11,72 @@
 // transformation layers with contract-enforced interfaces and lossy
 // state compression.
 //
+// The system evolves over a single shared state space S:
+//
+//   S_t = (v_t, H_t)
+//
+// where:
+//   v_t ∈ [0,1)         // compact scalar state (mod 1 via fract)
+//   H_t ∈ ℝ^N           // bounded memory buffer (trace history)
+//
+// Evolution is governed by a deterministic update rule:
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// with explicit time progression t → t+1 and bounded memory truncation.
+//
+// ---------------------------------------------------------------------------
+//
 // It is NOT:
 //   - an epistemically isolated lattice
 //   - a multi-ontology or multi-domain semantic universe
 //   - a physically grounded simulation of distinct real-world systems
 //   - a set of independent computational realities
+//   - a system of mutually non-interacting state spaces
+//
+// ---------------------------------------------------------------------------
 //
 // It IS:
-//   - a single unified dynamical system operating over a shared scalar domain
-//   - structured into type-separated modules for correctness, safety, and clarity
-//   - governed by explicit execution, memory, and time constraints
-//   - composed of contract-bound transformation pipelines with lossy feedback
+//   - a single deterministic discrete-time dynamical system
+//   - operating over a shared scalar + bounded-history state space
+//   - structured into type-separated modules (not separate domains)
+//   - governed by explicit contracts defining valid transformations
+//   - constrained by global memory bounds and clocked execution
+//   - composed of lossy (non-invertible in practice) observation and
+//     transformation operators over the same underlying state
+//
+// ---------------------------------------------------------------------------
+//
+// CORE STRUCTURE SUMMARY:
+//
+//   State:
+//     S_t = (v_t, H_t)
+//
+//   Dynamics:
+//     v_{t+1} = (v_t + u_t) mod 1
+//     H_{t+1} = truncate(append(H_t, v_{t+1}), N)
+//
+//   System Class:
+//     Deterministic, nonlinear, bounded-memory recurrence system
+//
+// ---------------------------------------------------------------------------
+//
+// ARCHITECTURAL INTERPRETATION:
+//
+// - Modules are CONTRACTED TRANSFORM LAYERS over a single state space
+// - Separation is STRUCTURAL (typing + interface constraints), not ontological
+// - Lossy transforms are NON-INJECTIVE mappings on shared scalar domain
+// - Memory is a bounded FIFO-like projection of past states
+// - Time is a discrete global clock shared across all components
+//
+// ---------------------------------------------------------------------------
+//
+// RESULTING PROPERTY:
+//
+//   All components participate in one unified dynamical evolution,
+//   with enforced interface boundaries ensuring correctness,
+//   not separation into independent computational realities.
+// ---------------------------------------------------------------------------
 // ============================================================================
 
 #![allow(dead_code)]
@@ -779,7 +834,201 @@ impl<P: MemoryPolicy> Runtime<P> {
 //   - a physically irreversible simulator
 //
 // ============================================================================
+// ============================================================================
+// PURPOSE (MATHEMATICALLY DEFINED CURRENT STATE)
+// ============================================================================
+//
+// This file defines a single discrete-time dynamical system over a compact
+// state space with bounded memory and typed transformation interfaces.
+//
+// It is NOT:
+//   - a multi-ontology system
+//   - a set of independent computational domains
+//   - an epistemically isolated architecture
+//   - a physically distinct simulation of separate systems
+//
+// It IS:
+//   - a deterministic nonlinear recurrence system
+//   - over a single shared state space S
+//   - with bounded memory history H
+//   - and typed projection / transformation interfaces
+//
+// ============================================================================
 
+// ============================================================================
+// 1. FORMAL MATHEMATICAL MODEL
+// ============================================================================
+//
+// State:
+//
+//   S_t = (v_t, H_t)
+//
+// where:
+//
+//   v_t ∈ [0,1)                     // compact scalar state (mod 1 via fract)
+//   H_t ∈ ℝ^N                       // bounded history buffer
+//
+// Dynamics:
+//
+//   v_{t+1} = (v_t + u_t) mod 1
+//   H_{t+1} = truncate( append(H_t, v_{t+1}), N )
+//
+// where:
+//
+//   u_t ∈ ℝ                         // external or computed input
+//   truncate : ℝ^k → ℝ^N            // sliding-window memory operator
+//
+// This defines:
+//
+//   A discrete-time, deterministic, nonlinear recurrence system
+//   on a compact state space with finite memory.
+//
+// ============================================================================
+
+#![allow(dead_code)]
+
+// ============================================================================
+// 2. CORE STATE STRUCTURE
+// ============================================================================
+
+/// Global shared state (single dynamical system)
+pub struct SystemState {
+    pub value: f64,        // v_t ∈ [0,1)
+    pub trace: Vec<f64>,   // H_t (finite memory buffer)
+}
+
+// ============================================================================
+// 3. STATE UPDATE KERNEL (DETERMINISTIC DYNAMICS)
+// ============================================================================
+
+/// Global evolution operator F(S_t, u_t) → S_{t+1}
+pub trait StateTransition {
+    fn step(state: &mut SystemState, input: f64);
+}
+
+// Example deterministic update rule
+pub struct CoreKernel;
+
+impl StateTransition for CoreKernel {
+    fn step(state: &mut SystemState, input: f64) {
+        state.value = (state.value + input).fract();
+        state.trace.push(state.value);
+
+        // implicit memory bound (conceptual truncate)
+        if state.trace.len() > 1024 {
+            state.trace.remove(0);
+        }
+    }
+}
+
+// ============================================================================
+// 4. TIME MODEL (DISCRETE CLOCK)
+// ============================================================================
+
+/// Discrete time evolution t → t+1
+pub trait Clocked {
+    fn tick(t: u64) -> u64;
+}
+
+// ============================================================================
+// 5. SYSTEM VARIABLE PROJECTION
+// ============================================================================
+//
+// A SystemVariable is a projection π : S → ℝ
+// It does NOT define a separate state space.
+//
+pub trait SystemVariable {
+    fn read(state: &SystemState) -> f64;
+    fn write(state: &mut SystemState, value: f64);
+}
+
+// ============================================================================
+// 6. LOSSY TRANSFORM (NON-INJECTIVE OBSERVATION MAP)
+// ============================================================================
+//
+// f : ℝ → ℝ
+// Many-to-one mapping (information reducing, not invertible in practice)
+//
+pub trait LossyTransform {
+    fn compress(input: f64) -> f64;
+}
+
+// ============================================================================
+// 7. MEMORY BOUNDARY OPERATOR
+// ============================================================================
+//
+// H_{t+1} = truncate(H_t, N)
+// Sliding-window constraint on system history.
+//
+pub trait MemoryBounded {
+    fn enforce(state: &mut SystemState);
+}
+
+// ============================================================================
+// 8. TRAIT SEMANTICS (STRUCTURAL INTERPRETATION ONLY)
+// ============================================================================
+//
+// These traits define roles within a single dynamical system:
+//
+//   SystemVariable     → projection π(S → ℝ)
+//   LossyTransform     → non-injective function on ℝ
+//   Clocked            → discrete time constraint t → t+1
+//   MemoryBounded      → finite history operator
+//
+// They do NOT define:
+//   - separate systems
+//   - independent domains
+//   - ontological partitions
+//
+// They define a typed interface over one shared state space.
+//
+// ============================================================================
+
+// ============================================================================
+// 9. CAPABILITY MARKERS (COMPILE-TIME ONLY)
+// ============================================================================
+
+/// Marks participation in deterministic runtime
+pub trait DeterministicParticipant {}
+
+/// Marks projection-only behavior (no state ownership)
+pub trait ProjectionOnly {}
+
+/// Marks non-invertible transformation behavior
+pub trait NonInvertibleTransform {}
+
+/// Marks participation in global memory constraint system
+pub trait GlobalMemoryPolicy {}
+
+/// Structural tagging only (no semantic separation implied)
+pub trait StructuralPartition {}
+
+// ============================================================================
+// 10. CORRECT SYSTEM CLASSIFICATION
+// ============================================================================
+//
+// This system is formally:
+//
+//   A deterministic discrete-time dynamical system over a compact state
+//   space with bounded memory and typed projection/transformation interfaces.
+//
+// Equivalent mathematical class:
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// where:
+//
+//   S_t ∈ [0,1) × ℝ^N
+//   F : S → S is deterministic and nonlinear
+//
+// ============================================================================
+//
+// KEY RESULT:
+// ---------------------------------------------------------------------------
+// All modular structure is representational only.
+// There is a single state space, a single evolution rule,
+// and a single time axis.
+//
 // ============================================================================
 // END FILE
 // ============================================================================
