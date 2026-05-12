@@ -94,7 +94,7 @@ impl Observation {
 pub struct Kernel;
 
 impl Kernel {
-    /// Selects an arbitrary representation index
+   /// Returns a non-canonical representation index (selection has no semantic interpretation)
     pub fn select(&self, sigma: &Sigma) -> Option<String> {
         sigma.sigma.first().cloned()
     }
@@ -149,29 +149,38 @@ impl Vajra {
 pub struct Delta;
 
 impl Delta {
-    /// Non-structural comparison between representation sizes
+    /// Pure cardinality differential between two representation containers (no metric interpretation)
     pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
         (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
     }
+}
+
+pub struct LeakAnalyzer {
+
 }
 
 // ============================================================================
 // LEAK ANALYZER (DIAGNOSTIC ONLY — NO CAUSAL ROLE)
 // ============================================================================
 
-pub enum LeakSignature {
-    OptimizationPattern,
-    MemoryPattern,
-    CompositionalPattern,
-    TransportPattern,
-    FeedbackPattern,
-}
-
-pub struct LeakAnalyzer;
-
 impl LeakAnalyzer {
 
-    /// Pure classification over trace history
+    // Explicit prohibition:
+    //
+    // Trace patterns MUST NOT be interpreted as:
+    //
+    //   - state memory
+    //   - temporal continuity
+    //   - optimization signal
+    //   - hidden dynamics inference
+    //
+    // NOTE:
+    
+// This detects repetition patterns in trace values only.
+    // All classifications are heuristic labels over trace data only.
+    // They do NOT correspond to ontic properties of V or Σ.
+    // It does NOT imply persistence, memory, or state retention in V.
+    
     pub fn classify(trace: &TraceLog) -> Option<LeakSignature> {
 
         // Memory-like plateau detection (heuristic only)
