@@ -6,6 +6,7 @@
 // It is now formally:
 
 // A surjective functor-induced quotient dynamical system with commutative observation semantics
+// Index below.
 // ============================================================================
 // ADDENDUM FILE OVERVIEW — EXECUTION CONSTRAINTS LAYER
 // ============================================================================
@@ -2387,6 +2388,59 @@ pub fn execute_strict_pipeline(
 // ============================================================================
 //
 // END ADDENDUM
+// ============================================================================
+// ============================================================================
+// M. FILE INDEX (STRUCTURAL SUMMARY)
+// ============================================================================
+//
+// This section provides a compact reference map of the specification.
+//
+// ---------------------------------------------------------------------------
+//
+// 1. OBSERVATION LAYER
+//    - O : S → 𝒪 (surjective projection functor)
+//    - Defines observable state space
+//    - Induces equivalence relation via kernel fibers
+//
+// ---------------------------------------------------------------------------
+//
+// 2. KERNEL STRUCTURE
+//    - ker(o) = { S ∈ S | O(S) = o }
+//    - Defines equivalence classes (state-space quotient structure)
+//
+// ---------------------------------------------------------------------------
+//
+// 3. EQUIVALENCE RELATION
+//    - S₁ ~ S₂ ⇔ O(S₁) = O(S₂)
+//    - Defines observational indistinguishability
+//
+// ---------------------------------------------------------------------------
+//
+// 4. DYNAMICS (LATENT SYSTEM)
+//    - F : S → S (DVSMCore)
+//    - Deterministic state transition function
+//
+// ---------------------------------------------------------------------------
+//
+// 5. OBSERVABLE DYNAMICS
+//    - f : 𝒪 → 𝒪 (ObservableDynamics)
+//    - Induced dynamics on quotient space
+//
+// ---------------------------------------------------------------------------
+//
+// 6. COMMUTATIVE STRUCTURE
+//    - O ∘ F = f ∘ O
+//    - Ensures consistency between latent and observable evolution
+//
+// ---------------------------------------------------------------------------
+//
+// 7. IMPLEMENTATION MODES
+//    - STRICT: canonical F implementation
+//    - EQUIVALENCE: any F_impl preserving observational commutativity
+//
+// ============================================================================
+//
+// END FILE INDEX
 // ============================================================================
 //
 // ============================================================================
