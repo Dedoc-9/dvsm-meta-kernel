@@ -799,4 +799,116 @@ impl System {
 //
 // It is strictly a read-only diagnostic layer.
 // ============================================================================
-
+// ============================================================================
+// DQSDv2 / DVSM — INTELLECTUAL PROPERTY + FREEZE AXIOM BLOCK
+// ============================================================================
+//
+// AUTHORSHIP NOTICE:
+// This specification defines a constrained representational language.
+//
+// It does NOT define:
+//   - a physical theory
+//   - a geometric model
+//   - a categorical structure
+//   - a simulation of dynamics
+//
+// Any external interpretation that reconstructs such structures
+// is considered OUT OF SCOPE and INVALID under this specification.
+//
+// ============================================================================
+// CORE CLASSIFICATION
+// ============================================================================
+//
+// This system is:
+//
+//   a stratified, non-closure constraint language over representation indices
+//
+// NOT:
+//
+//   - a manifold model
+//   - a category-theoretic system
+//   - a transport geometry
+//   - a variational optimization system
+//   - a dynamical functor system
+//
+// ============================================================================
+// HARD NON-COMPLETION AXIOMS
+// ============================================================================
+//
+// The following constructions are explicitly forbidden:
+//
+//   • optimization over Δ or Σ
+//   • transport or continuity induced from traces
+//   • compositional recovery of Σ(V)
+//   • categorical closure over representation indices
+//   • metric or topological enrichment of any layer
+//   • functorial interpretation of Interaction
+//   • feedback from Ω or Ω_VAJRA into V or Σ
+//
+// Any such construction constitutes a NEW THEORY, not a refinement.
+//
+// ============================================================================
+// KERNEL FIREBREAK GUARANTEE
+// ============================================================================
+//
+// K(V) := σ_t
+//
+// K is strictly:
+//
+//   - non-optimal
+//   - non-variational
+//   - non-geometric
+//   - non-transportive
+//
+// K acts only as a representation selector,
+// not as a structural generator.
+//
+// ============================================================================
+// Δ GUARANTEE
+// ============================================================================
+//
+// Δ : Σ × Σ → ℝ is:
+//
+//   - non-metric
+//   - non-curvature-bearing
+//   - non-composable
+//   - non-extendable unless explicitly redefined in a new theory layer
+//
+// ============================================================================
+// OBSERVATION GUARANTEE
+// ============================================================================
+//
+// Ω depends on (V, σ) only as projection context.
+//
+// Ω does NOT:
+//
+//   - influence V
+//   - influence Σ
+//   - persist as state memory
+//
+// ============================================================================
+// TRACE GUARANTEE (Ω_VAJRA)
+// ============================================================================
+//
+// Ω_VAJRA acts only on TraceLog.
+//
+// It does NOT access:
+//
+//   - V
+//   - Σ
+//   - K
+//
+// It is strictly second-order epistemic.
+//
+// ============================================================================
+// FINAL FREEZE STATEMENT
+// ============================================================================
+//
+// This system is defined by:
+//
+//   enforced non-closure across all representation strata.
+//
+// Any emergence of structure beyond this specification
+// is classified as external theory construction.
+//
+// ============================================================================
