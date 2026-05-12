@@ -324,3 +324,149 @@ fn main() {
         println!("MEM -> t:{} loss:{:.4}", tick.t, tick.loss);
     }
 }
+// ============================================================================
+// DVSM BOUNDED STATE MACHINE (v1.1)
+// Constraint-Restricted Stochastic Contraction Runtime Layer
+// ============================================================================
+//
+// ROLE:
+//   This module defines a bounded execution regime over DVSM Operator T.
+//
+//   It does NOT define a new system type.
+//   It constrains execution geometry of an existing contraction operator.
+//
+//   Formal interpretation:
+//     w_{t+1} = Π_B( T(w_t, x_t) )
+//
+//   where Π_B is projection onto a compact convex set B.
+//
+// ============================================================================
+
+use crate::Operator;
+use std::collections::VecDeque;
+
+// ============================================================================
+// 1. BOUNDED EXECUTION WRAPPER
+// ============================================================================
+
+pub struct BoundedDVSM<T>
+where
+    T: Operator<State = f64, Input = f64>,
+{
+    /// underlying contraction operator (T)
+    pub system: T,
+
+    /// compact state bound (defines convex projection set B = [-bound, bound])
+    pub bound: f64,
+
+    /// diagnostic trace space (NOT part of system state)
+    pub history: VecDeque<f64>,
+
+    /// finite memory horizon for diagnostics only
+    pub cap: usize,
+}
+
+impl<T> BoundedDVSM<T>
+where
+    T: Operator<State = f64, Input = f64>,
+{
+    pub fn new(system: T, bound: f64, cap: usize) -> Self {
+        Self {
+            system,
+            bound,
+            history: VecDeque::with_capacity(cap),
+            cap,
+        }
+    }
+
+    // ========================================================================
+    // 2. PROJECTION OPERATOR Π_B (GEOMETRIC CONSTRAINT)
+    // ========================================================================
+    //
+    // Interpretation:
+    //   Π_B(x) = projection onto convex compact interval [-bound, bound]
+    //
+    // This preserves contraction structure under bounded perturbation.
+    // ========================================================================
+
+    #[inline]
+    fn project(&self, state: f64) -> f64 {
+        if state > self.bound {
+            self.bound
+        } else if state < -self.bound {
+            -self.bound
+        } else {
+            state
+        }
+    }
+
+    // ========================================================================
+    // 3. EXECUTION STEP (CONSTRAINED OPERATOR APPLICATION)
+    // ========================================================================
+
+    pub fn step(&mut self, input: f64) -> f64 {
+        // raw contraction update
+        let mut state = self.system.step(input);
+
+        // geometric projection (bounded manifold constraint)
+        state = self.project(state);
+
+        // diagnostic trace update (non-causal layer)
+        self.history.push_back(state);
+        if self.history.len() > self.cap {
+            self.history.pop_front();
+        }
+
+        state
+    }
+
+    // ========================================================================
+    // 4. DIAGNOSTIC STABILITY METRIC (NON-CAUSAL)
+    // ========================================================================
+
+    pub fn variance_estimate(&self) -> f64 {
+        if self.history.is_empty() {
+            return 0.0;
+        }
+
+        let mean = self.history.iter().sum::<f64>() / self.history.len() as f64;
+
+        self.history
+            .iter()
+            .map(|x| (x - mean).powi(2))
+            .sum::<f64>()
+            / self.history.len() as f64
+    }
+}
+
+// ============================================================================
+// 5. BOUNDED OPERATOR CONTRACT (TYPE DISCIPLINE ONLY)
+// ============================================================================
+//
+// NOTE:
+// This is NOT a runtime constraint.
+// It is a compile-time semantic marker for systems compatible with Π_B.
+//
+// ============================================================================
+
+pub trait BoundedOperator {
+    fn is_within_bounds(&self, bound: f64) -> bool;
+}
+
+// ============================================================================
+// 6. INTERPRETATION LAYER (STRICTLY NON-CAUSAL)
+// ============================================================================
+//
+// This module implements:
+//
+//   bounded stochastic contraction systems under convex projection.
+//
+// It does NOT modify:
+//   - operator dynamics T
+//   - observation O
+//   - loss L
+//
+// It ONLY modifies:
+//   - admissible state manifold geometry
+//
+// ============================================================================
