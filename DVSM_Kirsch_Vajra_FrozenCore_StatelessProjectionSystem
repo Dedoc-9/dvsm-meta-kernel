@@ -410,5 +410,136 @@ impl Vajra {
         sum / trace.values.len().max(1) as f64
     }
 }
+// ============================================================================
+// DVSM / DQSDv2 MULTI-DOMAIN ISOLATION CORE
+// Author: Daniel J. Dillberg
+// Purpose: Type-level enforcement of physical non-commensurability.
+// ============================================================================
+
+use std::marker::PhantomData;
+
+// ============================================================================
+// I. COLLAPSE CLASS TRAITS (EPISTEMIC BOUNDARIES)
+// ============================================================================
+
+/// Marker trait for an irreducibility class. 
+/// Prevents cross-domain metric fusion at compile time.
+pub trait CollapseClass: Send + Sync {}
+
+pub struct KirschClass;    // Spatial Boundary Collapse (Elasticity)
+pub struct BubbleClass;    // Temporal Singularity Collapse (Hydrodynamics)
+pub struct FractureClass;  // Topological Discontinuity Collapse (Materials)
+
+impl CollapseClass for KirschClass {}
+impl CollapseClass for BubbleClass {}
+impl CollapseClass for FractureClass {}
+
+// ============================================================================
+// II. EXTERNAL PHYSICS INTERFACE (C++ BOUNDARY)
+// ============================================================================
+
+#[link(name = "physics_engine")]
+extern "C" {
+    /// C++ side handles the heavy PDE math (Kirsch or Rayleigh-Plesset)
+    fn get_external_field_sample(domain_id: u32, param: f64) -> f64;
+}
+
+// ============================================================================
+// III. TRACE RESIDUE (STOCHASTIC SINK)
+// ============================================================================
+
+pub struct TraceLog<C: CollapseClass> {
+    pub values: Vec<f64>,
+    _marker: PhantomData<C>,
+}
+
+impl<C: CollapseClass> TraceLog<C> {
+    pub fn new() -> Self {
+        Self { values: Vec::new(), _marker: PhantomData }
+    }
+}
+
+// ============================================================================
+// IV. TYPED VAJRA (THE SEMANTIC FIREWALL)
+// ============================================================================
+
+/// Vajra is parameterized by C. 
+/// Vajra<Kirsch> and Vajra<Bubble> are different types and cannot be compared.
+pub struct Vajra<C: CollapseClass> {
+    pub anchor: f64,
+    _marker: PhantomData<C>,
+}
+
+impl<C: CollapseClass> Vajra<C> {
+    pub fn new(anchor: f64) -> Self {
+        Self { anchor, _marker: PhantomData }
+    }
+
+    /// Evaluates statistical drift relative to the local coordinate origin.
+    pub fn evaluate(&self, trace: &TraceLog<C>) -> f64 {
+        if trace.values.is_empty() { return 0.0; }
+        let sum: f64 = trace.values.iter().map(|v| (v - self.anchor).abs()).sum();
+        sum / trace.values.len() as f64
+    }
+}
+
+// ============================================================================
+// V. META-VAJRA (THE TYPED OBSERVER LATTICE)
+// ============================================================================
+
+/// MetaVajra manages disparate systems but is STRUCTURALLY FORBIDDEN 
+/// from aggregating, summing, or correlating them.
+pub struct MetaVajra {
+    pub kirsch_monitor: Vajra<KirschClass>,
+    pub bubble_monitor: Vajra<BubbleClass>,
+}
+
+impl MetaVajra {
+    /// Juxtaposition-only reporting. No joint distribution is formed.
+    pub fn report(
+        &self, 
+        t_k: &TraceLog<KirschClass>, 
+        t_b: &TraceLog<BubbleClass>
+    ) -> (f64, f64) {
+        // We return a tuple of unrelated scalars.
+        // Any attempt to sum these (t1 + t2) is a logic error outside this scope.
+        (
+            self.kirsch_monitor.evaluate(t_k),
+            self.bubble_monitor.evaluate(t_b)
+        )
+    }
+}
+
+// ============================================================================
+// VI. THE NON-INTERVENTIVE HASH (STOCHASTIC PROJECTION)
+// ============================================================================
+
+pub struct Projection;
+
+impl Projection {
+    /// Collapses a domain-specific field into a scalar while stripping semantics.
+    pub fn collapse<C: CollapseClass>(domain_id: u32, seed: f64) -> f64 {
+        unsafe {
+            let raw = get_external_field_sample(domain_id, seed);
+            // Non-linear collapse + pseudo-noise to destroy invertibility
+            let obs = (raw / 1.0).atan(); 
+            let noise = (seed.sin() * 1000.0).fract() * 1e-4;
+            obs + noise
+        }
+    }
+}
+
+// ============================================================================
+// COMPILE-TIME VERIFICATION
+// ============================================================================
+
+fn _firewall_test() {
+    let vk = Vajra::<KirschClass>::new(3.0);
+    let vb = Vajra::<BubbleClass>::new(0.001);
+    let tk = TraceLog::<KirschClass>::new();
+
+    vk.evaluate(&tk); 
+    // vk.evaluate(&tb); // ❌ COMPILER ERROR: Type mismatch (Kirsch vs Bubble)
+}
 //
 // ============================================================================
