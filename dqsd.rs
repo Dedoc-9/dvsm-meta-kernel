@@ -21,83 +21,172 @@ Thus:
 - Any perceived coherence arises from gauge/section choice (σ_t)
 - Ω_VAJRA reports properties of realized sections, not intrinsic maps
 // ============================================================
-// OBSERVATION–INTERACTION SEPARATION (DQSD CORE AXIOM)
+// OBSERVATION–INTERACTION–META SEPARATION (DQSD + Ω_VAJRA ALIGNMENT)
 // ============================================================
 //
-// CORE STRUCTURAL SPLIT:
+// CORE STRUCTURE:
 //
-//   V := full system state (fibered / representation-dependent)
+//   V : total system state (fibered over representation space Σ)
 //
-// ------------------------------------------------------------
-// OBSERVATION LAYER (epistemic / projectional)
-// ------------------------------------------------------------
-//
-//   π : V → V_red
-//   O : V_red → R
-//
-//   Ω(V) := O(π(V))
-//
-// Interpretation:
-//   Ω is a projection-followed-by-evaluation functional.
-//   It does not participate in state evolution.
-//
-// ------------------------------------------------------------
-// INTERACTION LAYER (dynamical / generative)
-// ------------------------------------------------------------
+// ============================================================
+// 1. INTERACTION LAYER (CAUSAL / DYNAMICAL CORE)
+// ============================================================
 //
 //   U_t : V → V
 //   M_t : V → V
 //
-//   I_t(V) := (U_t ∘ M_t)(V)
+//   I_t := U_t ∘ M_t
 //
-// Interpretation:
-//   I_t is the sole state-update operator.
+//   V_{t+1} := I_t(V_t)
 //
-// ------------------------------------------------------------
-// SEPARATION AXIOM (CAUSAL DIRECTIONALITY)
-// ------------------------------------------------------------
+// AXIOM:
+//   I_t is the ONLY causal update operator.
+//   No other layer influences V.
 //
-//   I → Ω allowed
-//   Ω → I forbidden
+// ============================================================
+// 2. KERNEL LAYER (REPRESENTATION SELECTION)
+// ============================================================
+//
+//   Σ(V) : space of admissible sections (charts / gauges)
+//
+//   σ_t ∈ Σ(V_t)
+//
+//   K : V → Σ(V)
+//   K(V_t) := σ_t
+//
+// INTERPRETATION:
+//   K does not transform V.
+//   It selects a representation frame.
+//
+//   σ_t : V → V_{σ_t}
+//
+// ============================================================
+// 3. OBSERVATION LAYER (SECTION-RELATIVE EVALUATION)
+// ============================================================
+//
+//   π : V_{σ_t} → V_red
+//   O : V_red → R
+//
+//   Ω(V_t; σ_t) := O(π(σ_t(V_t)))
+//
+// EQUIVALENT:
+//
+//   Ω_σt := O ∘ π ∘ σ_t
+//
+// AXIOM:
+//   Ω is epistemic only:
+//   it reads structure, but cannot affect I_t or σ_t.
+//
+// ============================================================
+// 4. Ω_VAJRA LAYER (META-OBSERVATION / CAUSALLY INERT)
+// ============================================================
+//
+//   Ω_VAJRA : (V, σ_t) → R^k × metadata
+//
+//   Ω_VAJRA(V_t, σ_t) := F( Ω(V_t; σ_t), H(V_t) )
+//
+// where:
+//
+//   H(V_t) := derived invariants (spectral, entropic, diagnostic)
+//
+// IMPORTANT CONSTRAINT:
+//
+//   Ω_VAJRA ⟂ I_t
+//   Ω_VAJRA ⟂ K
+//   Ω_VAJRA ⟂ σ_t dynamics
 //
 // Meaning:
-//   - Ω does not influence state updates
-//   - I does not depend on observational output
+//   - it cannot influence evolution
+//   - it cannot select or modify representations
+//   - it cannot feed back into Ω or I
 //
-// NOTE:
-// This is a directional dependency constraint,
-// not a set-theoretic orthogonality claim.
+// INTERPRETATION:
+//   Ω_VAJRA is a second-order evaluator:
+//   it observes observations without participating in them.
+//
+// // ============================================================
+// 5. CATEGORICAL STRUCTURE (CAUSAL + REPRESENTATION DIAGRAM)
+// ============================================================
+//
+// OBJECTS:
+//
+//   V_t            : system state object
+//   Σ(V_t)         : space of admissible sections
+//   V_σt           : representation-chosen state
+//   R              : reduced observation space
+//   Meta(R)        : Ω_VAJRA diagnostic space
+//
+// MORPHISMS:
+//
+//   I_t   : V_t → V_{t+1}                         (dynamics)
+//   σ_t   : V_t → V_σt                            (gauge selection)
+//   π     : V_σt → R                              (projection)
+//   O     : R → ℝ                                 (measurement)
+//   Ω     : V_t → R                               (= O ∘ π ∘ σ_t)
+//   Ω_V   : R → Meta(R)                           (meta-observation)
 //
 // ------------------------------------------------------------
-// KERNEL (REPRESENTATION SELECTION)
+// COMMUTING STRUCTURE (NOT A FUNCTOR CATEGORY — JUST DIAGRAMMATIC)
 // ------------------------------------------------------------
 //
-//   σ_t ∈ Σ(V)
+//   V_t ──I_t──▶ V_{t+1}
 //
-//   K(V) := σ_t
+//   V_t ──σ_t──▶ V_σt ──π──▶ R ──O──▶ ℝ
+//                      │
+//                      ▼
+//                  Ω(V_t; σ_t)
 //
-// Kernel role:
-//   selects a representation section from admissible structures
-//   without modifying V
-//
-// Interpretation:
-//   contextual re-description, not causal transformation
+//                      │
+//                      ▼
+//                 Ω_VAJRA (Meta)
 //
 // ------------------------------------------------------------
-// SECTION-RELATIVE OBSERVATION
+// CAUSAL CONSTRAINTS (HARD RULES)
 // ------------------------------------------------------------
 //
-//   Ω(V; σ_t) := O( σ_t(V) )
+//   NO arrow exists from:
+//       Meta(R) → V_t
+//       Meta(R) → σ_t
+//       R → I_t
+//       Ω → I_t
 //
-// Equivalently:
+// ------------------------------------------------------------
+// INTERPRETATION NOTE
+// ------------------------------------------------------------
 //
-//   Ω_σt := O ∘ σ_t
+// This is NOT a category in the strict mathematical sense.
+// It is a *stratified morphism diagram with causal constraints*.
 //
-// Interpretation:
-//   observation is only defined relative to a chosen section.
-//   it is not invariant under changes of σ_t.
+// Composition exists only within each layer:
+//   - dynamics layer (I)
+//   - representation layer (σ)
+//   - observation layer (π ∘ O)
+//   - meta layer (Ω_V)
 //
-// Final takeaway
+// Cross-layer composition is intentionally undefined.
+//
+// ============================================================
+// ============================================================
+// 6. FINAL ALIGNMENT STATEMENT
+// ============================================================
+//
+//   I_t     = reality evolution
+//   K       = representation selection
+//   Ω       = section-relative measurement
+//   Ω_VAJRA = meta-level invariant reader of (Ω, V)
+//
+// RESULT:
+//
+//   DVSM becomes a 4-layer stratified system:
+//
+//     (1) dynamics
+//     (2) gauge choice
+//     (3) observation
+//     (4) meta-observation (inert)
+//
+// All layers are strictly non-circular in causality.
+//
+// ============================================================
 
 The model is now in a clean 3-layer causal architecture:
 
