@@ -2132,6 +2132,58 @@ pub fn assess(regime: Regime) -> &'static str {
 // It shifts burden from "fixed global truth"
 // to "explicit alignment strategy selection".
 
+// ============================================================================
+// OPTIONAL INTEGRATION META-RUNTIME INTERPRETATION BLOCK
+// ============================================================================
+//
+// This program is NOT the "main program" of reality.
+// It is an auxiliary model that changes interpretation,
+// not underlying execution of the system being described.
+//
+// KEY EFFECT:
+//
+// When this module is used as a secondary layer (observer / analysis / plugin),
+// it does NOT alter system facts.
+//
+// Instead:
+//     it alters how cross-time structure is *aligned and interpreted*.
+//
+// RESULT:
+//
+// The same underlying data can yield different global reconstructions
+// depending on the selected alignment strategy.
+//
+// This can produce "better" outcomes in practice when:
+//
+//   - the system is adaptive or evolving
+//   - history is incomplete or noisy
+//   - multiple consistent interpretations exist
+//
+// BUT:
+//
+// It does NOT change the underlying state transitions.
+// It only changes the *selected coherence model* over them.
+//
+// ============================================================================
+// PRINCIPLE
+// ============================================================================
+//
+// Cross-time non-canonicity becomes beneficial when:
+//
+//   interpretation is allowed to adapt,
+//   rather than being forced into a single fixed global truth.
+//
+// ============================================================================
+//
+// EFFECT SUMMARY:
+//
+// - Core dynamics: unchanged
+// - Local facts: unchanged
+// - Global reconstruction: policy-dependent
+// - Outcome quality: can improve under better alignment strategies
+//
+// ============================================================================
+
 // -----------------------------------------------------------------------------
 // END
 // -----------------------------------------------------------------------------
