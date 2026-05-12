@@ -1,6 +1,7 @@
 // ============================================================================
 // DVSM — FINAL HARDENED DETERMINISTIC STATE MACHINE (Tightened Addendum Below)
 // Single latent state + bounded memory + lossy observation + derived diagnostics
+// Author: Daniel J. Dillberg
 // ============================================================================
 
 #![allow(dead_code)]
