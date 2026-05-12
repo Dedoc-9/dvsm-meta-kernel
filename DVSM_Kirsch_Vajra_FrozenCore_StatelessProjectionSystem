@@ -378,5 +378,37 @@ impl DVSMInstance {
 // - Vajra remains scalar deviation monitor
 // - No geometry is reconstructable inside DVSM
 // - No cross-instance structure exists
+
+/// ============================================================================
+/// VAJRA — ANCHOR DEVIATION MONITOR (FROZEN + STATELESS)
+/// ============================================================================
+///
+/// GUARANTEE:
+/// - No internal memory
+/// - No anchor persistence
+/// - No cross-call state
+/// - No semantic interpretation of deviation
+///
+/// OUTPUT:
+/// - purely scalar diagnostic value
+/// ============================================================================
+
+pub struct Vajra;
+
+impl Vajra {
+
+    /// Stateless evaluation function
+    pub fn evaluate(trace: &TraceLog, anchor: f64) -> f64 {
+
+        // local reduction only — no stored state
+        let mut sum = 0.0;
+
+        for v in &trace.values {
+            sum += (v - anchor).abs();
+        }
+
+        sum / trace.values.len().max(1) as f64
+    }
+}
 //
 // ============================================================================
