@@ -1111,3 +1111,117 @@ impl System {
 // within the axioms of this system.
 //
 // ============================================================================
+// ============================================================================
+// ADDENDUM — GLOBAL INTEGRITY + CROSS-LAYER FIREWALL HARDENING
+// ============================================================================
+//
+// PURPOSE:
+// Strengthen non-closure invariants WITHOUT modifying existing definitions.
+//
+// This block is purely declarative and does NOT override prior axioms.
+// ============================================================================
+
+
+// ============================================================================
+// 1. CROSS-LAYER IMMUTABILITY EXTENSION
+// ============================================================================
+//
+// Once a value enters a layer boundary:
+//
+//   V → K
+//   V → Ω
+//   V → LeakAnalyzer
+//
+// it MUST NOT be reinterpreted as belonging to any other layer.
+//
+// RULE:
+//
+//   trace values are layer-agnostic residues with NO provenance.
+//
+// ============================================================================
+
+
+// ============================================================================
+// 2. TEMPORAL DECOUPLING GUARANTEE
+// ============================================================================
+//
+// No function may assume:
+//
+//   - persistence of statistical structure across ticks
+//   - correlation between TraceLog entries beyond window scope
+//
+// Each System::step() is:
+//
+//   causally closed per iteration
+//
+// ============================================================================
+
+
+// ============================================================================
+// 3. TRACE SEMANTIC NULLIFICATION RULE
+// ============================================================================
+//
+// TraceLog values MUST be treated as:
+//
+//   "index-free scalar emissions"
+//
+// NOT as:
+//
+//   - sampled trajectories
+//   - projected physical observables
+//   - embedded geometric signals
+//
+// ============================================================================
+
+
+// ============================================================================
+// 4. LEAK ANALYZER SCOPE TIGHTENING
+// ============================================================================
+//
+// LeakAnalyzer is explicitly constrained to:
+//
+//   - window-local scalar irregularity detection only
+//
+// It MUST NOT:
+//
+//   - aggregate multi-window history into models
+//   - construct rolling statistical state
+//   - infer system-level stability
+//
+// ============================================================================
+
+
+// ============================================================================
+// 5. VAJRA NON-AGGREGATION CLAUSE
+// ============================================================================
+//
+// Vajra is forbidden from:
+//
+//   - caching intermediate results across calls
+//   - normalizing outputs across traces
+//   - comparing multiple TraceLog instances
+//
+// Each evaluation is:
+//
+//   stateless and singular
+//
+// ============================================================================
+
+
+// ============================================================================
+// 6. HARD FIREWALL INVARIANT (FINAL FORM)
+// ============================================================================
+//
+// The system enforces:
+//
+//   NO STRUCTURE MAY SURVIVE BETWEEN LAYERS
+//
+// Meaning:
+//
+//   observation destroys reconstructability
+//   projection destroys invertibility
+//   kernel destroys canonical interpretation
+//
+// ============================================================================
+// END ADDENDUM
+// ============================================================================
