@@ -1,0 +1,399 @@
+// ============================================================================
+// DVSM-ANC CORE SYSTEM + WHITEPAPER + MATHEMATICAL SPECIFICATION (REVISED)
+// FILE: anc_nucleus.rs
+// AUTHOR: Daniel J. Dillberg
+// VERSION: 1.1 (Scalar Stochastic Mean-Tracking Controller)
+// ============================================================================
+//
+// TITLE:
+//   Irreducible Stochastic Adaptive Feedback Loop (Scalar LMS Kernel)
+//
+// ABSTRACT:
+//   A minimal stochastic adaptive control system implementing online
+//   mean-tracking via stochastic gradient descent.
+//
+//   Core identity:
+//     - Scalar state adaptation (w_t)
+//     - Stochastic input process (x_t)
+//     - Linear predictor (x̂_t = w_t)
+//     - Negative feedback control (y_t)
+//     - Instantaneous error minimization (e_t)
+//
+//   This system is:
+//     NOT a compression system
+//     NOT a quotient system
+//     NOT a representation learning system
+//
+//   It is a stochastic approximation controller minimizing squared error.
+//
+// ============================================================================
+
+use rand_distr::{Distribution, Normal};
+use rand::thread_rng;
+
+// ============================================================================
+// SECTION 1: SYSTEM DEFINITION (STATE)
+// ============================================================================
+
+/// Adaptive scalar estimator (mean-tracking parameter)
+pub struct Nucleus {
+
+    /// w_t : scalar adaptive estimate of environment mean
+    pub weight: f64,
+
+    /// η : learning rate (controls stability vs responsiveness)
+    pub eta: f64,
+}
+
+impl Nucleus {
+
+    pub fn new(weight: f64, eta: f64) -> Self {
+        Self { weight, eta }
+    }
+
+    // ========================================================================
+    // SECTION 2: DYNAMICS (F)
+    // ========================================================================
+    //
+    // MATHEMATICAL MODEL (SCALAR LMS / STOCHASTIC APPROXIMATION):
+    //
+    //  x̂_t = w_t
+    //
+    //  y_t = -x̂_t
+    //
+    //  e_t = x_t + y_t
+    //       = x_t - w_t
+    //
+    //  w_{t+1} = w_t + η e_t
+    //           = w_t + η (x_t - w_t)
+    //
+    // INTERPRETATION:
+    //   Online exponential tracking of the first moment of x_t
+    //
+    // OBJECTIVE:
+    //   minimize E[(x_t - w)^2]
+    //
+    // ========================================================================
+
+    /// Executes one stochastic adaptive update step
+    pub fn step(&mut self, x_t: f64) -> FeedbackResult {
+
+        // ------------------------------------------------------------
+        // OBSERVATION MODEL
+        // ------------------------------------------------------------
+        let x_hat_t = self.weight;
+
+        // ------------------------------------------------------------
+        // CONTROL OUTPUT (inverse cancellation)
+        // ------------------------------------------------------------
+        let y_t = -x_hat_t;
+
+        // ------------------------------------------------------------
+        // RESIDUAL ERROR
+        // ------------------------------------------------------------
+        let e_t = x_t - x_hat_t;
+
+        // ------------------------------------------------------------
+        // STOCHASTIC GRADIENT UPDATE
+        // ------------------------------------------------------------
+        self.weight += self.eta * e_t;
+
+        FeedbackResult {
+            x_hat_t,
+            y_t,
+            e_t,
+        }
+    }
+}
+
+// ============================================================================
+// SECTION 3: OBSERVATION STRUCT
+// ============================================================================
+
+pub struct FeedbackResult {
+    pub x_hat_t: f64,
+    pub y_t: f64,
+    pub e_t: f64,
+}
+
+// ============================================================================
+// SECTION 4: EXECUTION MODEL (STREAM SYSTEM)
+// ============================================================================
+
+fn main() {
+
+    // ------------------------------------------------------------
+    // STOCHASTIC ENVIRONMENT MODEL
+    // ------------------------------------------------------------
+    let mut rng = thread_rng();
+    let environment_dist = Normal::new(1.0, 0.05).unwrap();
+
+    // ------------------------------------------------------------
+    // INITIALIZE SYSTEM
+    // ------------------------------------------------------------
+    let mut core = Nucleus::new(0.0, 0.1);
+
+    println!("t | x_t    | x_hat  | e_t");
+    println!("--------------------------");
+
+    for t in 0..10 {
+
+        let x_t = environment_dist.sample(&mut rng);
+        let res = core.step(x_t);
+
+        println!(
+            "{:<1} | {:>6.3} | {:>6.3} | {:>6.3}",
+            t, x_t, res.x_hat_t, res.e_t
+        );
+    }
+}
+
+// ============================================================================
+// SECTION 5: MATHEMATICAL FOUNDATIONS (WHITEPAPER CORE)
+// ============================================================================
+//
+// SYSTEM TYPE:
+//   Scalar stochastic approximation controller (LMS mean tracker)
+//
+// STATE EQUATION:
+//   w_{t+1} = w_t + η (x_t - w_t)
+//
+// OBSERVATION:
+//   x̂_t = w_t
+//
+// CONTROL:
+//   y_t = -w_t
+//
+// ERROR:
+//   e_t = x_t - w_t
+//
+// OBJECTIVE FUNCTION:
+//   minimize E[(x_t - w)^2]
+//
+// INTERPRETATION:
+//   Equivalent to exponential moving average estimator
+//
+// STABILITY CONDITION (discrete heuristic):
+//   0 < η < 1
+//
+//   (ensures convex combination behavior)
+//
+// ============================================================================
+
+// ============================================================================
+// SECTION 6: DEV NOTES (IMPLEMENTATION RULES)
+// ============================================================================
+//
+// 1. System is a stochastic estimator-controller.
+//    It does not encode, compress, or transform representations.
+//
+// 2. No quotient structure exists.
+//    No equivalence classes are defined or required.
+//
+// 3. All dynamics are fully described by:
+//      w_{t+1} = w_t + η(x_t - w_t)
+//
+// 4. Interpretation layers are documentation only.
+//
+// 5. Any extension must preserve scalar LMS structure unless explicitly
+//    upgrading to vector or delayed systems.
+//
+// ============================================================================
+
+// ============================================================================
+// SECTION 7: PORTING GUIDE
+// ============================================================================
+//
+// TARGET SYSTEMS:
+//
+// ✔ Embedded DSP (real-time control loops)
+// ✔ Audio processing pipelines (low latency)
+// ✔ Sensor smoothing / filtering systems
+// ✔ Robotics feedback estimation layers
+//
+// DEPLOYMENT NOTES:
+//
+// - Replace Normal distribution with real sensor stream
+// - Replace println! with telemetry buffer
+// - Consider fixed-point arithmetic for embedded targets
+// - Ensure η stability under quantization noise
+//
+// REAL-TIME CONSTRAINT:
+//
+//   Δt_update << signal coherence time
+//
+// ============================================================================
+
+// ============================================================================
+// SECTION 8: INDEX (SYSTEM MAP)
+// ============================================================================
+//
+// Nucleus     → scalar adaptive estimator (w_t)
+// step()      → stochastic gradient update operator
+// x_t         → external stochastic input
+// x̂_t        → internal prediction (state estimate)
+// y_t         → inverse control output
+// e_t         → prediction error
+// η           → learning rate (stability parameter)
+//
+// SYSTEM CLASSIFICATION:
+//   → stochastic approximation system
+//   → LMS adaptive estimator
+//   → exponential mean tracker
+//
+// NON-CLASSIFICATIONS:
+//   → NOT compression system
+//   → NOT quotient dynamical system
+//   → NOT representation learning system
+//
+// ============================================================================
+
+use rand_distr::{Distribution, Normal};
+use rand::thread_rng;
+
+/// anc_core.rs 
+/// Irreducible Stochastic Adaptive Feedback Loop
+pub struct Nucleus {
+    pub weight: f64, // W_t
+    pub eta: f64,    // η (Learning Rate)
+}
+
+impl Nucleus {
+    pub fn new(weight: f64, eta: f64) -> Self {
+        Self { weight, eta }
+    }
+
+/// Executes the adaptive inverse filtering step
+pub fn step(&mut self, x_t: f64) -> FeedbackResult {
+    // Model: x_hat_t = w_t · φ(x), φ(x)=1 (implicit feature)
+    let x_hat_t = self.weight;
+
+    // Inverse control output
+    let y_t = -x_hat_t;
+
+    // Residual error
+    let e_t = x_t + y_t;
+
+    // LMS / stochastic gradient update:
+    // equivalent to: w_{t+1} = w_t + η (x_t - w_t)
+    self.weight += self.eta * e_t;
+
+    FeedbackResult { x_hat_t, y_t, e_t }
+}
+
+pub struct FeedbackResult {
+    pub x_hat_t: f64,
+    pub y_t: f64,
+    pub e_t: f64,
+}
+
+fn main() {
+    let mut rng = thread_rng();
+    let mut core = Nucleus::new(0.0, 0.1);
+    
+    // x_t: Stochastic environment process
+    let environment_dist = Normal::new(1.0, 0.05).unwrap();
+
+    println!("t | x_t    | x_hat  | e_t");
+    println!("--------------------------");
+
+    for t in 0..10 {
+        let x_t = environment_dist.sample(&mut rng);
+        let res = core.step(x_t);
+        
+        println!("{:<1} | {:>6.3} | {:>6.3} | {:>6.3}", t, x_t, res.x_hat_t, res.e_t);
+    }
+}
+use std::collections::VecDeque;
+use std::marker::PhantomData;
+
+// ============================================================================
+// CORE STATE
+// ============================================================================
+
+#[derive(Debug, Clone)]
+pub struct ANCState {
+    /// Adaptive parameter (w_t)
+    w: f64,
+
+    /// Learning rate (η)
+    eta: f64,
+
+    /// Bounded history buffer (debug only)
+    history: VecDeque<f64>,
+
+    /// Capacity (FIXED: required for bounded logic)
+    cap: usize,
+
+    /// Compile-time intent marker (zero runtime cost)
+    _semantic_lock: PhantomData<fn() -> ()>,
+}
+
+// ============================================================================
+// MIND HASH (OBSERVABILITY ONLY)
+// ============================================================================
+
+#[derive(Debug)]
+pub struct MindHash {
+    pub value: u64,
+}
+
+impl MindHash {
+    fn new() -> Self {
+        Self { value: 0 }
+    }
+
+    fn update(&mut self, w: f64, e: f64) {
+        let w_bits = w.to_bits() as u64;
+        let e_bits = e.to_bits() as u64;
+
+        self.value = self.value
+            .wrapping_mul(1315423911)
+            ^ w_bits
+            ^ e_bits.rotate_left(7);
+    }
+}
+
+// ============================================================================
+// SYSTEM IMPLEMENTATION
+// ============================================================================
+
+impl ANCState {
+
+    pub fn new(w: f64, eta: f64, cap: usize) -> Self {
+        Self {
+            w,
+            eta,
+            cap,
+            history: VecDeque::with_capacity(cap),
+            _semantic_lock: PhantomData,
+        }
+    }
+
+    /// One stochastic mean-tracking step
+    pub fn step(&mut self, x_t: f64, mh: &mut MindHash) -> f64 {
+
+        // ESTIMATE: scalar predictor
+        let x_hat = self.w;
+
+        // CONTROL: inverse cancellation
+        let y_t = -x_hat;
+
+        // ERROR
+        let e_t = x_t + y_t;
+
+        // LMS / stochastic gradient step (mean tracking)
+        self.w += self.eta * e_t;
+
+        // BOUNDED MEMORY UPDATE
+        self.history.push_back(x_t);
+        if self.history.len() > self.cap {
+            self.history.pop_front();
+        }
+
+        // OBSERVABILITY HASH (non-semantic)
+        mh.update(self.w, e_t);
+
+        e_t
+    }
+}
