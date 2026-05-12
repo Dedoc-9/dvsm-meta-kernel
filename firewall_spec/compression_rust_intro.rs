@@ -5,38 +5,127 @@
 // ============================================================================
 // RUST + COMPRESSION SYSTEMS — INTRODUCTORY NOTE
 // ============================================================================
+# [Compression Execution Model in Rust]
+// ============================================================================
 //
-// Rust is a systems programming language optimized for:
+// This block describes how compression is actually implemented in Rust
+// when used as a deterministic pipeline over bounded data streams.
 //
-//   - High-performance execution (near C/C++ speed)
-//   - Memory safety without garbage collection
-//   - Deterministic control over allocations and lifetimes
-//   - Efficient streaming and buffer-based computation
-//   - Safe parallelism for multi-core processing
+// The key idea:
 //
-// In compression systems (audio, video, image, or custom state models),
-// Rust is particularly effective because it enables:
+//   Compression = repeated state transformation + lossy projection + packing
 //
-//   - Zero-cost abstractions for encoding pipelines
-//   - Fine-grained control over memory layout and reuse
-//   - Predictable latency (no GC pauses)
-//   - Bit-level and byte-level manipulation efficiency
-//   - Safe concurrency for parallel compression/decompression stages
-//
-// As a result, Rust is commonly used in:
-//
-//   - Media codecs (audio/video/image processing)
-//   - Real-time streaming systems
-//   - Data compression pipelines
-//   - High-throughput transformation engines
-//
-// In short:
-//
-//   Rust enables deterministic, high-performance compression systems
-//   by combining low-level control with strong compile-time safety guarantees.
+// Rust is used because it provides:
+//   - deterministic execution
+//   - zero-cost abstractions
+//   - explicit memory control
+//   - safe buffer reuse
 //
 // ============================================================================
-
+//
+// 1. CORE PIPELINE MODEL
+// ============================================================================
+//
+// Input data is processed as a stream:
+//
+//   raw input → transform → encode → pack → output
+//
+// Each stage is pure or state-limited (no hidden mutation).
+//
+// ============================================================================
+//
+// 2. TRANSFORM STAGE (structure reduction)
+// ============================================================================
+//
+// Purpose:
+//   Remove redundancy or restructure signal before encoding.
+//
+// Examples:
+//   - delta encoding
+//   - normalization
+//   - prediction filters (audio/video)
+//   - feature reduction
+//
+// Rust role:
+//   Iterates over buffers efficiently with no allocation overhead.
+//
+// ============================================================================
+//
+// 3. ENCODING STAGE (information compression core)
+// ============================================================================
+//
+// Purpose:
+//   Convert transformed signal into compact representation.
+//
+// Examples:
+//   - Huffman coding
+//   - arithmetic coding
+//   - dictionary compression (LZ variants)
+//
+// Rust role:
+//   Manages byte-level operations and bit packing safely and fast.
+//
+// ============================================================================
+//
+// 4. PACKING STAGE (memory layout optimization)
+// ============================================================================
+//
+// Purpose:
+//   Minimize final storage footprint and align output efficiently.
+//
+// Examples:
+//   - bit packing
+//   - SIMD-aligned blocks
+//   - chunk aggregation
+//
+// Rust role:
+//   Ensures deterministic memory layout with explicit control.
+//
+// ============================================================================
+//
+// 5. FULL COMPRESSION FUNCTIONAL VIEW
+// ============================================================================
+//
+// Conceptual mapping:
+//
+//   compress(input)
+//       = pack(encode(transform(input)))
+//
+// This is a compositional pipeline, not a monolithic operation.
+//
+// ============================================================================
+//
+// 6. RELATION TO DVSM MODEL (optional abstraction link)
+// ============================================================================
+//
+//   F (state transition)     → transform + encode stages
+//   O (observation map)      → lossy compression / projection
+//   state                    → raw input signal
+//   f (induced dynamics)     → operations on compressed representation
+//
+// Compression is therefore a concrete instance of a bounded dynamical system
+// with lossy observational projection.
+//
+// ============================================================================
+//
+// 7. WHY RUST IS USED HERE
+// ============================================================================
+//
+// Rust enables this model because:
+//
+//   - no garbage collection (stable latency)
+//   - deterministic memory allocation
+//   - safe parallel processing of chunks
+//   - efficient buffer reuse
+//   - low-level bit manipulation without unsafe runtime behavior
+//
+// This makes it ideal for:
+//
+//   - video/audio codecs
+//   - real-time streaming compression
+//   - high-throughput data pipelines
+//
+// ============================================================================
 //
 // Now implements a TRUE quotient dynamical system:
 //
