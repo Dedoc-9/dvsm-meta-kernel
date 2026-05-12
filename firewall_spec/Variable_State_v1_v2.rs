@@ -1,5 +1,5 @@
 // ============================================================================
-// DVSM — FINAL HARDENED DETERMINISTIC STATE MACHINE (Tightened Addendum Below)
+// DVSM — FINAL HARDENED DETERMINISTIC STATE MACHINE (Tightened Addendum Below + Dev Notes)
 // Single latent state + bounded memory + lossy observation + derived diagnostics
 // Author: Daniel J. Dillberg
 // ============================================================================
@@ -720,6 +720,454 @@ impl Interpretation {
 //      v_t ∈ [0,1)
 //      |H_t| ≤ memory_limit
 //
+// ============================================================================
+// 10. DEVELOPMENT NOTES — ARCHITECTURAL REDUCTION & HARDENING
+// ============================================================================
+//
+// PURPOSE
+// ----------------------------------------------------------------------------
+//
+// This section records the architectural reduction process used to harden the
+// DVSM / FINALCORE stack into a deterministic bounded-state execution model.
+//
+// These notes are NON-EXECUTABLE and NON-ONTOLOGICAL.
+//
+// They exist to:
+//
+//   1. document reduction of abstraction inflation,
+//   2. preserve deterministic invariants,
+//   3. separate semantics from representation,
+//   4. isolate observational layers from causal layers,
+//   5. define implementation boundaries.
+//
+// No definitions in this section introduce additional dynamical state.
+//
+// ============================================================================
+//
+// 10.1 REDUCED EXECUTION MODEL
+// ----------------------------------------------------------------------------
+//
+// Canonical reduction:
+//
+//   FinalState =
+//       Consensus(
+//           Hash(
+//               Canonicalize(
+//                   Events(t)
+//               )
+//           )
+//       )
+//
+// Operational pipeline:
+//
+//   Events
+//      → CKITL      (normalize / validate)
+//      → S_ECHO     (canonical identity binding)
+//      → IBMSA      (stability basin filtering)
+//      → CMST       (global consistency constraints)
+//      → L11–L15    (structural validity gates)
+//      → Ω_FINAL    (deterministic selector)
+//      → Ξ          (execution emission)
+//
+// Reduced functional form:
+//
+//   State =
+//       Ω_FINAL
+//       ∘ CMST
+//       ∘ IBMSA
+//       ∘ S_ECHO
+//       ∘ CKITL
+//       (Events)
+//
+// IMPORTANT:
+//
+// All layers above are interpreted as:
+//
+//   deterministic transforms,
+//   filters,
+//   or selectors.
+//
+// No layer is permitted to introduce hidden mutable state.
+//
+// ============================================================================
+//
+// 10.2 MINIMAL MATHEMATICAL ROLES
+// ----------------------------------------------------------------------------
+//
+// Earlier revisions contained overlapping semantic systems.
+//
+// After reduction, all meaningful behavior collapses into:
+//
+//   (A) Normalization / identity
+//   (B) Feasibility filtering
+//   (C) Deterministic selection
+//
+// -----------------------------------------------------------------------------
+// (A) NORMALIZATION / IDENTITY
+// -----------------------------------------------------------------------------
+//
+// Components:
+//
+//   CKITL
+//   S_ECHO
+//
+// Canonical role:
+//
+//   normalize inputs into deterministic equivalence-compatible forms.
+//
+// Reduced interpretation:
+//
+//   S_ECHO : Trace → CanonicalTrace
+//
+// NOTE:
+//
+// S_ECHO MUST NOT imply universal canonical equivalence over unrestricted
+// computational structures.
+//
+// Otherwise:
+//
+//   S(A) = S(B) ⇔ A ≡ B
+//
+// becomes computationally intractable or undecidable.
+//
+// Therefore:
+//
+// S_ECHO is DOMAIN-BOUNDED.
+//
+// ============================================================================
+//
+// 10.3 OBSERVATIONAL EQUIVALENCE
+// ----------------------------------------------------------------------------
+//
+// Core invariant:
+//
+//   semantic equivalence ≠ observational equivalence
+//
+// Let:
+//
+//   χ = semantic admissibility relation
+//   π = observational projection
+//
+// Then:
+//
+//   χ defines validity
+//   π defines distinguishability
+//
+// π MUST NOT define χ.
+//
+// -----------------------------------------------------------------------------
+// SEMANTIC LAYER
+// -----------------------------------------------------------------------------
+//
+// χ(C) ∈ Bool
+//
+// χ may be:
+//
+//   abstract,
+//   partially computable,
+//   or domain restricted.
+//
+// -----------------------------------------------------------------------------
+// OBSERVATIONAL LAYER
+// -----------------------------------------------------------------------------
+//
+// π(C, k, S)
+//
+// where:
+//
+//   C = context,
+//   k = interpretation regime,
+//   S = observational sample.
+//
+// IMPORTANT:
+//
+// π is intentionally:
+//
+//   lossy,
+//   non-invertible,
+//   sample-relative.
+//
+// Therefore:
+//
+//   π(C1) = π(C2)
+//
+// does NOT imply:
+//
+//   C1 ≡ C2
+//
+// It implies only:
+//
+//   observational indistinguishability
+//
+// under a bounded projection regime.
+//
+// ============================================================================
+//
+// 10.4 QUOTIENT INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// The system can be reduced to:
+//
+//   Ω : TraceSpace → UInt64
+//
+// inducing:
+//
+//   t1 ~Ω t2
+//      ⇔ Ω(t1) = Ω(t2)
+//
+// Therefore:
+//
+//   Fibers = equivalence classes under Ω
+//
+// and:
+//
+//   IP representations are compressed representatives,
+//   NOT semantic identities.
+//
+// IMPORTANT:
+//
+// Representation ≠ structure
+//
+// No canonical inverse exists.
+//
+// ============================================================================
+//
+// 10.5 Ω_FINAL HARDENING
+// ----------------------------------------------------------------------------
+//
+// Earlier revisions overloaded Ω_FINAL with:
+//
+//   - ranking,
+//   - convergence,
+//   - truth emission,
+//   - execution authority.
+//
+// This is formally unsafe.
+//
+// Ω_FINAL is therefore reduced to:
+//
+//   Ω_FINAL : Set<State> → State
+//
+// Required properties:
+//
+//   - deterministic,
+//   - side-effect free,
+//   - canonically ordered,
+//   - total ordering defined,
+//   - tie-breaking deterministic.
+//
+// Ω_FINAL performs:
+//
+//   selection only.
+//
+// It does NOT:
+//
+//   define truth,
+//   prove convergence,
+//   establish ontology,
+//   or define semantic equivalence.
+//
+// ============================================================================
+//
+// 10.6 CMST HARDENING
+// ----------------------------------------------------------------------------
+//
+// Earlier revisions overloaded CMST as:
+//
+//   entropy threshold,
+//   synchronization field,
+//   manifold alignment,
+//   contraction witness.
+//
+// This is reduced to:
+//
+//   CMST = consistency predicate layer
+//
+// Operational interpretation:
+//
+//   CMST : CandidateState → Bool
+//
+// CMST performs:
+//
+//   admissibility filtering only.
+//
+// It does NOT:
+//
+//   define topology,
+//   define geometry,
+//   define physical manifolds,
+//   prove convergence.
+//
+// ============================================================================
+//
+// 10.7 IBMSA REDUCTION
+// ----------------------------------------------------------------------------
+//
+// IBMSA is interpreted as:
+//
+//   deterministic stability basin filtering.
+//
+// Minimal role:
+//
+//   CandidateSet → AdmissibleSubset
+//
+// Multiple candidate states:
+//
+//   → filtered,
+//   → stabilized,
+//   → collapsed by Ω_FINAL.
+//
+// This is structurally equivalent to:
+//
+//   attractor filtering,
+//   consensus reduction,
+//   admissibility pruning.
+//
+// ============================================================================
+//
+// 10.8 RANDOMNESS ELIMINATION
+// ----------------------------------------------------------------------------
+//
+// Earlier revisions contained:
+//
+//   Double.random
+//   shuffled()
+//   hashValue
+//   nondeterministic ordering
+//
+// These violate replayability guarantees.
+//
+// HARDENING RULES:
+//
+//   - no runtime randomness,
+//   - no platform hash dependence,
+//   - canonical ordering required,
+//   - deterministic projection only.
+//
+// -----------------------------------------------------------------------------
+// HASHING REQUIREMENTS
+// -----------------------------------------------------------------------------
+//
+// Native runtime hashers MUST NOT be used semantically.
+//
+// Runtime hashers are:
+//
+//   process-relative,
+//   implementation-relative,
+//   intentionally unstable.
+//
+// Therefore:
+//
+//   π MUST remain deterministic independently of compression hashing.
+//
+// Safe architectures:
+//
+//   π = CanonicalObservationTrace
+//   hash(π) = optional compression layer
+//
+// Recommended deterministic hash families:
+//
+//   - SHA256
+//   - BLAKE3
+//   - fixed-seed SipHash
+//
+// ============================================================================
+//
+// 10.9 TOPOLOGICAL SILENCE
+// ----------------------------------------------------------------------------
+//
+// "Topological silence" is retained only as:
+//
+//   empty admissible solution set.
+//
+// Equivalent formal interpretation:
+//
+//   admissible_states = ∅
+//
+// This corresponds to:
+//
+//   unsatisfied constraints,
+//   convergence failure,
+//   infeasible execution.
+//
+// No metaphysical interpretation is implied.
+//
+// ============================================================================
+//
+// 10.10 ONTOLOGICAL REDUCTION
+// ----------------------------------------------------------------------------
+//
+// The following terms are INTERPRETIVE ONLY:
+//
+//   - waveform truth
+//   - collapse ontology
+//   - fixed-point reality
+//   - chirality emergence
+//   - witness sheaf
+//   - manifold truth
+//
+// These terms DO NOT introduce:
+//
+//   topology,
+//   geometry,
+//   category structure,
+//   transport laws,
+//   physical semantics.
+//
+// They are descriptive overlays on:
+//
+//   deterministic transforms,
+//   equivalence classes,
+//   lossy projections,
+//   admissibility filters.
+//
+// ============================================================================
+//
+// 10.11 CORE SYSTEM INVARIANT
+// ----------------------------------------------------------------------------
+//
+// The strongest stable interpretation of the architecture is:
+//
+//   "Computation is represented as traces,
+//    while semantics are equivalence classes induced
+//    by constrained observational projections."
+//
+// Or equivalently:
+//
+//   semantics live in χ,
+//   execution lives in EXEC,
+//   observation lives in π.
+//
+// None are reducible to one another.
+//
+// ============================================================================
+//
+// 10.12 FINAL REDUCED CHARACTERIZATION
+// ----------------------------------------------------------------------------
+//
+// DVSM / FINALCORE is best interpreted as:
+//
+//   a deterministic bounded-memory trace reduction system
+//   with:
+//
+//     - canonical normalization,
+//     - admissibility filtering,
+//     - deterministic selection,
+//     - lossy observational projection,
+//     - replay-safe execution semantics.
+//
+// The strongest technical contribution is:
+//
+//   explicit separation of:
+//
+//     semantic admissibility,
+//     observational equivalence,
+//     and executable state selection.
+//
+// ============================================================================
+//
+// END DEVELOPMENT NOTES
+// ============================================================================
 // ============================================================================
 //
 // END FILE
