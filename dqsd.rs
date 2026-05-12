@@ -4,14 +4,22 @@
 // Version: 1.0.0-stable
 // Status: Pre-geometric spectral quotient framework (underconstrained transport)
 // ============================================================================
-//
-// CORE SUMMARY:
-// Non-autonomous spectral dynamics over quotient-induced Hilbert fibers
-// with fiberwise unitary evolution and underdetermined inter-fiber transport.
-//
-// PRIMARY OPEN AXIOM:
-// No canonical inter-fiber transport law T_{t→t+1} is specified.
-//
+CORE SUMMARY:
+Non-autonomous spectral dynamics over quotient-induced Hilbert fibers
+with fiberwise unitary evolution and underdetermined inter-fiber transport.
+
+PRIMARY OPEN AXIOM:
+No canonical inter-fiber transport law T_{t→t+1} is specified.
+
+OBSERVATIONAL CLOSURE NOTE (Ω_VAJRA COMPATIBILITY):
+All statements about inter-fiber transport are section-relative.
+Ω_VAJRA does not observe a “true transport,” but only
+kernel-selected representations σ_t in which transport is evaluated.
+
+Thus:
+- Transport remains underdetermined at the DVSM level
+- Any perceived coherence arises from gauge/section choice (σ_t)
+- Ω_VAJRA reports properties of realized sections, not intrinsic maps
 // ============================================================
 // OBSERVATION–INTERACTION SEPARATION (DQSD CORE AXIOM)
 // ============================================================
