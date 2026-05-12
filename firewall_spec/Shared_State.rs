@@ -4,9 +4,12 @@
 // Author: Daniel J. Dillberg
 // ============================================================================
 // It is now formally:
-
-// A surjective functor-induced quotient dynamical system with commutative observation semantics
-// Index below.
+//
+// A deterministic dynamical system equipped with a SURJECTIVE observation map
+// inducing a quotient structure on the state space, with commutative
+// observation semantics up to observational equivalence.
+//
+// Index below. See addendums. Regard Dev notes.
 // ============================================================================
 // ADDENDUM FILE OVERVIEW — EXECUTION CONSTRAINTS LAYER
 // ============================================================================
@@ -2390,57 +2393,445 @@ pub fn execute_strict_pipeline(
 // END ADDENDUM
 // ============================================================================
 // ============================================================================
-// M. FILE INDEX (STRUCTURAL SUMMARY)
+// M. FILE INDEX (STRUCTURAL + FUNCTOR SUMMARY)
 // ============================================================================
 //
-// This section provides a compact reference map of the specification.
-//
+// PURPOSE:
 // ---------------------------------------------------------------------------
+// This section provides a compact structural map of the specification in
+// functorial terms:
 //
-// 1. OBSERVATION LAYER
-//    - O : S → 𝒪 (surjective projection functor)
-//    - Defines observable state space
-//    - Induces equivalence relation via kernel fibers
+//   O : S → 𝒪          (observation functor)
+//   F : S → S          (latent dynamics)
+//   f : 𝒪 → 𝒪          (induced observable dynamics)
 //
-// ---------------------------------------------------------------------------
+// with:
 //
-// 2. KERNEL STRUCTURE
-//    - ker(o) = { S ∈ S | O(S) = o }
-//    - Defines equivalence classes (state-space quotient structure)
+//   O ∘ F  ≈  f ∘ O
 //
-// ---------------------------------------------------------------------------
+// where ≈ denotes observational equivalence (not strict equality).
 //
-// 3. EQUIVALENCE RELATION
-//    - S₁ ~ S₂ ⇔ O(S₁) = O(S₂)
-//    - Defines observational indistinguishability
+// ============================================================================
 //
-// ---------------------------------------------------------------------------
+// 1. OBSERVATION LAYER (FUNCTOR O)
+// ============================================================================
 //
-// 4. DYNAMICS (LATENT SYSTEM)
-//    - F : S → S (DVSMCore)
-//    - Deterministic state transition function
+// - O : S → 𝒪
+// - Maps latent state space S to observable space 𝒪
+// - Defines what is *measurably accessible*
+// - Not injective (information loss allowed)
 //
-// ---------------------------------------------------------------------------
+// KEY PROPERTY:
+//   O induces equivalence classes via fibers:
 //
-// 5. OBSERVABLE DYNAMICS
-//    - f : 𝒪 → 𝒪 (ObservableDynamics)
-//    - Induced dynamics on quotient space
+//     [S] = O⁻¹(O(S))
 //
-// ---------------------------------------------------------------------------
+// ============================================================================
 //
-// 6. COMMUTATIVE STRUCTURE
-//    - O ∘ F = f ∘ O
-//    - Ensures consistency between latent and observable evolution
+// 2. KERNEL / FIBER STRUCTURE (QUOTIENT SPACE)
+// ============================================================================
 //
-// ---------------------------------------------------------------------------
+// - O⁻¹(o) ⊆ S defines an equivalence class
+// - Each observable state corresponds to a fiber in S
+//
+// QUOTIENT FORM:
+//   S / ~  ≅  𝒪
+//
+// where:
+//
+//   S₁ ~ S₂  ⇔  O(S₁) = O(S₂)
+//
+// ============================================================================
+//
+// 3. EQUIVALENCE RELATION (OBSERVATIONAL INDISTINGUISHABILITY)
+// ============================================================================
+//
+// - Two states are equivalent iff they are observationally identical:
+//
+//     S₁ ~ S₂  ⇔  O(S₁) = O(S₂)
+//
+// - This defines the kernel of O:
+//
+//     ker(O) = { (S₁, S₂) | O(S₁) = O(S₂) }
+//
+// ============================================================================
+//
+// 4. LATENT DYNAMICS (F)
+// ============================================================================
+//
+// - F : S → S
+// - Implemented by DVSMCore
+// - Deterministic state transition:
+//
+//     S_{t+1} = F(S_t, u_t)
+//
+// NOTE:
+//   F operates in latent space, not observable space.
+//
+// ============================================================================
+//
+// 5. OBSERVABLE DYNAMICS (f)
+// ============================================================================
+//
+// - f : 𝒪 → 𝒪
+// - Induced dynamics:
+//
+//     f(O(S)) := O(F(S))
+//
+// This defines observable evolution without reference to latent state.
+//
+// ============================================================================
+//
+// 6. COMMUTATIVE STRUCTURE (FUNCTOR CONDITION)
+// ============================================================================
+//
+// Required property:
+//
+//     O ∘ F  ≈  f ∘ O
+//
+// INTERPRETATION:
+// - diagram commutes up to observational equivalence
+// - ensures consistency between latent and observable evolution
+//
+// NOTE:
+//   This is NOT strict equality due to potential implementation variance.
+//
+// ============================================================================
 //
 // 7. IMPLEMENTATION MODES
-//    - STRICT: canonical F implementation
-//    - EQUIVALENCE: any F_impl preserving observational commutativity
+// ============================================================================
+//
+// STRICT MODE:
+//   - single canonical implementation of F
+//   - deterministic reference execution
+//   - used for reproducibility and verification
+//
+// EQUIVALENCE MODE:
+//   - any F_impl such that:
+//
+//       O(F_impl(S, u)) ≈ f(O(S), u)
+//
+//   - allows optimization, hardware variation, distributed execution
+//
+// CONSTRAINT:
+//   Both modes must preserve observable commutativity.
+//
+// ============================================================================
+//
+// 8. STRUCTURAL TAKEAWAY
+// ============================================================================
+//
+// The system defines:
+//
+//   - a latent deterministic dynamical system (S, F)
+//   - an observation functor (O)
+//   - an induced observable system (𝒪, f)
+//   - a quotient structure S / ~ induced by O
+//
+// This yields a standard functorial decomposition:
+//
+//     S ──F──> S
+//     │        │
+//     O        O
+//     ↓        ↓
+//     𝒪 ──f──> 𝒪
+//
+// with commutativity up to observational equivalence.
 //
 // ============================================================================
 //
 // END FILE INDEX
+// ============================================================================
+// ============================================================================
+// M. FILE INDEX (STRUCTURAL + OBSERVATION MAP SUMMARY)
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This section provides a compact structural map of the specification:
+//
+//   S_t = (v_t, H_t)
+//   S_{t+1} = F(S_t, u_t)
+//
+// It defines a latent dynamical system (S, F) and an observable system (𝒪, f)
+// connected through an observation map O.
+//
+// This file does NOT modify F.
+// It defines implementation constraints under observational equivalence.
+//
+// ============================================================================
+//
+// CORE STRUCTURE:
+// ============================================================================
+//
+//   S ──F──> S
+//   │        │
+//   O        O
+//   ↓        ↓
+//   𝒪 ──f──> 𝒪
+//
+// with commutativity holding up to observational equivalence.
+//
+// ============================================================================
+//
+// 1. OBSERVATION LAYER
+// ============================================================================
+//
+// - O : S → 𝒪 (observation map; functorial interpretation)
+// - Maps latent state space S into observable space 𝒪
+// - May be non-injective (information loss permitted)
+//
+// KEY PROPERTY:
+//   O induces equivalence classes via fibers:
+//
+//     S₁ ~ S₂ ⇔ O(S₁) = O(S₂)
+//
+// NOTE:
+//   This is an equivalence relation, not a categorical kernel.
+//
+// Optional kernel interpretation (fiber form):
+//   ker(O)_o = { S ∈ S | O(S) = o }
+//
+// ============================================================================
+//
+// 2. QUOTIENT STRUCTURE
+// ============================================================================
+//
+// - Induced quotient space:
+//
+//     S / ~
+//
+// where:
+//
+//   S₁ ~ S₂ ⇔ O(S₁) = O(S₂)
+//
+// INTERPRETATION:
+//   Observable space 𝒪 corresponds to equivalence classes of S.
+//
+// ============================================================================
+//
+// 3. LATENT DYNAMICS (F)
+// ============================================================================
+//
+// - F : S → S
+// - Deterministic state transition function
+// - Implemented by DVSMCore
+//
+// SYSTEM EVOLUTION:
+//   S_{t+1} = F(S_t, u_t)
+//
+// ============================================================================
+//
+// 4. OBSERVABLE DYNAMICS (f)
+// ============================================================================
+//
+// - f : 𝒪 → 𝒪
+// - Induced dynamics on observable space
+//
+// DEFINITION:
+//
+//   f(O(S)) := O(F(S))
+//
+// NOTE:
+//   f is defined via O and F, not independently.
+//
+// ============================================================================
+//
+// 5. COMMUTATIVITY CONDITION
+// ============================================================================
+//
+// Required consistency constraint:
+//
+//   O ∘ F  ≈  f ∘ O
+//
+// WHERE:
+//
+//   ≈ denotes equality in the observational equivalence class
+//   induced by the observation map O.
+//
+// INTERPRETATION:
+//   - strict equality is not required at implementation level
+//   - only observable equivalence must hold
+//
+// ============================================================================
+//
+// 6. IMPLEMENTATION MODES
+// ============================================================================
+//
+// STRICT MODE:
+//   - canonical reference implementation of F
+//   - deterministic and reproducible execution
+//
+// EQUIVALENCE MODE:
+//   - any implementation F_impl such that:
+//
+//       O(F_impl(S, u)) ≈ f(O(S), u)
+//
+//   - allows optimization, hardware variation, distributed execution
+//
+// CONSTRAINT:
+//   Both modes must preserve commutativity under O.
+//
+// ============================================================================
+//
+// 7. STRUCTURAL SUMMARY
+// ============================================================================
+//
+// The system defines:
+//
+//   - latent deterministic dynamical system (S, F)
+//   - observation map O : S → 𝒪
+//   - induced observable dynamics (𝒪, f)
+//   - quotient structure S / ~ induced by O
+//
+// This yields a diagrammatic (functor-inspired) decomposition:
+//
+//     S ──F──> S
+//     │        │
+//     O        O
+//     ↓        ↓
+//     𝒪 ──f──> 𝒪
+//
+// with commutativity holding up to observational equivalence.
+//
+// ============================================================================
+//
+// END FILE INDEX
+// ============================================================================
+// ============================================================================
+// N. REFINEMENT ADDENDUM — SURJECTIVE OBSERVATION + QUOTIENT STRUCTURE
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This section refines the observation framework while preserving:
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// It strengthens implementation constraints without modifying the system.
+//
+// ============================================================================
+
+// ============================================================================
+// 1. OBSERVATION MAP (QUOTIENT STRUCTURE)
+// ============================================================================
+//
+// REQUIREMENT:
+//
+//   O : S → 𝒪
+//
+// STRUCTURAL DEFINITION:
+//
+//   𝒪 := image(O)
+//
+// CONSEQUENCE:
+//
+//   O is surjective by construction onto 𝒪
+//
+// INTERPRETATION:
+//   Every observable state corresponds to at least one latent state.
+//
+// FORMALLY:
+//
+//   ∀ o ∈ 𝒪, ∃ S ∈ S such that O(S) = o
+//
+// DEV NOTE:
+// ---------------------------------------------------------------------------
+// - Surjectivity is not an independent constraint
+// - It is a consequence of defining 𝒪 as the projection image
+// - In implementations with explicit 𝒪, this must be enforced or validated
+// ---------------------------------------------------------------------------
+//
+// ============================================================================
+//
+// 2. STRUCTURAL CATEGORY INTERPRETATION (OPTIONAL LAYER)
+// ============================================================================
+//
+// NOTE:
+// ---------------------------------------------------------------------------
+// This is a diagrammatic (set-based) structure.
+// Category-theoretic interpretation is optional and not required for execution.
+//
+// STRUCTURE:
+//
+//   S ──F──> S
+//   │        │
+//   O        O
+//   ↓        ↓
+//   𝒪 ──f──> 𝒪
+//
+// ============================================================================
+//
+// 3. LATENT DYNAMICS (F)
+// ============================================================================
+//
+// F : S → S
+//
+// Deterministic state transition.
+//
+// IMPLEMENTATION NOTE:
+//   Must remain independent of observation map O.
+//
+// ============================================================================
+//
+// 4. OBSERVABLE DYNAMICS (f)
+// ============================================================================
+//
+// f is well-defined on equivalence classes induced by O,
+// i.e. on S / ~ rather than directly on latent states.
+//
+// DEFINITION:
+//
+//   f(O(S)) := O(F(S))
+//
+// NOTE:
+//   f is derived, not independently specified.
+//
+// ============================================================================
+//
+// 5. COMMUTATIVITY CONDITION
+// ============================================================================
+//
+// Required:
+//
+//   O ∘ F  ≈  f ∘ O
+//
+// where:
+//
+//   ≈ denotes equality in the quotient induced by O.
+//
+// ============================================================================
+//
+// 6. IMPLEMENTATION MODES
+// ============================================================================
+//
+// STRICT MODE:
+//   - canonical implementation of F
+//
+// EQUIVALENCE MODE:
+//   - any implementation F_impl such that:
+//
+//       O(F_impl(S, u)) ≈ f(O(S), u)
+//
+// ============================================================================
+//
+// 7. SURJECTIVITY VALIDATION (DEV LAYER)
+// ============================================================================
+//
+// DEV NOTE:
+// ---------------------------------------------------------------------------
+// Surjectivity is ensured by construction (𝒪 := image(O))
+// or validated on finite sampled state spaces in runtime testing.
+//
+// Example runtime check:
+//
+//   assert!(forall o in O_space, exists S such that O(S) == o)
+//
+// ---------------------------------------------------------------------------
+//
+// ============================================================================
+//
+// END ADDENDUM
 // ============================================================================
 //
 // ============================================================================
