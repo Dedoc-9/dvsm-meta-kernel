@@ -11,6 +11,22 @@
 //
 // PRIMARY OPEN AXIOM:
 // No canonical inter-fiber transport law T_{t→t+1} is specified.
+//
+// ============================================================
+// OBSERVATION–INTERACTION SEPARATION (DQSD CORE AXIOM)
+// ============================================================
+//
+//   Ω(V) := O(V) ∘ π(V)              // observation is projection only
+//   I(V) := U_t(V) ∘ M_t(V)          // interaction = evolution + mutation
+//
+//   Ω(V) ∩ I(V) = ∅                  // no causal overlap
+//
+//   K(V) : selects section σ_t       // kernel fixes representation only
+//
+//   Ω(V; σ_t) := (f ∘ σ_t)(V)        // observation depends on chosen gauge
+//
+// ============================================================================
+//
 // ============================================================================
 
 #![allow(dead_code)]
