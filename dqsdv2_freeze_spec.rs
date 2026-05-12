@@ -17,6 +17,17 @@
 //   - category structure
 //   - functorial time evolution
 //   - epistemic feedback loops
+//
+    // mental rule:
+
+“Concrete structs do not refine axioms; they instantiate a simulation layer of them.”
+
+    // NOTE:
+// SigmaV / Sigma and Delta implementations are NOT distinct theories.
+// They are different levels of concretization of the same abstract constraints:
+//   - Sigma(V) is axiomatic (no structure)
+//   - Sigma / SigmaV are representations for computation only
+//   - Delta implementations are evaluation heuristics, not new structure
 // ============================================================================
 
 use std::collections::HashMap;
@@ -46,20 +57,67 @@ impl Interaction {
     }
 }
 
-// ============================================================================
-// 2. REPRESENTATION LAYER (BARE GROUPOID — NO ENRICHMENT)
-// ============================================================================
+// ============================================================
+// Σ(V) — REPRESENTATION-INDEX SYSTEM (STRICT FORM)
+// ============================================================
+//
+// Σ(V) is a representation-index structure only.
+//
+// HARD CONSTRAINTS:
+//   - no topology
+//   - no smooth structure
+//   - no metric
+//   - no enrichment
+//   - no algebraic closure laws
+//   - no compositional recovery
+//   - no higher-categorical promotion
+//   - no implied transport structure
+//
+// IMPORTANT:
+//
+//   Relational tags are inert descriptive labels only.
+//
+//   They DO NOT imply:
+//
+//     • composition
+//     • identities
+//     • associativity
+//     • invertibility
+//     • transport
+//     • functoriality
+//     • continuity
+//     • geometric structure
+//     • categorical closure
+//
+// Therefore:
+//
+//   Σ(V) is NOT:
+//
+//     • a manifold
+//     • a bundle base
+//     • a transport category
+//     • a connection space
+//     • a geometric groupoid
+//     • a fiber category
+//
+// It is only:
+//
+//   a representation-index system carrying inert
+//   re-description labels between representations.
+//
+// No structural laws are assumed recoverable from these labels.
+//
+// ============================================================
 
-/// Σ(V): bare groupoid of representations
-///
-/// CRITICAL CONSTRAINTS:
-/// - NOT a topological space
-/// - NOT a smooth manifold
-/// - NOT a category with structure
-/// - NO enrichment allowed
-pub struct SigmaV {
-    pub objects: Vec<()>, // σ_i (opaque)
-    pub morphisms: Vec<()>, // reparameterizations (opaque)
+#[derive(Clone)]
+pub struct Sigma {
+    _m: PhantomData<Representation>,
+
+    // admissible representation labels σ
+    pub sigma: Vec<String>,
+
+    // inert relational descriptors only
+    pub relations: HashMap<(String, String), String>,
 }
 
 // ============================================================================
@@ -134,6 +192,19 @@ impl Delta {
         0.0
     }
 }
+pub struct Delta;
+
+impl Delta {
+    pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
+        (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
+    }
+}
+// OPTIONAL:
+impl Delta {
+    pub const fn layer_name() -> &'static str {
+        "Delta"
+    }
+}
 
 /// HARD CONSTRAINT (semantic, not derivable):
 ///
@@ -203,15 +274,191 @@ pub struct System {
 //   - enrichment of any layer with topology, metric, or smoothness
 //
 // Any such construction constitutes a NEW THEORY, not an extension.
-//
-// ============================================================================
-
-// ============================================================================
-// FINAL STATEMENT
-// ============================================================================
-//
+// ---
 // This system is not a model of structure.
 //
 // It is a constraint language defining the boundary of reconstructability.
 //
 // ============================================================================
+// ============================================================
+// DQSDv2 / DVSM FROZEN CORE SPECIFICATION (STRICT)
+// ============================================================
+//
+// STRATIFICATION (INTERPRETIVE ONLY, NOT STRUCTURAL):
+//   V        : ontic substrate (opaque, uninterpreted state)
+//   Σ(V)     : bare groupoid of representations (no enrichment)
+//   Iₜ       : interaction dynamics (state evolution only)
+//   Ω        : section-relative evaluation functional
+//   Ω_VAJRA  : trace-only second-order evaluator
+//   Δ        : binary inconsistency functional (non-geometric)
+//
+// HARD CONSTRAINT:
+//   No composition law, geometric structure, or categorical closure
+//   is defined, implied, or recoverable from any layer.
+// ============================================================
+
+use std::marker::PhantomData;
+use std::collections::HashMap;
+
+// ============================================================
+// PHANTOM STRATA (TYPE SEPARATION ONLY)
+// ============================================================
+
+pub struct Ontic;
+pub struct Representation;
+pub struct Epistemic;
+pub struct MetaEpistemic;
+
+// ============================================================
+// V (ONTOLOGICAL SUBSTRATE)
+// ============================================================
+
+#[derive(Clone)]
+pub struct V {
+    _m: PhantomData<Ontic>,
+    pub state: u64,
+}
+
+// ============================================================
+// Σ(V) — BARE GROUPOID (NO STRUCTURAL INTERPRETATION)
+// ============================================================
+
+#[derive(Clone)]
+pub struct Sigma {
+    _m: PhantomData<Representation>,
+
+    // objects: representations σ
+    pub sigma: Vec<String>,
+
+    // NOTE:
+    // morphisms are inert labels only.
+    // No identity, composition, or closure is defined or implied.
+    pub morphisms: HashMap<(String, String), String>,
+}
+
+// ============================================================
+// KERNEL (PURE SELECTION FUNCTION)
+// ============================================================
+
+pub struct Kernel;
+
+impl Kernel {
+    pub fn select(&self, s: &Sigma) -> Option<String> {
+        // Deterministic implementation does NOT imply canonical choice.
+        s.sigma.first().cloned()
+    }
+}
+
+// ============================================================
+// Iₜ — INTERACTION LAYER (ONLY MODIFIES V)
+// ============================================================
+
+pub struct Interaction;
+
+impl Interaction {
+    pub fn evolve(v: V) -> V {
+        V {
+            _m: PhantomData,
+            state: v.state.wrapping_add(1),
+        }
+    }
+}
+
+// ============================================================
+// Ω — OBSERVATION (SECTION-DEPENDENT EVALUATION ONLY)
+// ============================================================
+
+pub struct Observation;
+
+impl Observation {
+    pub fn observe(v: &V, _sigma: &Sigma) -> f64 {
+        // σ is context only; it has no causal role
+        (v.state % 97) as f64
+    }
+}
+
+// ============================================================
+// TRACE LAYER (Ω_VAJRA INPUT ONLY)
+// ============================================================
+
+pub struct TraceLog {
+    pub values: Vec<f64>,
+}
+
+// ============================================================
+// Ω_VAJRA — SECOND-ORDER TRACE EVALUATOR
+// ============================================================
+
+pub struct Vajra;
+
+impl Vajra {
+    pub fn evaluate(trace: &TraceLog) -> f64 {
+        trace.values.iter().sum()
+    }
+}
+
+// ============================================================
+// Δ — INCONSISTENCY FUNCTIONAL (PURELY BINARY COMPARISON)
+// ============================================================
+
+pub struct Delta;
+
+impl Delta {
+    pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
+        (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
+    }
+}
+pub struct Delta;
+
+impl Delta {
+    pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
+        (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
+    }
+}
+//OPTIONAL:
+impl Delta {
+    pub const fn layer_name() -> &'static str {
+        "Delta"
+    }
+}
+
+// ============================================================
+// SYSTEM STATE (NO CROSS-LAYER SEMANTIC COUPLING)
+// ============================================================
+
+pub struct System {
+    pub v: V,
+    pub sigma: Sigma,
+}
+
+// ============================================================
+// CAUSAL CONSTRAINTS (INFORMAL BUT BINDING)
+// ============================================================
+//
+// 1. Interaction acts only on V
+// 2. Observation depends on V but does not affect V
+// 3. Kernel selects σ but does not constrain Σ
+// 4. Ω_VAJRA reads only traces, not system state
+// 5. Δ is independent of all dynamics
+//
+// No reverse influence edges exist.
+// ============================================================
+
+// ============================================================
+// EXECUTION PIPELINE (CAUSAL DIRECTION ONLY)
+// ============================================================
+
+impl System {
+    pub fn step(&mut self, kernel: &Kernel, trace: &mut TraceLog) {
+        // interaction (only causal update)
+        self.v = Interaction::evolve(self.v.clone());
+
+        // observation (epistemic only)
+        let obs = Observation::observe(&self.v, &self.sigma);
+        trace.values.push(obs);
+
+        // kernel selection (epistemically inert)
+        let _ = kernel.select(&self.sigma);
+    }
+}
+
