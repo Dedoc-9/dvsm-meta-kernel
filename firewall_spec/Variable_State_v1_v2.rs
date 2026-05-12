@@ -755,6 +755,9 @@ with replay-safe bounded-memory evolution"
 //
 // Declarative mathematical interpretation only.
 // Introduces NO additional state.
+// Introduces NO additional causal operators.
+//
+// All methods below are descriptive metadata over the implemented system.
 //
 // ============================================================================
 
@@ -762,32 +765,153 @@ pub struct Interpretation;
 
 impl Interpretation {
 
+    // ------------------------------------------------------------------------
+    // STATE TOPOLOGY
+    // ------------------------------------------------------------------------
+    //
+    // NOTE:
+    // "Toroidal" refers ONLY to modular confinement under normalization.
+    // No geometric manifold semantics are implied.
+    //
+    // ------------------------------------------------------------------------
+
     #[inline(always)]
     pub fn state_topology() -> &'static str {
-        "Toroidal [0, 1) latent space with FIFO history manifold"
+        "Modulo-normalized [0,1) latent interval with bounded FIFO trace history"
     }
+
+    // ------------------------------------------------------------------------
+    // DYNAMICAL CLASS
+    // ------------------------------------------------------------------------
 
     #[inline(always)]
     pub fn dynamical_class() -> &'static str {
-        "Non-autonomous discrete-time map"
+        "Non-autonomous discrete-time recurrence map"
     }
+
+    // ------------------------------------------------------------------------
+    // TRANSITION OPERATOR
+    // ------------------------------------------------------------------------
 
     #[inline(always)]
     pub fn transition_operator() -> &'static str {
         "T : S × ℝ → S"
     }
 
+    // ------------------------------------------------------------------------
+    // OBSERVATION MODEL
+    // ------------------------------------------------------------------------
+    //
+    // Observation is:
+    //
+    //   - lossy,
+    //   - non-invertible,
+    //   - causally inert,
+    //   - projection-only.
+    //
+    // ------------------------------------------------------------------------
+
     #[inline(always)]
-    pub fn observation_manifold() -> &'static str {
-        "2D nonlinear lossy projection manifold"
+    pub fn observation_model() -> &'static str {
+        "Dual-channel nonlinear lossy observational projection"
     }
+
+    // ------------------------------------------------------------------------
+    // OBSERVATIONAL EQUIVALENCE
+    // ------------------------------------------------------------------------
+    //
+    // π defines distinguishability only.
+    // π does NOT define semantic identity.
+    //
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn observational_equivalence() -> &'static str {
+        "Sample-relative observational indistinguishability under bounded projection"
+    }
+
+    // ------------------------------------------------------------------------
+    // ENTROPY / COLLAPSE MODEL
+    // ------------------------------------------------------------------------
 
     #[inline(always)]
     pub fn entropy_model() -> &'static str {
-        "Finite-memory bounded deterministic recurrence with 64-bit diagnostic collapse"
+        "Finite-memory deterministic recurrence with bounded diagnostic compression"
+    }
+
+    // ------------------------------------------------------------------------
+    // DIAGNOSTIC INTERPRETATION
+    // ------------------------------------------------------------------------
+    //
+    // Φ is:
+    //
+    //   - derived,
+    //   - non-state,
+    //   - non-causal,
+    //   - non-invertible.
+    //
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn diagnostic_model() -> &'static str {
+        "Derived 64-bit observational fingerprint collapse over bounded trace history"
+    }
+
+    // ------------------------------------------------------------------------
+    // QUOTIENT INTERPRETATION
+    // ------------------------------------------------------------------------
+    //
+    // Ω induces observational equivalence classes:
+    //
+    //   t1 ~Ω t2  ⇔  Ω(t1) = Ω(t2)
+    //
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn quotient_structure() -> &'static str {
+        "Trace equivalence classes induced by lossy deterministic projection"
+    }
+
+    // ------------------------------------------------------------------------
+    // CAUSAL STRUCTURE
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn causal_structure() -> &'static str {
+        "Latent evolution is causally closed and observation-independent"
+    }
+
+    // ------------------------------------------------------------------------
+    // EXECUTION SEMANTICS
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn execution_semantics() -> &'static str {
+        "Admissibility-first deterministic execution pipeline"
+    }
+
+    // ------------------------------------------------------------------------
+    // REDUCED COMPUTATIONAL FORM
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn reduced_form() -> &'static str {
+        "Normalization → filtering → deterministic selection → execution emission"
+    }
+
+    // ------------------------------------------------------------------------
+    // NON-GOALS
+    // ------------------------------------------------------------------------
+    //
+    // Explicit exclusions from interpretation.
+    //
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn excluded_semantics() -> &'static str {
+        "No topology inference, no manifold reconstruction, no ontology generation, no observer feedback"
     }
 }
-
 // ============================================================================
 // 9. FORMAL MATHEMATICAL MODEL
 // ============================================================================
