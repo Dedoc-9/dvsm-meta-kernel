@@ -198,4 +198,1542 @@ pub fn step(
 // --------------------------------------
 // Dynamics within fibers are fully specified.
 // Identity across fibers is fundamentally underdetermined.
+
+// dqsd.rs
+// DVSM / DCF Transport & Kernel Debate Layer
+// File role: formalizes unresolved transport coherence + observer/kernel inertness boundary
+//
+// NOTE:
+// This file does NOT implement a canonical transport law.
+// It explicitly models the *space of admissible completions*.
+
+#![allow(dead_code)]
+
+// ============================================================
+// CORE SYSTEM INTERPRETATION (STABILIZED)
+// ============================================================
+//
+// DCF state is defined as:
+//
+//   S --(~_t)--> Q_t --ℓ²--> H_t --Cayley--> U_t(ψ)
+//
+// Mutation changes ~_t (not ψ)
+//
+// ============================================================
+
+
+// ============================================================
+// TRANSPORT REGIME SPACE (KEY AXIOM GAP)
+// ============================================================
+
+/// Transport regimes are NOT physics.
+/// They are completion constraints over an underdetermined morphism space.
+#[derive(Clone, Copy)]
+pub enum TransportRegime {
+
+    /// VCB: coherence-biased completion
+    /// - enforces minimal spectral drift
+    /// - induces quasi-continuous identity tracking
+    VCB,
+
+    /// VMSF: entropy-maximal completion
+    /// - no privileged alignment
+    /// - identity is path-dependent and non-persistent
+    VMSF,
+}
+
+/// IMPORTANT:
+/// This is NOT a transport operator.
+/// This is a selector over admissible completion behaviors.
+pub struct TransportSpace;
+
+// ============================================================
+// CORE INTERPRETATION RESULT (LOCKED)
+// ============================================================
+//
+// 1. Transport is underdetermined, not missing.
+// 2. Any implemented T implicitly defines a geometry.
+// 3. Repeated mutation induces emergent effective transport.
+//
+// ============================================================
+
+
+// ============================================================
+// Ω_VAJRA OBSERVER LAYER
+// ============================================================
+
+/// Observer is a snapshot functional over frozen state.
+/// It is NOT part of dynamics.
+///
+/// IMPORTANT CORRECTION:
+/// - inertness is closure-dependent, not absolute
+pub struct OmegaVajra;
+
+impl OmegaVajra {
+    pub fn observe(snapshot: &str) -> String {
+        format!("Ω_report({})", snapshot)
+    }
+}
+
+
+// ============================================================
+// KERNEL LAYER (PURE, BUT NOT GLOBALLY ISOLATED)
+// ============================================================
+
+pub mod kernel {
+    /// Kernels are pure functions over (ψ, H_t).
+    /// They do NOT mutate system state.
+    ///
+    /// IMPORTANT:
+    /// Purity ≠ global causal isolation.
+    pub fn spectral_probe(psi: &[f64], h_dim: usize) -> f64 {
+        let norm = psi.iter().map(|x| x * x).sum::<f64>().sqrt();
+        (norm / (h_dim as f64 + 1.0)).min(1.0)
+    }
+}
+
+
+// ============================================================
+// DVSM CORE INSIGHT (FINAL FORM)
+// ============================================================
+//
+// There is no explicit T(t → t+1) in this file.
+//
+// Instead:
+//
+//   mutation(~_t)
+//       ↓
+//   induces Q_t change
+//       ↓
+//   forces implicit re-alignment of state basis
+//       ↓
+//   generates *emergent transport semantics*
+//
+// ============================================================
+//
+// Transport is not eliminated or hidden.
+// It becomes *non-unique but observable only through
+// quotient-induced isomorphism classes of basis changes*.
+//
+// ============================================================
+
+
+// ============================================================
+// FINAL SYSTEM CLASSIFICATION
+// ============================================================
+//
+// DVSM is:
+//
+//   "a non-autonomous spectral quotient system
+//    whose inter-fiber geometry is implicitly
+//    induced by mutation-driven reindexing"
+//
+// It is NOT:
+//
+//   - a fixed bundle system
+//   - a canonical category
+//   - a fully underconstrained vacuum
+//
+// It is instead:
+//
+//   → a representation-evolving geometry generator
+//
+// ============================================================
+// dqsd.rs
+//
+// DVSM / DCF TRANSPORT FORMALIZATION (STABILIZED VERSION)
+//
+// PURPOSE:
+// Provide a mathematically precise description of inter-fiber transport
+// under evolving quotient-induced Hilbert spaces.
+//
+// -----------------------------------------------------------------------------
+// 0. META-CLAIM (IMPORTANT)
+// -----------------------------------------------------------------------------
+//
+// Transport is NOT a canonical operator.
+// Transport is NOT intrinsic data of a fixed Hom(H_t, H_{t+1}) space.
+//
+// Instead:
+//
+//     Transport exists only after choosing a quotient-relative comparison datum.
+//
+// Observables depend only on equivalence classes of such choices.
+//
+// -----------------------------------------------------------------------------
+// 1. BASE STRUCTURE
+// -----------------------------------------------------------------------------
+
+/// Graph substrate
+pub struct S;
+
+/// Time-indexed equivalence relation
+/// ~_t ⊂ S × S
+pub struct EquivalenceRelation;
+
+/// Quotient space
+/// Q_t = S / ~_t
+pub struct QuotientSpace;
+
+/// Hilbert fiber
+/// H_t = ℓ²(Q_t)
+pub struct HilbertFiber;
+
+/// Local Hamiltonian (graph Laplacian on quotient)
+/// H_t = L(Q_t)
+pub struct Hamiltonian;
+
+/// Fiber-local unitary evolution
+/// U_t = Cayley(H_t)
+pub struct Unitary;
+
+/// Mutation event (non-unitary)
+/// ~_t → ~_{t+1}
+pub struct Mutation;
+
+// -----------------------------------------------------------------------------
+// 2. FUNDAMENTAL STRUCTURAL FACT
+// -----------------------------------------------------------------------------
+//
+// When ~_t changes:
+//
+// - Q_t changes combinatorially
+// - H_t changes basis structure
+// - possibly also dimension changes
+//
+// THERE IS NO CANONICAL IDENTIFICATION:
+//
+//     H_t ≅ H_{t+1}
+//
+// without additional structure.
+//
+// This is the core non-functoriality condition.
+
+
+// -----------------------------------------------------------------------------
+// 3. TRANSPORT IS DERIVED, NOT PRIMITIVE
+// -----------------------------------------------------------------------------
+//
+// A transport is defined only after choosing a comparison datum:
+//
+//     C_{t→t+1} : Q_t ⇄ Q_{t+1}
+//
+// This induces a family of lifts:
+//
+//     Lift(C_{t→t+1}) ⊂ Maps(H_t → H_{t+1})
+//
+// IMPORTANT:
+//
+// This is NOT a canonical element of Hom(H_t, H_{t+1}).
+
+
+// -----------------------------------------------------------------------------
+// 4. CORRECT MATHEMATICAL OBJECT
+// -----------------------------------------------------------------------------
+//
+// The correct object is:
+//
+//     TransportClass[T] ∈ Hom(H_t, H_{t+1}) / (G_{t+1} × G_t)
+//
+// where:
+//
+//     G_t = U(H_t)
+//
+// However:
+//
+// This quotient is only defined AFTER choosing a lift,
+// so it is a *secondary equivalence structure*, not a primitive space.
+
+
+// -----------------------------------------------------------------------------
+// 5. KEY CORRECTION (IMPORTANT)
+// -----------------------------------------------------------------------------
+//
+// ❌ Incorrect statement:
+// "There is no Hom-space prior to comparison"
+//
+// ✔ Correct statement:
+// There is always a formal linear space Hom(H_t, H_{t+1}),
+// but there is NO canonical identification of basis structures,
+// hence no canonical physical transport element.
+
+
+// -----------------------------------------------------------------------------
+// 6. GAUGE STRUCTURE
+// -----------------------------------------------------------------------------
+//
+// Each fiber has a unitary gauge group:
+//
+//     G_t = U(H_t)
+//
+// Transport transforms as:
+//
+//     T ↦ g_{t+1} · T · g_t^{-1}
+//
+// Physical content is invariant only under this double action.
+
+
+// -----------------------------------------------------------------------------
+// 7. PHYSICAL OBSERVABILITY PRINCIPLE
+// -----------------------------------------------------------------------------
+//
+// Observables depend only on equivalence classes:
+//
+//     [T_{t→t+1}] ∈ (U(H_{t+1}) \ Hom(H_t, H_{t+1}) / U(H_t))
+//
+// BUT:
+//
+// These classes are meaningful only relative to a chosen comparison structure C.
+
+
+// -----------------------------------------------------------------------------
+// 8. FINAL STABLE INTERPRETATION
+// -----------------------------------------------------------------------------
+//
+// Transport is:
+//
+//   - NOT fundamental
+//   - NOT canonical
+//   - NOT uniquely defined
+//   - NOT a fixed geometric connection
+//
+// BUT:
+//
+//   - NOT absent
+//   - NOT hidden
+//   - NOT eliminable
+//
+// Instead:
+//
+// Transport is a *representation-relative equivalence class of induced
+// correspondences between quotient-dependent Hilbert fibers*.
+
+
+// -----------------------------------------------------------------------------
+// 9. DVSM FINAL CLASSIFICATION
+// -----------------------------------------------------------------------------
+//
+// DVSM / DCF is:
+//
+//   "a non-autonomous quotient-driven spectral system in which
+//    inter-fiber structure is induced via non-canonical comparison data
+//    and only defined up to unitary gauge equivalence"
+//
+// NOT:
+//
+//   - a fiber bundle
+//   - a category with morphisms
+//   - a fixed Hom-space dynamical system
+//
+// IS:
+
+//   → a representation-dependent correspondence geometry over evolving quotients
+
+// Correct statement (tight form)
+
+// Transport is observable only as an equivalence class of quotient-induced correspondences
+// between Hilbert fibers, defined relative to a non-canonical comparison datum, and 
+// invariant under unitary gauge transformations of the quotient bases.
+
+// One subtle but important correction you now locked in
+
+// You implicitly converged on this key idea:
+// 
+// “Transport is not missing — it is relational, not intrinsic.”
+
+// The only refinement I enforced is:
+
+// Hom-spaces are not forbidden
+// what is forbidden is canonical identification of basis structure across time
+// 
+// That distinction is what keeps the system mathematically honest.
+
+// // -----------------------------------------------------------------------------
+// DVSM / DCF ADDENDUM (FINAL REFINEMENT)
+// MODULI OF COMPARISON STRUCTURES C_{t→t+1}
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// 0. AGREEMENT (STRUCTURAL)
+// -----------------------------------------------------------------------------
+
+// YES:
+
+// It is correct that:
+
+//     comparison data between Q_t and Q_{t+1}
+//     forms an object-like family:
+
+//         C_{t→t+1}
+
+// BUT:
+
+// This family is NOT a moduli space in the classical sense.
+// It is a *pre-modular structure without gluing axioms*.
+
+
+// -----------------------------------------------------------------------------
+// 1. PRECISE REPLACEMENT OF "MODULI SPACE"
+// -----------------------------------------------------------------------------
+
+// Replace "moduli space" with:
+
+//     Moduli-prestructure (or: weak comparison stack without descent)
+
+// Formal meaning:
+//
+//     𝓒(Q_t, Q_{t+1})
+//         := set of admissible correspondences
+//            equipped with partial equivalence relations
+//            but WITHOUT:
+//              - composition law
+//              - descent/gluing axioms
+//              - representability constraint
+
+
+// -----------------------------------------------------------------------------
+// 2. STRUCTURAL INTERPRETATION (REFINED)
+// -----------------------------------------------------------------------------
+
+// 𝓒 is best understood as:
+//
+//     a fiberwise family of comparison atlases
+//     not a global parameter space
+
+// So:
+
+//     C_{t→t+1} ∈ 𝓒(Q_t, Q_{t+1})
+//
+// but:
+//
+//     𝓒 is NOT functorial in t
+
+
+// -----------------------------------------------------------------------------
+// 3. KEY CORRECTION (IMPORTANT)
+// -----------------------------------------------------------------------------
+
+// Your statement:
+//
+//     "moduli of comparison structures"
+
+// is valid ONLY if interpreted as:
+
+//     "a moduli-like indexing of non-representable morphism classes"
+
+// NOT as:
+
+//     a geometric moduli space in the stack-theoretic sense
+
+
+// -----------------------------------------------------------------------------
+// 4. TRANSPORT REFINEMENT (UNCHANGED CORE, STRONGER FORM)
+// -----------------------------------------------------------------------------
+
+// Transport becomes a *choice of lift*:
+
+//     T_{t→t+1} ∈ Lift(C_{t→t+1})
+
+// where:
+
+//     Lift : 𝓒 → Rel(H_t, H_{t+1})
+
+// is:
+//
+//     - non-canonical
+//     - non-functorial
+//     - not globally composable
+
+
+// -----------------------------------------------------------------------------
+// 5. DEEP STRUCTURAL RESULT (IMPORTANT CONSISTENCY POINT)
+// -----------------------------------------------------------------------------
+
+// The system now cleanly separates:
+
+//     (A) intrinsic geometry:
+//         Q_t = S / ~_t
+
+//     (B) comparison geometry:
+//         𝓒(Q_t, Q_{t+1})
+
+//     (C) representation geometry:
+//         H_t = ℓ²(Q_t)
+
+// There is NO single ambient space containing all three canonically.
+
+// -----------------------------------------------------------------------------
+// 6. WHAT IS NOW FORMALLY TRUE
+// -----------------------------------------------------------------------------
+
+// - Comparison structures form a *weakly organized family*
+// - They behave like moduli data only locally in time
+// - They do NOT assemble into a global moduli object without axioms
+// - Transport is always a lift, never a primitive morphism
+
+// -----------------------------------------------------------------------------
+// 7. FINAL AGREEMENT STATEMENT
+// -----------------------------------------------------------------------------
+
+// YES, the “space of comparison structures” is correctly introduced.
+//
+// BUT:
+//
+// It must be treated as:
+//
+//     a non-representable moduli-prestructure of correspondences
+//
+// rather than:
+//
+//     a true moduli space or geometric object with gluing laws
+
+// -----------------------------------------------------------------------------
+// DVSM / DCF ADDENDUM (REFINED)
+// MODULI OF COMPARISON STRUCTURES
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// 0. OBJECTIVE (UNCHANGED)
+// -----------------------------------------------------------------------------
+
+// Promote comparison data:
+//
+//     C_{t→t+1} : Q_t ⇄ Q_{t+1}
+//
+// into a structured *relative geometry object*, not a primitive choice.
+
+
+// -----------------------------------------------------------------------------
+// 1. STRUCTURAL CORRECTION (IMPORTANT)
+// -----------------------------------------------------------------------------
+
+// Replace:
+//
+    // 𝓜(Q_t, Q_{t+1}) = "moduli space"
+//
+// WITH MORE PRECISE FORM:
+
+//     𝓜(Q_t, Q_{t+1}) = set of admissible correspondences
+//                          equipped with partial equivalence relations
+
+// NOTE:
+// This is NOT assumed to be a global moduli space in the geometric sense.
+// It is a *locally structured parameter class*.
+
+
+// -----------------------------------------------------------------------------
+// 2. COMPARISON STRUCTURE
+// -----------------------------------------------------------------------------
+
+pub struct ComparisonStructure {
+    // C is not a map; it is a relational datum
+    // encoding partial identifications between quotient classes
+}
+
+impl ComparisonStructure {
+
+    // induces lift, but NOT canonically
+    pub fn induce_lift(&self) -> Option<TransportOperator> {
+        // Lift depends on auxiliary representation choices
+        None
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 3. TRANSPORT (REFINED SEMANTICS)
+// -----------------------------------------------------------------------------
+
+// Transport is:
+
+//     T_{t→t+1} ∈ Lift(C)
+
+// where Lift is:
+//
+//     - non-unique
+//     - representation-dependent
+//     - not functorial
+//
+// IMPORTANT CORRECTION:
+//
+// Lift is NOT a section of a bundle unless additional coherence axioms are added.
+
+
+// -----------------------------------------------------------------------------
+// 4. KEY STRUCTURAL REFINEMENT
+// -----------------------------------------------------------------------------
+
+// Previously implied:
+//
+//     DVSM evolves over a moduli space of transitions
+//
+// CORRECT FORM:
+//
+//     DVSM depends on a time-indexed family:
+//
+//         { 𝓜(Q_t, Q_{t+1}) }_t
+//
+// There is NO global moduli object unless explicitly constructed.
+
+
+// -----------------------------------------------------------------------------
+// 5. ABSENCE OF COMPOSITION LAW (CRITICAL)
+// -----------------------------------------------------------------------------
+
+// There is currently NO defined operation:
+//
+//     ∘ : 𝓜(Q_t, Q_{t+1}) × 𝓜(Q_{t+1}, Q_{t+2}) → 𝓜(Q_t, Q_{t+2})
+//
+// Therefore:
+//
+// - no category structure
+// - no bundle structure over time
+// - no canonical path-independence
+//
+// This is a FEATURE, not a bug:
+// it encodes representation non-functoriality.
+
+
+// -----------------------------------------------------------------------------
+// 6. PHYSICAL OBSERVABLES (UNCHANGED BUT TIGHTER)
+// -----------------------------------------------------------------------------
+
+// Observables depend only on equivalence classes:
+
+//     [T] ∈ U(H_{t+1}) \ Lift(C) / U(H_t)
+
+// BUT:
+//
+// This quotient is *representation-relative*, not absolute.
+// It is defined per-choice of comparison structure.
+
+
+// -----------------------------------------------------------------------------
+// 7. CORRECTED HIGH-LEVEL INTERPRETATION
+// -----------------------------------------------------------------------------
+
+// DVSM is:
+
+//     a non-autonomous quotient spectral system
+//     indexed by time-dependent equivalence relations
+//     coupled to a family of structured but non-composable
+//     comparison spaces
+
+// NOT:
+
+//     - a category
+//     - a fiber bundle
+//     - a moduli dynamical system
+//     - a functorial geometry
+
+
+// -----------------------------------------------------------------------------
+// 8. FINAL STRUCTURAL STATEMENT
+// -----------------------------------------------------------------------------
+
+// Geometry evolves in two decoupled but interacting layers:
+//
+//     (1) quotient geometry (~_t)
+//     (2) comparison geometry (𝓜_t)
+//
+// but:
+//
+//     𝓜_t does NOT admit intrinsic composition
+//     unless additional axioms are imposed.
+
+// -----------------------------------------------------------------------------
+// DVSM / DCF ADDENDUM — MODULI OF COMPARISON STRUCTURES (REFINED)
+// PART 1: BASE + STRUCTURAL REFORMULATION
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// 0. OBJECTIVE
+// -----------------------------------------------------------------------------
+
+// Promote comparison data:
+//
+//     C_{t→t+1} : Q_t ⇄ Q_{t+1}
+//
+// from an auxiliary alignment choice
+// → into a structured *representation-dependent correspondence object*.
+//
+// IMPORTANT:
+// This is NOT an assertion of canonical geometric structure.
+
+
+// -----------------------------------------------------------------------------
+// 1. STRUCTURAL CORRECTION (CRITICAL)
+// -----------------------------------------------------------------------------
+
+// Replace the earlier notion:
+//
+//     𝓜(Q_t, Q_{t+1}) = "moduli space"
+//
+// WITH THE FOLLOWING PRECISE FORM:
+
+//     𝓜(Q_t, Q_{t+1}) = set of admissible correspondences
+//                        equipped with representation-relative equivalence relations
+
+// KEY CONSTRAINTS:
+//
+// - No assumption of smooth structure
+// - No assumption of composition law
+// - No assumption of global moduli geometry
+//
+// This object is:
+//
+//     a parameterized family of correspondence classes,
+//     not a geometric moduli space in the classical sense.
+
+
+// -----------------------------------------------------------------------------
+// 2. COMPARISON STRUCTURE (RELATIONAL OBJECT)
+// -----------------------------------------------------------------------------
+
+pub struct ComparisonStructure {
+    // C_{t→t+1} is a relational encoding between quotient classes
+    // NOT a function, NOT a bijection, NOT a canonical map
+}
+
+impl ComparisonStructure {
+
+    // Induced transport exists only after additional representation choice
+    // There is no canonical lift procedure.
+    pub fn induce_lift(&self) -> Option<TransportOperator> {
+
+        // IMPORTANT:
+        // Lift is representation-dependent and non-unique.
+        // It is not a deterministic construction.
+
+        None
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 3. TRANSPORT (DERIVED OBJECT ONLY)
+// -----------------------------------------------------------------------------
+
+// Transport is defined only as:
+
+//     T_{t→t+1} ∈ Lift(C)
+
+// where:
+
+//     Lift(C) is a family of admissible realizations
+//     of a comparison structure into a linear operator.
+//
+// CRITICAL CORRECTION:
+//
+// Lift is NOT:
+//     - canonical
+//     - functorial
+//     - globally defined
+//
+// Lift is:
+//     - representation-dependent
+//     - choice-sensitive
+//     - non-unique even up to gauge unless constrained
+
+// -----------------------------------------------------------------------------
+// DVSM / DCF ADDENDUM
+// COMPARISON STRUCTURE: MISSING AXIOMS CLARIFICATION
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// CORE OBJECT (ASSUMED)
+// -----------------------------------------------------------------------------
+
+// Quotient-induced Hilbert fibers:
+//
+//   S --(~_t)--> Q_t --ℓ²--> H_t
+
+// Comparison data:
+//
+//   C_{t→t+1} : Q_t ⇄ Q_{t+1}
+//
+// Transport:
+//
+//   T_{t→t+1} ∈ Lift(C_{t→t+1})  (non-canonical)
+
+
+// -----------------------------------------------------------------------------
+// IMPORTANT META-STATEMENT
+// -----------------------------------------------------------------------------
+
+// The system is NOT missing operations.
+// It is missing *structure that would constrain existing ambiguity*.
+
+
+// -----------------------------------------------------------------------------
+// 1. COMPOSITION LAW
+// -----------------------------------------------------------------------------
+
+// Would define:
+//
+//   T_{t→t+2} = T_{t+1→t+2} ∘ T_{t→t+1}
+
+// Meaning:
+//
+// - enables multi-step consistency
+// - defines path-dependent vs path-independent transport
+
+// Status in DCF:
+//
+//   ❌ NOT DEFINED
+//
+// Consequence:
+//
+//   No guaranteed coherence across time-chained comparisons
+
+
+// -----------------------------------------------------------------------------
+// 2. IDENTITY TRANSPORT
+// -----------------------------------------------------------------------------
+
+// Would define:
+//
+//   id_t : H_t → H_t
+//   or canonical C_{t→t} = identity
+
+// Meaning:
+//
+// - defines “no change” baseline across representations
+// - stabilizes notion of invariance
+
+// Status in DCF:
+//
+//   ❌ NOT CANONICAL (depends on quotient labeling)
+
+// Consequence:
+//
+//   No absolute notion of persistence across time
+
+
+// -----------------------------------------------------------------------------
+// 3. CURVATURE CONSTRAINT
+// -----------------------------------------------------------------------------
+
+// Would define consistency of transport around loops:
+//
+//   T_{t→t+2} ?= T_{t+1→t+2} ∘ T_{t→t+1}
+
+// Meaning:
+//
+// - measures path dependence of representation change
+// - defines flat vs curved comparison geometry
+
+// Status in DCF:
+//
+//   ❌ UNDEFINED
+
+// Consequence:
+//
+//   No global notion of geometric consistency or holonomy
+
+
+// -----------------------------------------------------------------------------
+// 4. SELECTION FUNCTIONAL
+// -----------------------------------------------------------------------------
+
+// Would define preferred transport:
+//
+//   S(C_{t→t+1}) → T*
+
+// Examples:
+//
+// - minimal distortion
+// - entropy maximization
+// - symmetry preservation
+
+// Meaning:
+//
+// - converts a space of possible transports into a dynamics
+// - selects a single evolution rule
+
+// Status in DCF:
+//
+//   ❌ NOT SPECIFIED
+
+// Consequence:
+//
+//   Transport remains an equivalence class, not a law
+
+
+// -----------------------------------------------------------------------------
+// FINAL STRUCTURAL SUMMARY
+// -----------------------------------------------------------------------------
+
+// Current DCF comparison layer is:
+//
+//   - a family of admissible comparison spaces C_{t→t+1}
+//   - with non-canonical lifts to transport maps
+//   - without composition, identity, curvature, or selection
+
+// Therefore:
+
+//   → It is a pre-geometric comparison structure
+//   → not a connection
+//   → not a category
+//   → not a dynamical law space
+
+// dvsm_dev_notes.rs
+//
+// DVSM / DCF — GHOST & FAILURE MODE AUDIT LAYER (REFINED)
+//
+// PURPOSE:
+// Prevent accidental reintroduction of:
+//   - categorical structure
+//   - bundle assumptions
+//   - canonical transport
+//   - implicit geometric completion
+//
+// KEY PRINCIPLE:
+// Any higher structure (if observed) is emergent at the level of interpretation,
+// not present in the axioms.
+
+
+// -----------------------------------------------------------------------------
+// 0. EXECUTIVE SAFETY INVARIANT (AXIOM LEVEL)
+// -----------------------------------------------------------------------------
+
+/// DVSM does NOT assume:
+///   - categories
+///   - fiber bundles
+///   - canonical identifications
+///   - global geometric base spaces
+///
+/// If such structures appear, they are *derived descriptions*, not primitives.
+
+
+// -----------------------------------------------------------------------------
+// 1. GHOST TYPE: CANONICAL TRANSPORT REINTRODUCTION
+// -----------------------------------------------------------------------------
+
+pub struct ComparisonStructure;
+
+/// FAILURE MODE:
+/// Treating comparison as inducing a unique map:
+///
+///     C ⇒ T (canonical lift)
+
+/// CORRECT MODEL:
+impl ComparisonStructure {
+
+    /// Lift is a *set-valued, representation-dependent construction*.
+    ///
+    /// There is no distinguished element.
+    pub fn lift_space(&self) -> Vec<TransportOperator> {
+        vec![] // intentionally non-closed, non-unique
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 2. GHOST TYPE: FIBER BUNDLE INTERPRETATION OF H_t
+// -----------------------------------------------------------------------------
+
+pub struct HilbertFiber;
+
+/// FAILURE MODE:
+/// Interpreting H_t as smoothly varying fiber over time.
+
+/// CORRECT MODEL:
+pub struct FiberFamily {
+    pub fibers: Vec<HilbertFiber>,
+}
+
+/// NOTE:
+/// No continuity, no topology on time index is assumed.
+
+
+// -----------------------------------------------------------------------------
+// 3. GHOST TYPE: COMPOSITION OF COMPARISONS
+// -----------------------------------------------------------------------------
+
+pub struct Comparison;
+
+/// FAILURE MODE:
+/// Assuming:
+///     C_{t→t+1} ∘ C_{t+1→t+2}
+
+pub enum CompositionLaw {
+    Undefined,
+    RequiresLiftChoice,
+}
+
+/// KEY POINT:
+/// Composition is not a primitive operation in the theory.
+
+
+// -----------------------------------------------------------------------------
+// 4. GHOST TYPE: CATEGORY EMERGENCE
+// -----------------------------------------------------------------------------
+
+pub struct NonCategoricalSystem;
+
+/// FAILURE MODE:
+/// Assuming existence of:
+///     objects + morphisms + composition + identities
+
+/// CORRECT STATEMENT:
+impl NonCategoricalSystem {
+    /// No morphism closure exists at axiomatic level
+}
+
+
+// -----------------------------------------------------------------------------
+// 5. GHOST TYPE: GLOBAL GAUGE QUOTIENT
+// -----------------------------------------------------------------------------
+
+pub struct GaugeInvariant;
+
+/// FAILURE MODE:
+/// Treating:
+///   U(H_{t+1}) \ Lift(C) / U(H_t)
+/// as globally well-defined object.
+
+/// CORRECT MODEL:
+pub struct LocalInvariant;
+
+impl LocalInvariant {
+    pub fn from_lift(_lift: &TransportOperator) -> Self {
+        LocalInvariant
+    }
+}
+
+/// NOTE:
+/// Valid only relative to chosen lift.
+
+
+// -----------------------------------------------------------------------------
+// 6. GHOST TYPE: TIME AS GEOMETRIC BASE
+// -----------------------------------------------------------------------------
+
+pub struct TimeIndex;
+
+/// FAILURE MODE:
+/// Treating time as manifold or base space.
+
+pub struct IndexedSystem {
+    pub labels: Vec<TimeIndex>,
+}
+
+/// NOTE:
+/// Time is an indexing set, not a geometric object.
+
+
+// -----------------------------------------------------------------------------
+// 7. GHOST TYPE: EMERGENT CONNECTION FROM ITERATION
+// -----------------------------------------------------------------------------
+
+pub enum EmergenceClaim {
+    None,
+    InterpretationOnly,
+}
+
+/// FAILURE MODE:
+/// Assuming convergence to connection / curvature structure.
+
+/// RULE:
+/// No limit construction is defined unless externally imposed.
+
+
+// -----------------------------------------------------------------------------
+// 8. GHOST TYPE: LIFT AS FUNCTION
+// -----------------------------------------------------------------------------
+
+pub struct LiftProcedure;
+
+/// FAILURE MODE:
+/// Treating lift as a canonical function:
+///     C → Hom(H_t, H_{t+1})
+
+impl LiftProcedure {
+
+    /// returns a *family of admissible realizations*
+    pub fn realize(&self) -> Vec<TransportOperator> {
+        vec![]
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 9. CORE SAFE STRUCTURE (REDUCED)
+// -----------------------------------------------------------------------------
+
+pub struct DVSMCore {
+    pub quotients: Vec<QuotientSpace>,
+    pub fibers: Vec<HilbertFiber>,
+    pub comparisons: Vec<ComparisonStructure>,
+}
+
+/// ABSENT BY DESIGN:
+/// - no composition law
+/// - no global morphism space
+/// - no bundle structure
+/// - no canonical transport
+
+
+// -----------------------------------------------------------------------------
+// 10. FINAL RULE (CRITICAL)
+// -----------------------------------------------------------------------------
+
+/// If a structure appears to satisfy:
+///   - composition
+///   - identity
+///   - continuity
+///   - curvature
+///
+/// THEN:
+///   it belongs to an INTERPRETATION LAYER,
+///   not to the axiomatic system.
+///
+/// DVSM axioms remain strictly pre-geometric.
+
+// ============================================================================
+// DVSM / DCF ADDENDUM — MODULI OF COMPARISON STRUCTURES (REFINED v2)
+// ============================================================================
+//
+// CORE REVISION:
+// Comparison data is NOT a geometric moduli space.
+// It is a time-indexed family of *structured correspondence classes*
+// over quotient-induced Hilbert fibers.
+//
+// Key correction:
+// - remove implicit "space of all maps"
+// - replace with "indexed correspondence ensemble"
+// - explicitly forbid canonical composition unless added as axiom
+// ============================================================================
+
+
+// -----------------------------------------------------------------------------
+// 0. OBJECTIVE (STABILIZED FORM)
+// -----------------------------------------------------------------------------
+
+// Given evolving quotient spaces:
+//
+//     Q_t = S / ~_t
+//
+// define comparison structure:
+//
+//     C_{t→t+1}
+//
+// as a *relational correspondence datum*, not a morphism.
+
+
+// -----------------------------------------------------------------------------
+// 1. CORRECT STRUCTURAL OBJECT
+// -----------------------------------------------------------------------------
+
+/// NOT a moduli space in geometric sense.
+/// Instead: indexed correspondence ensemble.
+pub struct ComparisonEnsemble {
+    pub time_index: usize,
+}
+
+/// Interpretation:
+/// 𝓒(Q_t, Q_{t+1}) is a *typed family of admissible correspondences*
+/// with partial equivalence relations, not a representable space.
+
+
+// -----------------------------------------------------------------------------
+// 2. COMPARISON STRUCTURE (RELATIONAL SEMANTICS)
+// -----------------------------------------------------------------------------
+
+pub struct ComparisonStructure {
+    /// Encodes partial identifications between quotient classes.
+    /// NOT a function, NOT a bijection, NOT canonical map.
+    pub phantom: (),
+}
+
+impl ComparisonStructure {
+
+    /// IMPORTANT:
+    /// No canonical lift exists.
+    /// Any lift is representation-dependent.
+    pub fn admissible_lifts(&self) -> Vec<TransportOperator> {
+        vec![]
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 3. TRANSPORT (DERIVED, NOT PRIMITIVE)
+// -----------------------------------------------------------------------------
+
+// Transport is defined only after choosing a representation lift:
+//
+//     T_{t→t+1} ∈ Lift(C_{t→t+1})
+//
+// where Lift is:
+//
+//     - multi-valued
+//     - non-functorial
+//     - not globally composable
+
+pub struct TransportOperator;
+
+// -----------------------------------------------------------------------------
+// 4. KEY CORRECTION (REPRESENTATION RELATIVITY — REFINED)
+// -----------------------------------------------------------------------------
+
+// For any two Hilbert spaces H_t and H_{t+1},
+// the linear space:
+//
+//     Hom(H_t, H_{t+1})
+//
+// exists as a well-defined mathematical object.
+
+// However:
+//
+//   - H_t and H_{t+1} arise from quotient-dependent constructions:
+//         H_t = ℓ²(Q_t),  H_{t+1} = ℓ²(Q_{t+1})
+//
+//   - there is no canonical identification between Q_t and Q_{t+1}
+//   - therefore no canonical identification of basis structures in H_t and H_{t+1}
+//   - therefore no distinguished (physically preferred) element of Hom(H_t, H_{t+1})
+
+// Hence:
+//
+// Transport is not absent and not undefined,
+// but it is *not selected by intrinsic structure of the theory*.
+//
+// Any transport operator T_{t→t+1} ∈ Hom(H_t, H_{t+1})
+// depends on an additional representation choice:
+//
+//     C_{t→t+1} : Q_t ⇄ Q_{t+1}  (comparison datum)
+
+// Conclusion:
+//
+// Hom-space is intrinsic to linear structure,
+// but physical transport is representation-relative,
+// i.e. defined only after auxiliary alignment data is specified.
+
+// -----------------------------------------------------------------------------
+// 5. STRUCTURAL DECOMPOSITION (CLEAN FORM)
+// -----------------------------------------------------------------------------
+
+// DVSM now cleanly splits into:
+
+// (A) Ontology layer:
+//     Q_t = S / ~_t
+
+// (B) Representation layer:
+//     H_t = ℓ²(Q_t)
+
+// (C) Comparison layer:
+//     𝓒(Q_t, Q_{t+1})
+
+// (D) Transport layer:
+//     T ∈ Lift(𝓒)
+
+
+// -----------------------------------------------------------------------------
+// 6. ABSENCE OF CANONICAL GLOBAL STRUCTURE (CRITICAL INVARIANT)
+// -----------------------------------------------------------------------------
+
+// DVSM does NOT provide a *canonical, representation-invariant*:
+//
+//   - composition law across time-indexed transports
+//   - identity transport between distinct quotient fibers
+//   - curvature / holonomy structure on inter-fiber transitions
+//   - global moduli space of comparison structures
+//   - bundle or functorial structure over time
+
+// IMPORTANT CLARIFICATION:
+//
+// These structures MAY be defined locally after choosing:
+//   - representations of H_t
+//   - comparison data C_{t→t+1}
+//   - specific lift selections in Hom(H_t, H_{t+1})
+//
+// However:
+//
+//   - they are NOT uniquely determined by DVSM axioms
+//   - they are NOT invariant under quotient representation changes
+//   - they are NOT globally coherent without extra external axioms
+
+// RESULT:
+//
+// Any global geometric or categorical structure is a
+// *choice-dependent interpretation layer*, not a DVSM-intrinsic object.
+
+// -----------------------------------------------------------------------------
+// 7. PHYSICAL OBSERVABLES (TIGHT VERSION)
+// -----------------------------------------------------------------------------
+
+// Observables depend only on equivalence classes:
+
+//     [T] = U(H_{t+1}) \ Lift(C) / U(H_t)
+
+// IMPORTANT:
+//
+// This quotient is:
+//   - lift-dependent
+//   - not absolute
+//   - not globally defined across time unless lifts are chosen
+
+
+// -----------------------------------------------------------------------------
+// 8. FINAL MATHEMATICAL CLASSIFICATION
+// -----------------------------------------------------------------------------
+
+// DVSM is:
+
+//   "a non-autonomous spectral quotient system
+//    coupled to a time-indexed family of
+//    non-representable comparison structures"
+
+// NOT:
+
+//   - category
+//   - bundle
+//   - moduli space system
+//   - connection geometry
+
+
+// -----------------------------------------------------------------------------
+// 9. FINAL STRUCTURAL INSIGHT (STABLE FORM)
+// -----------------------------------------------------------------------------
+
+// Two independent layers evolve:
+
+//   1. Geometry layer:
+//        ~_t → Q_t → H_t
+
+//   2. Comparison layer:
+//        𝓒(Q_t, Q_{t+1})
+
+// Transport is a *derived interpretation layer*:
+//
+//     not fundamental, not absent, not canonical.
+
+// ============================================================================
+// DVSM / DCF ADDENDUM — GLOBAL STRUCTURE INVARIANT (REFINED v2)
+// ============================================================================
+//
+// PURPOSE:
+// Precisely separate:
+//   (1) existence of standard mathematical structures
+//   (2) absence of canonical cross-time identification
+//   (3) absence of DVSM-intrinsic coherence laws
+//
+// KEY PRINCIPLE:
+// DVSM does NOT remove algebraic structure.
+// DVSM removes canonicality, functoriality, and representation invariance.
+// ============================================================================
+
+
+// -----------------------------------------------------------------------------
+// 0. EXECUTIVE INVARIANT (FORMALLY STABLE)
+// -----------------------------------------------------------------------------
+
+/// DVSM does NOT axiomatize global cross-time structure.
+///
+/// HOWEVER:
+/// All standard linear-algebraic constructions (Hom, id, composition)
+/// exist internally once a representation is fixed.
+///
+/// Missing structure is NOT existence —
+/// it is canonical selection and cross-time coherence of those choices.
+
+
+// -----------------------------------------------------------------------------
+// 1. STATUS OF STANDARD MATHEMATICAL OBJECTS
+// -----------------------------------------------------------------------------
+
+/// For each fixed time index t:
+///
+///   H_t is a Hilbert space
+///   Hom(H_t, H_{t+1}) is well-defined
+///   id_{H_t} ∈ Hom(H_t, H_t) exists
+///   composition in Vect exists
+
+/// BUT DVSM DOES NOT PROVIDE:
+///
+///   - canonical identification between H_t and H_{t+1}
+///   - canonical element selection in Hom(H_t, H_{t+1})
+///   - invariant rule relating representations across time
+
+// IMPORTANT DISTINCTION:
+//   existence of structure ≠ canonical use of structure
+
+
+// -----------------------------------------------------------------------------
+// 2. COMPOSITION (CONDITIONAL STRUCTURE)
+// -----------------------------------------------------------------------------
+
+// Given chosen representatives:
+//
+//     T_{t→t+1} ∈ Hom(H_t, H_{t+1})
+//     T_{t+1→t+2} ∈ Hom(H_{t+1}, H_{t+2})
+//
+// composition is defined in standard linear algebra:
+//
+//     T_{t→t+2} := T_{t+1→t+2} ∘ T_{t→t+1}
+//
+// HOWEVER:
+//
+// - each T depends on a non-canonical comparison choice C
+// - different choices of C produce inequivalent composites
+// - DVSM does NOT select a preferred or consistent lift family
+
+// CONCLUSION:
+// composition exists, but is NOT DVSM-canonical or DVSM-invariant
+
+
+// -----------------------------------------------------------------------------
+// 3. IDENTITY (LOCAL ONLY)
+// -----------------------------------------------------------------------------
+
+// Each fiber has a canonical identity:
+//
+//     id_t ∈ Hom(H_t, H_t)
+
+/// HOWEVER:
+/// There is no canonical identification:
+///
+///     H_t ≅ H_{t+1}
+
+/// Therefore:
+///   - identity exists locally
+///   - persistence across time is not intrinsic
+///   - invariance requires external comparison structure
+
+// KEY POINT:
+// identity is fiber-local, not time-global
+
+
+// -----------------------------------------------------------------------------
+// 4. CURVATURE (DERIVED, NOT PRIMITIVE)
+// -----------------------------------------------------------------------------
+
+// Curvature can only be defined IF:
+//
+//   - a transport rule is fixed
+//   - a composition convention is fixed
+//   - comparison lifts are chosen consistently
+
+// THEN:
+//
+//     curvature = failure of path-independence of composed lifts
+
+// HOWEVER:
+//
+// DVSM does NOT define such a connection or coherence law
+
+// CONCLUSION:
+// curvature is a derived diagnostic, not a primitive DVSM object
+
+
+// -----------------------------------------------------------------------------
+// 5. COMPARISON STRUCTURE (CORE RELATIONAL OBJECT)
+// -----------------------------------------------------------------------------
+
+pub struct ComparisonStructure {
+    /// Relational encoding between quotient classes.
+    /// Not a function, not a morphism, not canonical.
+    pub relational_data: (),
+}
+
+impl ComparisonStructure {
+
+    /// Returns a family of admissible realizations.
+    /// NOT a canonical lift.
+    pub fn admissible_lifts(&self) -> Vec<TransportOperator> {
+        vec![]
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// 6. MODULI INTERPRETATION (WEAK STRUCTURE ONLY)
+// -----------------------------------------------------------------------------
+
+// The family:
+//
+//     𝓒(Q_t, Q_{t+1})
+//
+// is NOT a geometric moduli space.
+//
+// It is:
+//
+//     a time-indexed family of correspondence classes
+//     without composition, gluing, or representability axioms
+
+// KEY CORRECTION:
+// It is "moduli-like locally", but not globally a moduli object
+
+
+// -----------------------------------------------------------------------------
+// 7. CRITICAL STRUCTURAL CLARIFICATION
+// -----------------------------------------------------------------------------
+
+// INCORRECT INTERPRETATION:
+//   DVSM forbids global mathematical structure
+
+// CORRECT INTERPRETATION:
+//   DVSM does not provide axioms that canonically assemble
+//   or select global structure across time.
+
+// Therefore:
+//
+//   structures exist,
+//   but their cross-time organization is underdetermined
+
+
+// -----------------------------------------------------------------------------
+// 8. FINAL MATHEMATICAL CLASSIFICATION (REFINED)
+// -----------------------------------------------------------------------------
+
+// DVSM is:
+
+/// A non-autonomous spectral quotient system
+/// with:
+///   - well-defined local Hilbert fibers
+///   - standard linear algebra internally
+///   - representation-dependent comparison data
+///   - non-canonical inter-fiber identification
+
+// NOT:
+
+//   - a category
+//   - a fiber bundle over time
+//   - a connection geometry
+//   - a globally functorial system
+
+// ALSO NOT:
+
+//   - structureless
+//   - Hom-free
+//   - composition-free
+
+// INSTEAD:
+
+//   → algebraically rich but coherence-underdetermined system
+
+
+// -----------------------------------------------------------------------------
+// 9. STRUCTURAL DECOMPOSITION (FINAL STABLE FORM)
+// -----------------------------------------------------------------------------
+
+// DVSM consists of three distinct layers:
+
+// (1) Intrinsic quotient dynamics:
+//       S → Q_t → H_t → U_t
+
+// (2) Representation ambiguity:
+//       H_t defined only up to basis isomorphism
+
+// (3) Comparison freedom:
+//       choice of C_{t→t+1} and its lift into Hom-spaces
+
+// DVSM axiomatizes (1),
+// partially constrains (2),
+// and leaves (3) underdetermined.
+
+// -----------------------------------------------------------------------------
+// END
+// -----------------------------------------------------------------------------
 // ============================================================================
