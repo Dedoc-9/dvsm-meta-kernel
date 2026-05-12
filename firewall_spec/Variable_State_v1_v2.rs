@@ -323,6 +323,24 @@ impl System {
 // - Non-injective observation mapping
 // - Purely derived diagnostics
 // - No hidden or auxiliary state
+
+// STATE:
+//  S_t = (v_t, H_t)
+
+// DYNAMICS:
+//  v_{t+1} = fract(v_t + u_t)
+//  H_{t+1} = FIFO_cap(H_t, v_{t+1})
+
+// OBSERVATION:
+//  O(v_t) = (v_t, fract(α v_t))
+
+// DIAGNOSTIC (NON-STATE):
+//  Φ_t = F(S_t)
+
+// PROPERTIES:
+//  - O is non-injective
+//  - Φ_t does not influence S_{t+1}
+//   - system is causally closed over S_t only
 //
 // ============================================================================
 // END FORMAL MODEL
