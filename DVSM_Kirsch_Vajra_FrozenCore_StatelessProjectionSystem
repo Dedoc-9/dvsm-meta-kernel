@@ -856,6 +856,189 @@ This shifts system security from:
 to:
     “preventing meaning synthesis across domains”
 
+{
+  "system_name": "DVSM_DQSDv2_EIL_Full_Firewall_Addendum",
+  "classification": {
+    "type": "stratified epistemic isolation architecture",
+    "subtype": "non-closure observational constraint system",
+    "status": "frozen-core specification"
+  },
+
+  "global_axioms": {
+    "non_closure_principle": true,
+    "no_cross_layer_composition": true,
+    "no_metric_reconstruction": true,
+    "no_transport_structure": true,
+    "no_categorical_completion": true,
+    "no_feedback_loops": true
+  },
+
+  "layers": {
+    "interaction_layer": {
+      "name": "I_t",
+      "role": "ontic evolution operator",
+      "mapping": "V → V",
+      "definition": "V_{t+1} = I_t(V_t)",
+      "constraints": {
+        "causal_only": true,
+        "representation_independent": true,
+        "inaccessible_to_observation": true
+      }
+    },
+
+    "representation_layer": {
+      "name": "K / Sigma",
+      "role": "gauge selection layer",
+      "mapping": "V → Σ(V)",
+      "structure": "σ_t ∈ Σ(V)",
+      "definition": "V_{σ_t} = σ_t(V)",
+      "constraints": {
+        "no_metric": true,
+        "no_transport": true,
+        "no_composition": true,
+        "no_canonical_choice": true
+      }
+    },
+
+    "observation_layer": {
+      "name": "Omega",
+      "role": "epistemic scalar projection",
+      "composition": "O ∘ π ∘ σ_t",
+      "definition": "Ω(V_t, σ_t) = O(π(σ_t(V_t)))",
+      "mapping": "V × Σ(V) → R",
+      "constraints": {
+        "epistemic_only": true,
+        "no_feedback_to_dynamics": true,
+        "no_cross_domain_composition": true
+      }
+    },
+
+    "meta_observation_layer": {
+      "name": "Omega_VAJRA",
+      "role": "inert diagnostic evaluator",
+      "mapping": "R → Meta(R)",
+      "definition": "Ω_VAJRA(V_t, σ_t) = F(Ω, H(V_t))",
+      "H": "derived invariants (non-causal diagnostics)",
+      "constraints": {
+        "no_influence_on_I": true,
+        "no_influence_on_K": true,
+        "no_cross_instance_coupling": true,
+        "no_structural_reconstruction": true
+      }
+    }
+  },
+
+  "collapse_classes": {
+    "definition": "phantom type isolation boundary for irreducible domains",
+
+    "classes": {
+      "KirschClass": "spatial boundary stress collapse systems",
+      "BubbleClass": "temporal fluid collapse systems",
+      "FractureClass": "material rupture collapse systems"
+    },
+
+    "trait_definition": "CollapseClass marker trait (no methods)",
+
+    "rules": {
+      "no_shared_scalar_space": true,
+      "no_cross_domain_functions": true,
+      "no_joint_distribution": true,
+      "no_embedding_between_classes": true
+    }
+  },
+
+  "vajra_layer": {
+    "definition": "domain-local scalar reduction functional",
+
+    "structure": "Vajra<C: CollapseClass>",
+
+    "properties": {
+      "stateless": true,
+      "anchor_call_local_only": true,
+      "no_persistence": true,
+      "no_cross_class_interaction": true
+    },
+
+    "firewall_rule": "Vajra<C1> is not compatible with Vajra<C2>"
+  },
+
+  "meta_observer_vajra": {
+    "definition": "inert aggregation-free diagnostic reader",
+
+    "input": "independent Ω outputs per CollapseClass",
+    "output": "unordered scalar vector",
+
+    "constraints": {
+      "no_summation": true,
+      "no_correlation_analysis": true,
+      "no_normalization": true,
+      "no_joint_modeling": true
+    }
+  },
+
+  "non_commensurability_firewall": {
+    "axiom": "CollapseClass outputs are not comparable",
+
+    "forbidden_operations": [
+      "compare(Vajra<K>, Vajra<B>)",
+      "normalize_cross_domain_scalars",
+      "compute_distance_between_classes",
+      "construct_joint_distribution",
+      "embed_multi_domain_space"
+    ],
+
+    "reason": "implies existence of forbidden shared metric space"
+  },
+
+  "categorical_structure": {
+    "type": "non-functorial causal diagram",
+
+    "objects": [
+      "V",
+      "Σ(V)",
+      "V_σ",
+      "R",
+      "Meta(R)"
+    ],
+
+    "morphisms": {
+      "I_t": "V → V",
+      "K": "V → Σ(V)",
+      "π": "V_σ → R",
+      "O": "R → ℝ",
+      "Ω_VAJRA": "R → Meta(R)"
+    },
+
+    "constraint": "composition only valid within layers, never across layers"
+  },
+
+  "causal_constraints": {
+    "allowed": [
+      "V → I → V",
+      "V → K → Σ(V)",
+      "Σ(V) → π → R → O → ℝ",
+      "Ω → Ω_VAJRA"
+    ],
+
+    "forbidden": [
+      "Meta → V",
+      "Meta → Σ",
+      "Ω → I",
+      "cross_class_coupling"
+    ]
+  },
+
+  "final_firewall_guarantee": {
+    "irreducibility": true,
+    "no_geometry_reconstruction": true,
+    "no_transport_laws": true,
+    "no_cross_domain_causality": true,
+    "no_shared_metric_space": true,
+
+    "statement": "All CollapseClasses remain epistemically isolated under all admissible operations"
+  }
+}
+
 ===============================================================================
 END OF FILE
 ===============================================================================
