@@ -1021,9 +1021,83 @@ pub struct KirschClass;
 /// Collapse of this separation = collapse of the model.
 ///
 /// ============================================================================
+         
 allow(dead_code) is a local suppression of observability pressure, not a structural invariant.
 
 So it should be treated like:
 
 debugging insulation
 not part of the epistemic firewall itself
+#![allow(dead_code)]
+
+// ============================================================================
+// DVSM / DQSDv2 — KERNEL ISOLATION ADDENDUM (FIREWALL SPEC ONLY)
+// ============================================================================
+//
+// PURPOSE:
+// This file defines *structural constraints only*.
+// It must NOT participate in DVSM execution, physics binding, or collapse logic.
+//
+// ============================================================================
+
+/// ============================================================================
+/// 1. CORE PRINCIPLE
+/// ============================================================================
+/// Isolation is structural (filesystem + crate boundary), not semantic.
+
+pub struct FirewallPrinciple;
+
+/// ============================================================================
+/// 2. REQUIRED WORKSPACE LAYOUT (ENFORCEMENT MODEL)
+/// ============================================================================
+
+/// physics_boundary_cpp:
+///   - ONLY Φ_C generators (external physics)
+///
+/// dvsm_core_rust:
+///   - ONLY V, Interaction, TraceLog
+///
+/// vajra_observer:
+///   - ONLY statistical evaluation
+///
+/// kernel_registry_types:
+///   - ONLY CollapseClass definitions
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 3. HARD ISOLATION RULE
+/// ============================================================================
+///
+/// If multiple CollapseClasses share a Rust compilation unit,
+/// the isolation model is considered INVALID by definition.
+///
+/// Reason:
+/// - compilation context = implicit metric coupling surface
+/// - refactoring adjacency = latent cross-domain inference risk
+///
+/// ============================================================================
+
+/// ============================================================================
+/// 4. FIREWALL AXIOMS (META-LEVEL)
+/// ============================================================================
+
+pub const NON_INVERTIBILITY: bool = true;
+pub const NO_CROSS_KERNEL_TRANSPORT: bool = true;
+pub const NO_SHARED_METRIC_SPACE: bool = true;
+pub const VAJRA_STATLESS: bool = true;
+pub const FROZEN_CORE: bool = true;
+
+/// ============================================================================
+/// 5. IMPLEMENTATION WARNING
+/// ============================================================================
+///
+/// This file MUST NOT:
+/// - define physics functions
+/// - define DVSM state
+/// - define TraceLog logic
+/// - implement CollapseClass instances
+///
+/// It exists ONLY as structural constraint documentation.
+///
+/// ============================================================================
