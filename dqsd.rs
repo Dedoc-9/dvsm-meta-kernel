@@ -2029,6 +2029,49 @@ fn main() {
     // It is a layered structural system.
 }
 
+// Core invariant statement:
+// Local structures are well-defined, but their cross-time alignment is not canonical,
+// so global reconstruction is not unique.
+//
+// This defines a trade-off axis, not a defect.
+
+pub enum Regime {
+    DistributedSystems,
+    MachineLearning,
+    FormalVerification,
+    KnowledgeGraphs,
+    Simulation,
+}
+
+pub fn assess(regime: Regime) -> &'static str {
+    match regime {
+
+        Regime::DistributedSystems =>
+            "Benefit: tolerates partial failure and schema drift. Cost: weaker global consistency and replay ambiguity.",
+
+        Regime::MachineLearning =>
+            "Benefit: supports latent reparameterization and multiple valid explanations. Cost: non-identifiable trajectories and unstable interpretability.",
+
+        Regime::FormalVerification =>
+            "Benefit: modular reasoning over local invariants. Cost: loss of canonical global proof object without added axioms.",
+
+        Regime::KnowledgeGraphs =>
+            "Benefit: integrates heterogeneous sources without forcing alignment. Cost: conflicting entity histories and ambiguous merges.",
+
+        Regime::Simulation =>
+            "Benefit: flexible model evolution across representations. Cost: no single ground-truth trajectory across time slices.",
+    }
+}
+
+// Summary principle:
+//
+// Cross-time non-canonicity is:
+//   - a feature for adaptive / evolving systems
+//   - a liability for strongly deterministic systems
+//
+// It shifts burden from "fixed global truth"
+// to "explicit alignment strategy selection".
+
 // -----------------------------------------------------------------------------
 // END
 // -----------------------------------------------------------------------------
