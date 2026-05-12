@@ -232,6 +232,103 @@ impl System {
 //   Observation is causally inert by design
 //
 // ============================================================================
+// 9. FORMAL MATHEMATICAL MODEL (CLOSED INTERPRETATION LAYER)
+// ============================================================================
+//
+// This section defines the mathematical interpretation of the implemented system.
+// It MUST NOT introduce additional state beyond SystemState.
+// It is a declarative mapping of code → formal structure.
+//
+// ============================================================================
+//
+// STATE (ONLY DYNAMICAL OBJECT)
+// ---------------------------------------------------------------------------
+//
+// S_t = (v_t, H_t)
+//
+// where:
+//   v_t ∈ [0,1)
+//   H_t is a FIFO-bounded history buffer
+//
+// No other variables participate in system evolution.
+//
+// ============================================================================
+//
+// DYNAMICS (ONLY TRANSITION FUNCTION)
+// ---------------------------------------------------------------------------
+//
+// Let u_t be external input.
+//
+// v_{t+1} = fract(v_t + u_t)
+//
+// H_{t+1} = FIFO_cap(H_t, v_{t+1})
+//
+// where:
+//
+// FIFO_cap(H, x):
+//   1. append x to H
+//   2. if |H| > cap, remove oldest elements until |H| = cap
+//
+// NOTE:
+// - No set operations are used (this is NOT a set union system)
+// - History is ordered and destructive (not persistent)
+//
+// ============================================================================
+//
+// OBSERVATION (NON-CAUSAL PROJECTION)
+// ---------------------------------------------------------------------------
+//
+// O(v_t) = (v_t, fract(α · v_t)),  where α = PHI
+//
+// Properties:
+//   - O is non-injective
+//   - O does NOT influence S_{t+1}
+//   - O is a pure function of current state only
+//
+// ============================================================================
+//
+// DERIVED DIAGNOSTIC (NON-STATE FUNCTIONAL)
+// ---------------------------------------------------------------------------
+//
+// Φ_t = F(S_t)
+//
+// where F is the hash function:
+//
+// Φ_t = hash(v_t, H_t[0:min(16, |H_t|)])
+//
+// IMPORTANT:
+//   - Φ_t is NOT part of S_t
+//   - Φ_t does NOT affect evolution
+//   - Φ_t is computed AFTER state transition
+//
+// ============================================================================
+//
+// CAUSAL STRUCTURE
+// ---------------------------------------------------------------------------
+//
+// S_t  →  S_{t+1}   (only valid transition relation)
+// S_t  →  O(S_t)    (observation only)
+// S_t  →  Φ_t       (diagnostic only)
+//
+// No reverse edges exist.
+//
+// ============================================================================
+//
+// SYSTEM PROPERTY SUMMARY
+// ---------------------------------------------------------------------------
+//
+// - Deterministic evolution
+// - Single scalar dynamical variable
+// - Bounded FIFO memory trace
+// - Non-injective observation mapping
+// - Purely derived diagnostics
+// - No hidden or auxiliary state
+//
+// ============================================================================
+// END FORMAL MODEL
+// ============================================================================
+
+// ============================================================================
 //
 // END FILE
 // ============================================================================
