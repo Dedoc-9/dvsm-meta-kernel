@@ -1,6 +1,6 @@
 // ============================================================================
 // DVSM — HARDENED AXIOMATIC STATE MACHINE (SINGLE-AUTHORITY FORM)
-/ Author: Daniel J. Dillberg
+// Author: Daniel J. Dillberg
 // ============================================================================
 
 #![allow(dead_code)]
