@@ -28,6 +28,7 @@ qsv_kernel.vlp.qgraph.rs (v2 Rust): https://github.com/Dedoc-9/dvsm-meta-kernel/
 
 dvsm_coarse_field.rs (Quantum Logic): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dvsm_coarse_field.rs
  dqsd.rs (Coarse Field Refined): https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dqsd.rs
+ dqsdv2_freeze_spec.rs: https://github.com/Dedoc-9/dvsm-meta-kernel/blob/main/dqsdv2_freeze_spec.rs
 
 Pre qsv_Kernel/dvsm_coarse_field.rs logic:
 
