@@ -1,0 +1,259 @@
+// ============================================================================
+// DVSM / DQSDv2 FROZEN CORE + KIRSCH PROJECTION SYSTEM (HYBRID)
+// Rust core with external C++ physics boundary
+// Author: Daniel J. Dillberg
+// ============================================================================
+
+use std::sync::Arc;
+use std::f64::consts::PI;
+
+// ============================================================================
+// EXTERNAL PHYSICS BOUNDARY (C++ KIRSCH FIELD)
+// ============================================================================
+//
+// This represents a FOREIGN SYSTEM (NOT part of DVSM state).
+// It is treated as a black-box continuum solver.
+//
+
+#[link(name = "kirsch_field")]
+extern "C" {
+    fn kirsch_sample_sigma_theta_theta(theta: f64) -> f64;
+    fn kirsch_sigma_infinity() -> f64;
+}
+
+// ============================================================================
+// STATELESS STOCHASTIC KIRSCH PROJECTION FUNCTOR
+// ============================================================================
+
+pub struct KirschProjectionFunctor {
+    pub noise_seed: u64, // NOT stateful across calls (conceptual seed only)
+    pub anchor: f64,
+}
+
+impl KirschProjectionFunctor {
+
+    #[inline(always)]
+    pub fn apply(&self, theta: f64) -> f64 {
+
+        unsafe {
+            // External physical field sample (C++ boundary)
+            let sigma = kirsch_sample_sigma_theta_theta(theta);
+            let sigma_inf = kirsch_sigma_infinity();
+
+            // Nonlinear collapse (no invertibility guarantee in practice)
+            let x = (sigma / sigma_inf).atan();
+
+            // Stateless noise injection (conceptual IID assumption)
+            let epsilon = Self::noise(theta, self.noise_seed);
+
+            x + epsilon
+        }
+    }
+
+    #[inline(always)]
+    fn noise(theta: f64, seed: u64) -> f64 {
+        // Deterministic pseudo-noise but treated as IID per-call
+        let x = (theta.sin() * (seed as f64)).fract();
+        (x - 0.5) * 1e-3
+    }
+}
+
+// ============================================================================
+// DVSM CORE STATE (FROZEN CORE)
+// ============================================================================
+
+#[derive(Clone)]
+pub struct V {
+    pub state: u64,
+}
+
+impl V {
+    pub fn evolve(&self) -> Self {
+        Self {
+            state: self.state.wrapping_add(1),
+        }
+    }
+}
+
+// ============================================================================
+// REPRESENTATION SPACE Σ(V)
+// ============================================================================
+
+pub struct Sigma {
+    pub sigma: Vec<String>,
+}
+
+impl Sigma {
+    pub fn new(labels: Vec<String>) -> Self {
+        Self { sigma: labels }
+    }
+}
+
+// ============================================================================
+// OBSERVATION LAYER (DVSM EPISTEMIC INTERFACE)
+// ============================================================================
+
+pub struct Observation;
+
+impl Observation {
+
+    pub fn observe_kirsch(
+        proj: &KirschProjectionFunctor,
+        iteration: u64
+    ) -> f64 {
+
+        let theta = Self::sample_theta(iteration);
+        proj.apply(theta)
+    }
+
+    #[inline(always)]
+    fn sample_theta(i: u64) -> f64 {
+        // Stateless deterministic "randomization"
+        ((i as f64).sin().abs()) * 2.0 * PI
+    }
+}
+
+// ============================================================================
+// TRACE LOG (PURE RESIDUE)
+// ============================================================================
+
+pub struct TraceLog {
+    pub values: Vec<f64>,
+}
+
+impl TraceLog {
+    pub fn push(&mut self, v: f64) {
+        self.values.push(v);
+    }
+}
+
+// ============================================================================
+// VAJRA (ANCHOR DEVIATION MONITOR)
+// ============================================================================
+
+pub struct Vajra {
+    pub anchor: f64,
+}
+
+impl Vajra {
+
+    pub fn evaluate(&self, trace: &TraceLog) -> f64 {
+
+        let mut sum = 0.0;
+
+        for v in &trace.values {
+            sum += (v - self.anchor).abs();
+        }
+
+        sum / (trace.values.len().max(1) as f64)
+    }
+}
+
+// ============================================================================
+// NON-CORRELATION PROTOCOL (MULTI-INSTANCE SAFE)
+// ============================================================================
+
+pub struct NonCorrelationProtocol;
+
+impl NonCorrelationProtocol {
+
+    pub fn compare_independent(a: f64, b: f64) -> (f64, f64) {
+        // IMPORTANT:
+        // NO subtraction, NO distance, NO alignment.
+        // Only juxtaposition.
+
+        (a, b)
+    }
+}
+
+// ============================================================================
+// DVSM SYSTEM (FROZEN CORE EXECUTION ENGINE)
+// ============================================================================
+
+pub struct System {
+    pub v: V,
+    pub sigma: Sigma,
+    pub trace: TraceLog,
+}
+
+impl System {
+
+    pub fn step(
+        &mut self,
+        proj: &KirschProjectionFunctor,
+        vajra: &Vajra,
+        iteration: u64
+    ) {
+
+        // 1. Ontic update (internal only)
+        self.v = self.v.evolve();
+
+        // 2. Observation (external physics projection only)
+        let obs = Observation::observe_kirsch(proj, iteration);
+        self.trace.push(obs);
+
+        // 3. Vajra evaluation (statistical only)
+        let _drift = vajra.evaluate(&self.trace);
+    }
+}
+
+// ============================================================================
+// C++ KIRSCH FIELD (EXTERNAL IMPLEMENTATION)
+// ============================================================================
+//
+// This is conceptual representation of the external solver.
+//
+// ============================================================================
+
+/*
+
+// ========================= C++ SIDE ===============================
+
+extern "C" {
+
+double kirsch_sigma_infinity() {
+    return 1.0; // normalized far-field stress
+}
+
+double kirsch_sample_sigma_theta_theta(double theta) {
+
+    // Kirsch solution boundary stress (simplified mock)
+    // σθθ = σ (1 - 2cos(2θ)) at r=a
+
+    double sigma = 1.0;
+    return sigma * (1.0 - 2.0 * cos(2.0 * theta));
+}
+
+}
+
+*/
+
+// ============================================================================
+// CROSS-INSTANCE RULE (STRICT ISOLATION)
+// ============================================================================
+
+pub struct DVSMInstance;
+
+impl DVSMInstance {
+
+    pub fn compare_instances(_a: &System, _b: &System) {
+
+        // ABSOLUTE RULE:
+        // No correlation, no metric, no alignment
+
+        // Only allowed interpretation:
+        let _ = "independent observation streams";
+    }
+}
+
+// ============================================================================
+// FINAL FREEZE GUARANTEE
+// ============================================================================
+//
+// - Kirsch field remains external (C++ boundary)
+// - DVSM remains stateless observer system
+// - Vajra remains scalar deviation monitor
+// - No geometry is reconstructable inside DVSM
+// - No cross-instance structure exists
+//
+// ============================================================================
