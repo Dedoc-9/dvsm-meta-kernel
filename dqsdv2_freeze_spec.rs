@@ -461,4 +461,119 @@ impl System {
         let _ = kernel.select(&self.sigma);
     }
 }
+// ============================================================
+// ADDENDUM — KERNEL FIREBREAK AXIOM
+// ============================================================
+//
+// K is a representation-index selector only.
+//
+// It does NOT:
+//
+//   • optimize
+//   • transport
+//   • minimize
+//   • generate trajectories
+//   • preserve continuity
+//   • recover canonical structure
+//
+// K therefore acts as a:
+//
+//   RECONSTRUCTION FIREBREAK
+//
+// preventing inferential promotion of representation indices
+// into geometry, transport, or dynamical law.
+//
+// ============================================================
+// STRICT OPERATIONAL FORM
+// ============================================================
+//
+//   K(V) := σ_t
+//
+// where:
+//
+//   V    : opaque ontic substrate
+//   σ_t  : admissible representation index
+//
+// HARD CONSTRAINT:
+//
+//   σ_t is selected without:
+//
+//     • optimization
+//     • metric comparison
+//     • variational principles
+//     • continuity assumptions
+//     • transport consistency
+//     • path minimization
+//
+// Therefore:
+//
+//   K induces NO admissible:
+//
+//     • geometry on Σ(V)
+//     • transport law
+//     • connection structure
+//     • canonical path relation
+//     • compositional dynamics
+//
+// ============================================================
+// Δ FIREBREAK RULE
+// ============================================================
+//
+// Forbidden:
+//
+//   K(V) := argmin Δ(...)
+//
+//
+// REASON:
+//
+//   Any optimization over Δ would implicitly introduce:
+//
+//     • comparability structure
+//     • admissible path ordering
+//     • representational geometry
+//     • canonical selection dynamics
+//
+// Therefore:
+//
+//   Δ is observational only.
+//
+//   Δ cannot participate in section selection.
+//
+// ============================================================
+// CAUSAL ISOLATION RULE
+// ============================================================
+//
+// Allowed:
+//
+//   V ──▶ Ω
+//   V ──▶ K
+//
+// Forbidden:
+//
+//   Ω ──▶ V
+//   Ω ──▶ K
+//   Δ ──▶ K
+//   σ_t ──▶ V
+//
+// No representational layer may become causally generative.
+//
+// ============================================================
+// FINAL FREEZE CONDITION
+// ============================================================
+//
+// Any introduction of:
+//
+//   • optimization
+//   • adaptive selection
+//   • transport continuity
+//   • representational persistence
+//   • path dependence
+//   • compositional recovery
+//
+// constitutes:
+//
+//   a NEW THEORY LAYER
+//
+// not an extension of frozen-core DQSDv2.
+// ============================================================
 
