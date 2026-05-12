@@ -1,21 +1,27 @@
 // ============================================================================
 // 🔷 DVSM / EIL / DQSDv2 — REPOSITORY ARCHITECTURE MANIFEST (REVISED)
 // ============================================================================
+// Author: Daniel J. Dillberg 
+// Contact: BigDilly95@gmail.com
 //
 // PURPOSE:
 // ---------------------------------------------------------------------------
-// This file defines the structural organization of a typed,
-// multi-module dynamical system with lossy feedback and classification.
+// This file defines the structural organization of a deterministic,
+// clocked, bounded-memory dynamical system composed of modular
+// transformation layers with contract-enforced interfaces and lossy
+// state compression.
 //
 // It is NOT:
 //   - an epistemically isolated lattice
-//   - a formally separated semantic universe
-//   - a multi-ontology physical model
+//   - a multi-ontology or multi-domain semantic universe
+//   - a physically grounded simulation of distinct real-world systems
+//   - a set of independent computational realities
 //
 // It IS:
-//   - a typed monolithic dynamical system
-//   - decomposed into structural modules for safety and clarity
-//
+//   - a single unified dynamical system operating over a shared scalar domain
+//   - structured into type-separated modules for correctness, safety, and clarity
+//   - governed by explicit execution, memory, and time constraints
+//   - composed of contract-bound transformation pipelines with lossy feedback
 // ============================================================================
 
 #![allow(dead_code)]
