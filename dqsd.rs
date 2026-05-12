@@ -2614,6 +2614,93 @@ impl CanonicalKernel {
 // ============================================================================
 // END APPLICATION LAYER
 // ============================================================================
+// // ============================================================================
+// 6. FRAME RATE ASSUMPTION (FPS AS EXTERNAL INDEXING, NOT TIME)
+// ============================================================================
+//
+// CORE INTERPRETATION:
+//
+// FPS is NOT a physical parameter of DVSM.
+// FPS is an external discretization rate imposed by execution hardware.
+//
+// It defines how often the system re-evaluates:
+//
+//   - quotient update: Q_t → Q_{t+1}
+//   - fiber reconstruction: H_t = ℓ²(Q_t)
+//   - local evolution: U_t application
+//   - kernel section selection (gauge fixing)
+//
+// ============================================================================
+//
+// 6.1 FORMAL ROLE OF FPS
+// ============================================================================
+//
+// FPS defines an index spacing:
+//
+//     t₀, t₁, t₂, ...  (frame indices)
+//
+// NOT a continuous time flow.
+//
+// Each frame corresponds to a full re-evaluation cycle of:
+//
+//     (Q_t, H_t, U_t, C_t)
+//
+// ============================================================================
+//
+// 6.2 CRITICAL CONSTRAINT
+// ============================================================================
+//
+// FPS does NOT:
+//
+//   - define physical time
+//   - impose continuity constraints
+//   - enforce smooth evolution
+//   - guarantee path-independence
+//
+// FPS ONLY:
+//
+//   → schedules recomputation of representation layers
+//
+// ============================================================================
+//
+// 6.3 VARIABLE FPS BEHAVIOR
+// ============================================================================
+//
+// DVSM remains well-defined under:
+//
+//   - variable FPS (adaptive rendering)
+//   - dropped frames (skipped index updates)
+//   - burst execution (irregular recomputation)
+//
+// Because:
+//
+//   structure is indexed, not continuous
+//
+// ============================================================================
+//
+// 6.4 SYSTEM CONSEQUENCE
+// ============================================================================
+//
+// Changing FPS affects:
+//
+//   - resolution of observation
+//   - granularity of quotient updates
+//   - apparent smoothness of transport
+//
+// BUT DOES NOT AFFECT:
+//
+//   - intrinsic DVSM structure
+//   - quotient definitions
+//   - fiber construction rules
+//
+// ============================================================================
+//
+// 6.5 ONE-LINE CORE STATEMENT
+// ============================================================================
+//
+// FPS is an external sampling rate over representation updates,
+// not a parameter of the underlying DVSM structure.
+//
 // ============================================================================
 // ----------------------------------------------------------------------------
 // END
