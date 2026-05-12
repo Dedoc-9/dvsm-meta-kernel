@@ -576,4 +576,227 @@ impl System {
 //
 // not an extension of frozen-core DQSDv2.
 // ============================================================
+// ============================================================================
+// DQSDv2 / DVSM — FROZEN CORE LEAK ANALYSIS MODULE (FULL ADDENDUM)
+// ============================================================================
+//
+// WARNING:
+// This file is NOT a model.
+// This file is NOT a simulation.
+//
+// It is a CONSTRAINT + DIAGNOSTIC LAYER.
+//
+// It encodes:
+//   - forbidden reconstruction signatures (as observations only)
+//   - non-intervention diagnostic classification
+//   - trace-level evaluation
+//
+// It explicitly does NOT:
+//   - modify system state
+//   - induce optimization
+//   - define geometry
+//   - define transport
+//   - define compositional closure
+// ============================================================================
+
+use std::marker::PhantomData;
+
+// ============================================================================
+// PHANTOM STRATA (TYPE SEPARATION ONLY)
+// ============================================================================
+
+pub struct Ontic;
+pub struct Representation;
+pub struct Epistemic;
+pub struct MetaEpistemic;
+
+// ============================================================================
+// CORE STATE (OPAQUE SUBSTRATE)
+// ============================================================================
+
+#[derive(Clone)]
+pub struct V {
+    _m: PhantomData<Ontic>,
+    pub state: u64,
+}
+
+// ============================================================================
+// Σ(V) — REPRESENTATION-INDEX SYSTEM (STRICT FORM)
+// ============================================================================
+//
+// Σ(V) is an inert indexing structure.
+//
+// HARD CONSTRAINTS:
+//   - no topology
+//   - no metric
+//   - no smooth structure
+//   - no enrichment
+//   - no algebraic closure
+//   - no compositional recovery
+//   - no transport structure
+//
+// IMPORTANT:
+// Morphisms are inert relational labels only.
+// They do NOT imply:
+//   composition, identity, invertibility, continuity,
+//   functoriality, or geometry.
+// ============================================================================
+
+#[derive(Clone)]
+pub struct Sigma {
+    _m: PhantomData<Representation>,
+    pub sigma: Vec<String>,
+}
+
+// ============================================================================
+// TRACE LAYER (OBSERVATIONAL HISTORY ONLY)
+// ============================================================================
+
+pub struct TraceLog {
+    pub values: Vec<f64>,
+}
+
+// ============================================================================
+// Ω_VAJRA — TRACE-LEVEL EVALUATOR (NON-INTERVENTIVE)
+// ============================================================================
+
+pub struct Vajra;
+
+impl Vajra {
+    pub fn evaluate(trace: &TraceLog) -> f64 {
+        trace.values.iter().sum()
+    }
+}
+
+// ============================================================================
+// Δ — INCONSISTENCY FUNCTIONAL (PURE SCALAR COMPARISON)
+// ============================================================================
+
+pub struct Delta;
+
+impl Delta {
+    pub fn measure(a: &Sigma, b: &Sigma) -> f64 {
+        (a.sigma.len() as f64 - b.sigma.len() as f64).abs()
+    }
+}
+
+// ============================================================================
+// LEAK SIGNATURE TYPES (DIAGNOSTIC ONLY)
+// ============================================================================
+
+pub enum LeakSignature {
+    OptimizationPattern,
+    MemoryPattern,
+    CompositionalPattern,
+    TransportPattern,
+    ObserverFeedbackPattern,
+}
+
+// ============================================================================
+// LEAK ANALYZER (PURELY OBSERVATIONAL)
+// ============================================================================
+
+pub struct LeakAnalyzer;
+
+impl LeakAnalyzer {
+
+    // NOTE:
+    // This function classifies patterns only.
+    // It does NOT assert existence of structure.
+    pub fn classify(trace: &TraceLog) -> Option<LeakSignature> {
+
+        // Memory-like repetition pattern (heuristic only)
+        if trace.values.windows(2).any(|w| (w[1] - w[0]).abs() < f64::EPSILON) {
+            return Some(LeakSignature::MemoryPattern);
+        }
+
+        // Numerical instability heuristic (non-semantic signal)
+        if trace.values.iter().any(|v| v.is_nan() || v.is_infinite()) {
+            return Some(LeakSignature::OptimizationPattern);
+        }
+
+        None
+    }
+}
+
+// ============================================================================
+// SYSTEM STATE (NO CROSS-LAYER COUPLING)
+// ============================================================================
+
+pub struct System {
+    pub v: V,
+    pub sigma: Sigma,
+}
+
+// ============================================================================
+// DYNAMICS (STRICTLY LOCAL)
+// ============================================================================
+
+pub struct Interaction;
+
+impl Interaction {
+    pub fn evolve(v: V) -> V {
+        V {
+            _m: PhantomData,
+            state: v.state.wrapping_add(1),
+        }
+    }
+}
+
+// ============================================================================
+// OBSERVATION (SECTION-RELATIVE ONLY)
+// ============================================================================
+
+pub struct Observation;
+
+impl Observation {
+    pub fn observe(v: &V, _sigma: &Sigma) -> f64 {
+        (v.state % 97) as f64
+    }
+}
+
+// ============================================================================
+// KERNEL (SECTION SELECTOR ONLY)
+// ============================================================================
+
+pub struct Kernel;
+
+impl Kernel {
+    pub fn select(&self, s: &Sigma) -> Option<String> {
+        s.sigma.first().cloned()
+    }
+}
+
+// ============================================================================
+// EXECUTION PIPELINE (CAUSAL DIRECTION ONLY)
+// ============================================================================
+
+impl System {
+    pub fn step(&mut self, kernel: &Kernel, trace: &mut TraceLog) {
+
+        // Ontic update
+        self.v = Interaction::evolve(self.v.clone());
+
+        // Observation (epistemic-only projection)
+        let obs = Observation::observe(&self.v, &self.sigma);
+        trace.values.push(obs);
+
+        // Kernel selection (inert indexing only)
+        let _ = kernel.select(&self.sigma);
+    }
+}
+
+// ============================================================================
+// GLOBAL GUARANTEE (NON-INTERVENTION CONTRACT)
+// ============================================================================
+//
+// LeakAnalyzer MUST NOT:
+//
+//   - modify V
+//   - modify Σ
+//   - influence Kernel
+//   - feed back into Interaction
+//
+// It is strictly a read-only diagnostic layer.
+// ============================================================================
 
