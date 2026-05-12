@@ -646,9 +646,106 @@ impl Constraints {
 pub struct System;
 
 impl System {
+
+    // ------------------------------------------------------------------------
+    // PRIMARY CLASSIFICATION
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
     pub fn classify() -> &'static str {
         "Deterministic bounded-memory nonlinear recurrence system \
 with dual lossy observation channels and derived diagnostic fingerprint"
+    }
+
+    // ------------------------------------------------------------------------
+    // REDUCED COMPUTATIONAL INTERPRETATION
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn reduced_form() -> &'static str {
+        "Deterministic trace-reduction and admissibility-filtering system"
+    }
+
+    // ------------------------------------------------------------------------
+    // EXECUTION MODEL
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn execution_model() -> &'static str {
+        "Discrete-time deterministic state transition system \
+with replay-safe bounded-memory evolution"
+    }
+
+    // ------------------------------------------------------------------------
+    // OBSERVATIONAL MODEL
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn observation_model() -> &'static str {
+        "Non-invertible dual-channel observational projection layer"
+    }
+
+    // ------------------------------------------------------------------------
+    // MEMORY MODEL
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn memory_model() -> &'static str {
+        "Finite FIFO trace memory with invariant-preserving truncation"
+    }
+
+    // ------------------------------------------------------------------------
+    // DIAGNOSTIC MODEL
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn diagnostic_model() -> &'static str {
+        "Derived non-causal fingerprint collapse over bounded trace history"
+    }
+
+    // ------------------------------------------------------------------------
+    // CAUSAL STRUCTURE
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn causal_structure() -> &'static str {
+        "Causally closed over latent state evolution only"
+    }
+
+    // ------------------------------------------------------------------------
+    // FORMAL REDUCTION
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn formal_reduction() -> &'static str {
+        "State(t+1) = Ω_FINAL(CMST(IBMSA(S_ECHO(CKITL(Events(t))))))"
+    }
+
+    // ------------------------------------------------------------------------
+    // MINIMAL COMPUTATIONAL ROLES
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn minimal_roles() -> &'static str {
+        "Normalization, admissibility filtering, deterministic selection"
+    }
+
+    // ------------------------------------------------------------------------
+    // SYSTEM INVARIANTS
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn invariants() -> &'static str {
+        "Latent confinement, bounded memory, observational non-interference, deterministic replayability"
+    }
+
+    // ------------------------------------------------------------------------
+    // ONTOLOGICAL STATUS
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn ontology_status() -> &'static str {
+        "Interpretive metaphors are non-semantic overlays and introduce no executable structure"
     }
 }
 
