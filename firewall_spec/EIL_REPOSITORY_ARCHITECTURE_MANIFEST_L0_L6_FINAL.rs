@@ -1030,5 +1030,246 @@ pub trait StructuralPartition {}
 // and a single time axis.
 //
 // ============================================================================
+// 🔷 DVSM / EIL / DQSDv2 — SYSTEM INDEX MANIFEST
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This file provides a structural index of the repository.
+//
+// It does NOT implement runtime behavior.
+// It does NOT define additional semantics.
+// It only describes the roles of each subsystem within a single
+// deterministic, clocked, bounded-memory dynamical system.
+//
+// The system is:
+//
+//   S_t = (v_t, H_t)
+//
+//   v_t ∈ [0,1)          scalar state (mod 1)
+//   H_t ∈ ℝ^N            bounded memory trace
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// ============================================================================
+
+// ============================================================================
+// 1. CORE EXECUTION LAYER
+// ============================================================================
+//
+// DVSMCore
+// ---------------------------------------------------------------------------
+// Deterministic recurrence engine operating on S_t.
+//
+// Implements:
+//   v_{t+1} = (v_t + u_t) mod 1
+//   H_{t+1} = truncate(append(H_t, v_{t+1}), N)
+//
+// Role:
+//   Defines the only state transition function F(S_t, u_t)
+//
+// ============================================================================
+
+// ============================================================================
+// 2. STATE REPRESENTATION LAYER
+// ============================================================================
+//
+// SystemState
+// ---------------------------------------------------------------------------
+// Shared container for:
+//   - scalar state v_t
+//   - bounded history H_t
+//
+// Role:
+//   Single source of truth for system evolution
+//
+// Constraint:
+//   No module owns independent state space
+//
+// ============================================================================
+
+// ============================================================================
+// 3. PROJECTION / VARIABLE LAYER
+// ============================================================================
+//
+// SystemVariable trait
+// ---------------------------------------------------------------------------
+// Defines typed access to shared state S.
+//
+// Interpretation:
+//   π : S → ℝ
+//
+// Role:
+//   Read/write interface over global state
+//
+// Constraint:
+//   Does not introduce new state domains
+//
+// ============================================================================
+
+// ============================================================================
+// 4. TRANSFORMATION LAYER
+// ============================================================================
+//
+// LossyTransform trait
+// ---------------------------------------------------------------------------
+// Defines non-injective mappings over scalar domain.
+//
+// Interpretation:
+//   f : ℝ → ℝ (many-to-one)
+//
+// Role:
+//   Compression, observation, feature extraction
+//
+// Constraint:
+//   Information-reducing but not ontologically separate
+//
+// ============================================================================
+
+// ============================================================================
+// 5. TIME LAYER
+// ============================================================================
+//
+// Clocked / SystemClock
+// ---------------------------------------------------------------------------
+// Discrete-time progression:
+//
+//   t → t + 1
+//
+// Role:
+//   Global synchronization of system evolution
+//
+// Constraint:
+//   Single shared time axis across all modules
+//
+// ============================================================================
+
+// ============================================================================
+// 6. MEMORY LAYER
+// ============================================================================
+//
+// MemoryBounded / BoundedMemory
+// ---------------------------------------------------------------------------
+// Implements sliding-window constraint:
+//
+//   H_{t+1} = truncate(H_t, N)
+//
+// Role:
+//   Ensures finite history buffer size
+//
+// Constraint:
+//   Global memory bound enforcement (not per-module memory)
+//
+// ============================================================================
+
+// ============================================================================
+// 7. PIPELINE / COMPOSITION LAYER
+// ============================================================================
+//
+// SystemStep / Pipeline
+// ---------------------------------------------------------------------------
+// Defines compositional execution:
+//
+//   S_{t+1} = F_n(...F_2(F_1(S_t)))
+//
+// Role:
+//   Orders transformations within single runtime step
+//
+// Constraint:
+//   Composition is sequential, not parallel universes
+//
+// ============================================================================
+
+// ============================================================================
+// 8. REGIME / EVENT LAYER
+// ============================================================================
+//
+// SystemEvent / LeakAnalyzer
+// ---------------------------------------------------------------------------
+// Classifies scalar + trace behavior:
+//
+//   Normal
+//   Instability
+//   Saturation
+//   Reset
+//
+// Role:
+//   Feedback signals for control logic
+//
+// Constraint:
+//   Does not alter state semantics, only guides control flow
+//
+// ============================================================================
+
+// ============================================================================
+// 9. CONTRACT LAYER
+// ============================================================================
+//
+// DVSMContract / MOSTContract
+// ---------------------------------------------------------------------------
+// Defines valid input/output constraints per kernel
+//
+// Role:
+//   Enforces correctness of transformations
+//
+// Constraint:
+//   Structural validation only (no new domains introduced)
+//
+// ============================================================================
+
+// ============================================================================
+// 10. KERNEL IMPLEMENTATION LAYER
+// ============================================================================
+//
+// CoreKernel / MOSTKernel / DVSMKernel
+// ---------------------------------------------------------------------------
+// Concrete implementations of StateTransition / contracts
+//
+// Role:
+//   Provide deterministic update rules over S_t
+//
+// Constraint:
+//   Must operate only on shared SystemState
+//
+// ============================================================================
+
+// ============================================================================
+// 11. SYSTEM CLASS SUMMARY
+// ============================================================================
+//
+// The entire repository is:
+//
+//   A single deterministic discrete-time dynamical system
+//   with bounded memory and typed transformation interfaces.
+//
+// Formal form:
+//
+//   S_{t+1} = F(S_t, u_t)
+//
+// where:
+//   S_t ∈ [0,1) × ℝ^N
+//   F is deterministic and nonlinear
+//
+// ============================================================================
+
+// ============================================================================
+// 12. ARCHITECTURAL INVARIANTS
+// ============================================================================
+//
+// ✔ One state space (no multi-domain structure)
+// ✔ One time axis (global discrete clock)
+// ✔ One evolution function (F)
+// ✔ Bounded memory (H_t truncation)
+// ✔ Typed modules (structural only)
+// ✔ Lossy transformations (non-injective projections)
+//
+// ============================================================================
+//
+// FINAL INTERPRETATION:
+//
+// The system is a typed, modular decomposition of a single
+// deterministic dynamical system, not a collection of independent systems.
+//
+// ============================================================================
 // END FILE
 // ============================================================================
