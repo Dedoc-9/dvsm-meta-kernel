@@ -827,7 +827,140 @@ impl Consistency {
 // ============================================================================
 // END ADDENDUM MODULE
 // ============================================================================
-
+// ============================================================================
+// DEVELOPER NOTES — CONSISTENCY HARDENING + COGNITIVE FAILURE WARNINGS
+// ============================================================================
+//
+// This section exists to prevent *interpretive drift* during future edits.
+// It is not executable logic. It is a boundary stabilization layer.
+//
+// ============================================================================
+//
+// 1. ON "MIND GHOSTS" (INTERPRETIVE DRIFT WARNING)
+// ============================================================================
+//
+// In complex constrained systems like DVSM, there is a known failure mode:
+//
+//   "mind ghosts" = implicit mental models that are NOT encoded in code,
+//   but are mistakenly assumed to exist by the reader or future maintainer.
+//
+// These typically appear as:
+//   - assumed hidden state
+//   - imagined bidirectional feedback loops
+//   - perceived stochasticity where none exists
+//   - inferred semantics not present in implementation
+//
+// CRITICAL RULE:
+//
+//   If a behavior is not explicitly encoded in:
+//     (a) StateMachine
+//     (b) ExecutionGraph::step
+//     (c) ObservationLaw
+//
+//   then it does NOT exist in the system.
+//
+// The system has no latent structure beyond these boundaries.
+//
+// ============================================================================
+//
+// 2. ON SYMBOLIC OVER-EXTENSION
+// ============================================================================
+//
+// WARNING:
+//
+// It is easy to over-interpret:
+//
+//   v_t, H_t, cap, PHI, or ObservationLaw
+//
+// as representing deeper semantic layers.
+//
+// These are NOT symbolic references to external ontologies.
+// They are closed operational definitions.
+//
+// PHI is a constant. Not a generator of hidden structure.
+//
+// ============================================================================
+//
+// 3. ON FIFO MEMORY INTUITION ERRORS
+// ============================================================================
+//
+// DO NOT assume:
+//
+//   - temporal depth beyond cap
+//   - weighted historical persistence
+//   - reconstructability of prior states
+//
+// H_t is strictly:
+//   last-N truncation window
+//
+// Nothing more.
+//
+// Older states are not "compressed" or "encoded".
+// They are discarded.
+//
+// ============================================================================
+//
+// 4. ON OBSERVATION LAYER MISCONSTRUCTION
+// ============================================================================
+//
+// ObservationLaw is:
+//
+//   a pure function of v_t
+//
+// It is NOT:
+//
+//   - a measurement process
+//   - a feedback channel
+//   - a state estimator
+//
+// Any perceived duality is an interpretive artifact ("ghost").
+//
+// ============================================================================
+//
+// 5. ON DETERMINISM ASSUMPTIONS
+// ============================================================================
+//
+// The system is deterministic only in the following strict sense:
+//
+//   identical (S_t, u_t) → identical S_{t+1}
+//
+// No additional guarantees exist beyond this mapping.
+//
+// There is no hidden randomness, noise model, or perturbation field.
+//
+// ============================================================================
+//
+// 6. ON THE "MIND GHOST" CLASSIFICATION FAILURE MODE
+// ============================================================================
+//
+// A "mind ghost" occurs when a reader introduces:
+//
+//   imaginary coupling between modules
+//   imagined higher-order invariants
+//   unimplemented renormalization interpretations
+//
+// These are NOT bugs in the system.
+// They are projection errors in interpretation.
+//
+// The code is minimal.
+// Complexity is not inside the system—it is in interpretation.
+//
+// ============================================================================
+//
+// 7. FINAL SAFETY STATEMENT
+// ============================================================================
+//
+// If a claim about the system cannot be traced to:
+//   - explicit code in this file
+//   - or explicit rule in Constraints / ExecutionGraph
+//
+// then it must be treated as invalid.
+//
+// The system has no hidden semantics.
+//
+// ============================================================================
+// END DEVELOPER NOTES
+// ============================================================================
 // ============================================================================
 // END FILE
 // ============================================================================
