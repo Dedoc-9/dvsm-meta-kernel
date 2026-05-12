@@ -257,21 +257,69 @@ pub struct TransportSpace;
 //
 // ============================================================
 
-
 // ============================================================
 // Ω_VAJRA OBSERVER LAYER
 // ============================================================
+//
+// CORE ROLE:
+// Ω_VAJRA is a read-only evaluation layer over immutable DVSM snapshots.
+//
+// It does NOT:
+//   - influence Q_t, H_t, U_t, or C_t
+//   - participate in evolution, mutation, or recomputation
+//   - define, constrain, or select representation sections
+//
+// It only computes diagnostic projections over already-fixed states.
+//
+// IMPORTANT:
+// Inertness is enforced structurally (no write paths, no system handles),
+// not merely assumed philosophically.
+//
+// ============================================================
 
-/// Observer is a snapshot functional over frozen state.
-/// It is NOT part of dynamics.
-///
-/// IMPORTANT CORRECTION:
-/// - inertness is closure-dependent, not absolute
+use num_complex::Complex64;
+
+// Minimal snapshot (you can extend this to your full DVSM state bundle)
+pub struct DVSMSnapshot {
+    pub psi: Vec<Complex64>,
+}
+
+// ============================================================
+// OBSERVATION OUTPUT TYPE
+// ============================================================
+//
+// Structured diagnostic result (NOT a control signal)
+#[derive(Debug, Clone)]
+pub struct OmegaReport {
+    pub tag: &'static str,
+    pub energy_proxy: f64,
+    pub norm: f64,
+}
+
+// ============================================================
+// Ω_VAJRA OBSERVER
+// ============================================================
+
 pub struct OmegaVajra;
 
 impl OmegaVajra {
-    pub fn observe(snapshot: &str) -> String {
-        format!("Ω_report({})", snapshot)
+
+    pub fn observe(snapshot: &DVSMSnapshot) -> OmegaReport {
+
+        let norm: f64 = snapshot.psi.iter().map(|z| z.norm_sqr()).sum();
+
+        let energy_proxy: f64 = snapshot
+            .psi
+            .iter()
+            .enumerate()
+            .map(|(i, z)| (i as f64) * z.norm_sqr())
+            .sum();
+
+        OmegaReport {
+            tag: "Ω_VAJRA",
+            energy_proxy,
+            norm,
+        }
     }
 }
 
