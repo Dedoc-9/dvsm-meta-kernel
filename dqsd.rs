@@ -5,21 +5,31 @@
 // Status: Pre-geometric spectral quotient framework (underconstrained transport)
 // ============================================================================
 CORE SUMMARY:
-Non-autonomous spectral dynamics over quotient-induced Hilbert fibers
-with fiberwise unitary evolution and underdetermined inter-fiber transport.
+Non-autonomous spectral dynamics on quotient-induced Hilbert fibers,
+with fiberwise unitary evolution and non-canonically related inter-fiber structure.
 
 PRIMARY OPEN AXIOM:
-No canonical inter-fiber transport law T_{t→t+1} is specified.
+No canonical transport law T_{t→t+1} is specified between Hilbert fibers.
 
-OBSERVATIONAL CLOSURE NOTE (Ω_VAJRA COMPATIBILITY):
-All statements about inter-fiber transport are section-relative.
-Ω_VAJRA does not observe a “true transport,” but only
-kernel-selected representations σ_t in which transport is evaluated.
+Instead:
+Inter-fiber comparison exists only via representation-dependent correspondences
+induced by choice of section σ_t.
 
-Thus:
-- Transport remains underdetermined at the DVSM level
-- Any perceived coherence arises from gauge/section choice (σ_t)
-- Ω_VAJRA reports properties of realized sections, not intrinsic maps
+OBSERVATIONAL CLOSURE (Ω_VAJRA COMPATIBILITY):
+All inter-fiber statements are section-relative.
+
+Ω_VAJRA does not access intrinsic transport data,
+because no such canonical object exists.
+
+It evaluates only:
+  σ_t(V_t)  — kernel-fixed representations of state
+
+and returns diagnostics over those realized sections.
+
+CONSEQUENCE:
+- Transport is structurally underdetermined at the DVSM level
+- Apparent coherence across time arises from the chosen section field {σ_t}
+- Ω_VAJRA reports invariants of representations, not intrinsic inter-fiber morphisms
 // ============================================================
 // OBSERVATION–INTERACTION–META SEPARATION (DQSD + Ω_VAJRA ALIGNMENT)
 // ============================================================
