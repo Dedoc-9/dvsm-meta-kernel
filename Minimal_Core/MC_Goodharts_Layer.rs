@@ -1,4 +1,6 @@
 // ============================================================================
+// Author: Daniel J. Dillberg
+// ============================================================================
 // DVSM MC — HARDENED GOODHART-RESISTANT CONTRACTION GEOMETRY
 
 // DVSM MC is now:
@@ -16,10 +18,107 @@
 // This shifts the problem from “best state” to “allowed evolution paths”,
 // making behavior a geometric constraint problem rather than scalar optimization.
 
+// DEV NOTE — GROUNDED STABILITY FIX (CONTROL-THEORY CORRECTIVE)
+//
+// ISSUE:
+// Over-contraction from stacked penalties (jet bounds + energy decay + drift)
+// leads to:
+//   - fixed-point collapse
+//   - loss of dynamic range
+//   - degenerate "always-smooth" trajectories
+//
+// ROOT CAUSE:
+// System enforces stability but does NOT preserve excitation bandwidth.
+//
+// CORRECTIVE PRINCIPLE:
+// Contraction must be balanced with bounded excitation (persistent input energy).
+//
+// FIX (CONTROL BALANCE TERM):
+//
+//   x_{t+1} = F_A(x_t, σ_t)
+//             - λ · StabilityPenalty(x_t)
+//             + γ · (σ_t - E[σ])  // centered excitation injection
+//
+// WHERE:
+//   γ controls excitation preservation strength
+//   (σ_t - E[σ]) ensures zero-mean energy injection (no drift explosion)
+//
+// GUARANTEE:
+// - preserves Lyapunov-style boundedness (via λ terms)
+// - avoids collapse to fixed point (via excitation term)
+// - maintains Goodhart resistance (trajectory constraints unchanged)
+//
+// KEY IDEA:
+// Stability ≠ zero motion
+// Stability = bounded motion with preserved reachable state volume
+
+// x_{t+1} = F_A(x_t, σ_t)
+//          - λ · StabilityPenalty(x_t)
+//          + γ · (σ_t - E[σ])
+
 // ============================================================================
-// Author: Daniel J. Dillberg
+// DVSM — GROUNDED CONTROL-FORM UPDATE RULE (GOODHART-STABLE FORM)
 // ============================================================================
-// DVSM — HARDENED FUNDAMENTAL EQUATION MODULE
+//
+// Corrected structure:
+//
+//   1. kernel evolution (causal)
+//   2. bounded excitation injection (state-aware)
+//   3. geometric projection (constraints enforced, not penalized)
+//
+// x_{t+1} = Proj_M( F_A(x_t, σ_t) + γ · δσ_t )
+//
+// where:
+//   δσ_t = σ_t - P(x_t)   (state-relative excitation residual)
+//   Proj_M = manifold + jet constraints (feasibility projection)
+// ============================================================================
+
+#[inline(always)]
+pub fn dvsm_step(
+    x_t: f64,
+    sigma_t: f64,
+    eta: f64,
+    gamma: f64,
+    expected_input: f64, // P(x_t)
+    min_bound: f64,
+    max_bound: f64,
+) -> f64 {
+    // ------------------------------------------------------------
+    // (1) CAUSAL KERNEL: F_A(x_t, σ_t)
+    // ------------------------------------------------------------
+    let kernel = x_t + eta * (sigma_t - x_t);
+
+    // ------------------------------------------------------------
+    // (2) STATE-RELATIVE EXCITATION
+    // δσ_t = σ_t - P(x_t)
+    // ------------------------------------------------------------
+    let delta_sigma = sigma_t - expected_input;
+
+    let excited = kernel + gamma * delta_sigma;
+
+    // ------------------------------------------------------------
+    // (3) PROJECTION (FEASIBILITY, NOT PENALTY)
+    // ------------------------------------------------------------
+    excited.clamp(min_bound, max_bound)
+}
+
+// ============================================================================
+// INTERPRETATION
+// ============================================================================
+//
+// - F_A defines contraction dynamics (stability core)
+// - γ·δσ preserves bounded excitation (prevents collapse)
+// - clamp projection enforces admissible trajectory manifold
+//
+// KEY PROPERTY:
+//   Stability is enforced via geometry (projection),
+//   not via energy subtraction (penalty terms removed).
+// ============================================================================
+
+// Logic above is the endpoint of leakage. Logic below is the foundation
+
+// ============================================================================
+// DVSM — HARDENED FUNDAMENTAL EQUATION MODULE:
 // ============================================================================
 // OPENING INDEX (READ FIRST)
 // ----------------------------------------------------------------------------
