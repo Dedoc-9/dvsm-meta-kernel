@@ -386,6 +386,24 @@ impl<S: SigmaFunctor> DVSMRuntime<S> {
 //   No feedback exists from S → Σ
 //   No stochasticity exists in kernel or Σ (by requirement)
 //
+// state: u64,    
+// seed: u64,   // seed is retained for reproducibility metadata only
+//
+// S_t does not influence Σ 
+// More precise causal phrasing:
+// Σ is causally independent of S_t
+//
+// 1. Causal graph
+// Σ → σ_t → F → S_t
+//
+// 2. Deterministic constraint
+// (S₀, Σ) uniquely determines trajectory
+//
+// 3. Structural decomposition
+// generator (Σ)
+// operator (F)
+// state (S)
+//
 // ============================================================================
 
 // ============================================================================
@@ -458,6 +476,8 @@ impl Sigma for IterSigma {
 
 impl DeterministicSigma for IterSigma {}
 
+// seed is retained for reproducibility metadata only
+
 // ============================================================================
 // 4. DVSM KERNEL (F — DETERMINISTIC CONTRACTION OPERATOR)
 // ============================================================================
@@ -520,7 +540,14 @@ impl<S: Sigma> DVSMRuntime<S> {
 //
 // A1 — STATE EVOLUTION (DRIVEN CONTRACTION):
 //
-//   S_{t+1} = F(S_t, σ_t)
+// A1 — STATE EVOLUTION (IMPLICIT STATE FORM):
+//
+// S_{t+1} = F(S_t, σ_t), where S_t is stored in kernel state
+//
+// or more precise:
+//
+// F: (S, σ) → S
+// implemented as in-place contraction update
 //
 // where:
 //
@@ -566,4 +593,224 @@ impl<S: Sigma> DVSMRuntime<S> {
 // ============================================================================
 //
 // END AXIOMATIC KERNEL SPEC
+// ============================================================================
+// ============================================================================
+// DVSM — AXIOMATIC KERNEL SPEC (REFINED)
+// Driven Deterministic Contraction System
+// ============================================================================
+
+// ============================================================================
+// 1. STRUCTURAL DECOMPOSITION
+// ============================================================================
+//
+// DVSM decomposes into:
+//
+//   generator : Σ
+//   operator  : F
+//   state     : S
+//
+// ============================================================================
+
+// ============================================================================
+// 2. CAUSAL GRAPH
+// ============================================================================
+//
+//   Σ → σ_t → F → S_t
+//
+// Σ is causally independent of S_t.
+//
+// No backward coupling exists:
+//
+//   S_t ↛ Σ
+//
+// ============================================================================
+
+// ============================================================================
+// 3. DETERMINISTIC CONSTRAINT
+// ============================================================================
+//
+//   (S₀, Σ) uniquely determines trajectory {S_t}
+//
+// Determinism is defined at the level of:
+//
+//   - initial state S₀
+//   - σ-functor definition Σ
+//
+// NOT:
+//
+//   - observations
+//   - replay traces
+//   - hashes
+//   - diagnostics
+//
+// ============================================================================
+
+pub type Signal = f64;
+pub type State = f64;
+
+// ============================================================================
+// 4. Σ — EXTERNAL SIGNAL FUNCTOR
+// ============================================================================
+
+pub trait Sigma {
+    fn next(&mut self) -> Option<Signal>;
+}
+
+/// Marker only.
+/// No execution semantics.
+pub trait DeterministicSigma {}
+
+// DeterministicSigma is a specification-level contract.
+// Rust cannot mechanically prove determinism.
+
+// ============================================================================
+// 5. Σ IMPLEMENTATIONS
+// ============================================================================
+
+pub struct StaticSigma<const N: usize> {
+    pub data: [Signal; N],
+    pub index: usize,
+}
+
+impl<const N: usize> Sigma for StaticSigma<N> {
+    fn next(&mut self) -> Option<Signal> {
+        if self.index >= N {
+            return None;
+        }
+
+        let v = self.data[self.index];
+        self.index += 1;
+
+        Some(v)
+    }
+}
+
+impl<const N: usize> DeterministicSigma for StaticSigma<N> {}
+
+// ------------------------------------------------------------------------
+
+pub struct IterSigma {
+    state: u64,
+
+    // seed retained only for reproducibility metadata
+    seed: u64,
+
+    limit: u64,
+}
+
+impl IterSigma {
+    pub fn new(seed: u64, limit: u64) -> Self {
+        Self {
+            state: seed,
+            seed,
+            limit,
+        }
+    }
+}
+
+impl Sigma for IterSigma {
+    fn next(&mut self) -> Option<Signal> {
+        self.state = self.state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1);
+
+        Some(
+            (self.state % self.limit) as Signal
+                / self.limit as Signal
+        )
+    }
+}
+
+impl DeterministicSigma for IterSigma {}
+
+// ============================================================================
+// 6. F — DETERMINISTIC CONTRACTION OPERATOR
+// ============================================================================
+
+pub struct DVSMKernel {
+    pub w: State,
+    pub eta: State,
+}
+
+impl DVSMKernel {
+    pub fn new(w: State, eta: State) -> Self {
+        Self { w, eta }
+    }
+
+    #[inline]
+    pub fn step(&mut self, sigma_t: Signal) -> State {
+        self.w = self.w + self.eta * (sigma_t - self.w);
+        self.w
+    }
+}
+
+// ============================================================================
+// 7. RUNTIME COMPOSITION
+// ============================================================================
+
+pub struct DVSMRuntime<S: Sigma> {
+    sigma: S,
+    kernel: DVSMKernel,
+}
+
+impl<S: Sigma> DVSMRuntime<S> {
+    pub fn new(sigma: S, kernel: DVSMKernel) -> Self {
+        Self { sigma, kernel }
+    }
+
+    /// Executes:
+    ///
+    ///   Σ → σ_t → F → S_t
+    ///
+    pub fn step(&mut self) -> Option<State> {
+        let sigma_t = self.sigma.next()?;
+        let s_next = self.kernel.step(sigma_t);
+
+        Some(s_next)
+    }
+}
+
+// ============================================================================
+// 8. AXIOMS
+// ============================================================================
+//
+// A1 — STATE EVOLUTION
+//
+//   S_{t+1} = F(S_t, σ_t)
+//
+// ------------------------------------------------------------------------
+//
+// A2 — Σ EXOGENEITY
+//
+//   Σ is causally independent of S_t
+//
+// ------------------------------------------------------------------------
+//
+// A3 — DETERMINISM
+//
+//   (S₀, Σ) uniquely determines trajectory {S_t}
+//
+// ------------------------------------------------------------------------
+//
+// A4 — CAUSAL LOCALITY
+//
+//   Only F modifies S_t
+//
+// ------------------------------------------------------------------------
+// ------------------------------------------------------------------------
+//
+// A5 — ARITHMETIC LOCALITY
+//
+//   Trajectory equivalence is defined relative to:
+//
+//     - identical arithmetic semantics
+//     - identical Σ implementation
+//     - identical initial state
+//
+//   DVSM does not assume symbolic exactness.
+//
+// ------------------------------------------------------------------------
+// ============================================================================
+
+// END DVSM KERNEL
 // ============================================================================
