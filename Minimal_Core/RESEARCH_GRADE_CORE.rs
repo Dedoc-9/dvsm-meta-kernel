@@ -491,3 +491,191 @@ impl DVSM {
 //   incomplete coordinate projections of a higher-order geometric system.
 //
 // ============================================================================
+// ============================================================================
+// DVSM-π+++ — FINAL FOUNDATION STATEMENT (IMPLEMENTATION-READY CORE)
+// ============================================================================
+//
+// This system is complete at the level of dynamical definition.
+//
+// The architecture defines a single closed object:
+//
+//     DVSM-π := (𝓙³(ℝⁿ), F, Π_𝓜)
+//
+// where:
+//
+//     𝓙³(ℝⁿ)  : third-order jet bundle state space
+//     F        : unconstrained graph-coupled evolution operator
+//     Π_𝓜      : mode-dependent projection onto feasibility strata
+//
+// ---------------------------------------------------------------------------
+//
+// CORE CONSISTENCY AXIOM
+// ---------------------------------------------------------------------------
+//
+// The system is fully specified by:
+//
+//     x̃ₜ₊₁ = F(xₜ, σₜ, G)
+//     xₜ₊₁  = Π_𝓜^{mode}(x̃ₜ₊₁)
+//
+// No additional dynamical mechanisms are required.
+//
+// ---------------------------------------------------------------------------
+//
+// CLOSURE PROPERTY
+// ---------------------------------------------------------------------------
+//
+// All valid trajectories satisfy:
+//
+//     (xₜ, vₜ, aₜ, jₜ) ∈ 𝓜_mode ⊂ 𝓙³(ℝⁿ)
+//
+// and remain invariant under repeated application of:
+//
+//     Π_𝓜^{mode} ∘ F
+//
+// ---------------------------------------------------------------------------
+//
+// COMPLETENESS STATEMENT
+// ---------------------------------------------------------------------------
+//
+// This formulation is complete in the sense that:
+//
+//   - dynamics are fully defined by F
+//   - constraints are fully defined by Π_𝓜
+//   - system structure is fully defined by graph G
+//
+// There are no additional primitive layers required for evolution.
+//
+// ---------------------------------------------------------------------------
+//
+// NON-EXTENSION PRINCIPLE
+// ---------------------------------------------------------------------------
+//
+// Any further constructs (e.g. diagnostics, scoring, metrics,
+// stability indicators, or observability tools) are:
+//
+//     NOT part of the dynamical system
+//
+// They are external projections of state, not generators of state.
+//
+// ---------------------------------------------------------------------------
+//
+// FINAL INTERPRETATION
+// ---------------------------------------------------------------------------
+//
+// DVSM-π+++ is:
+//
+//   - a closed jet-bundle dynamical system
+//   - a projection-stabilized graph evolution operator
+//   - a mode-indexed geometric constraint system
+//
+// NOT:
+//
+//   - an optimization framework
+//   - a metric-driven controller
+//   - an externally guided learning system
+//
+// ============================================================================
+// ============================================================================
+// OBSERVATIONAL INTEGRATION PRINCIPLE (DVSM-π+++ EXTENSION RULE)
+// ============================================================================
+//
+// New observational viewpoints are NOT dynamical components.
+//
+// They are measurement maps:
+//
+//     O_k : 𝓜_mode → ℝ^m
+//
+// applied AFTER projection:
+//
+//     xₜ ∈ 𝓜_mode
+//     yₜ^(k) = O_k(xₜ)
+//
+// where:
+//
+//   xₜ     : constrained system state (post Π_𝓜)
+//   O_k    : observation functor (viewpoint k)
+//   yₜ^(k) : external signal produced by that viewpoint
+//
+// ---------------------------------------------------------------------------
+//
+// OBSERVATION COMPOSITION RULE
+// ---------------------------------------------------------------------------
+//
+// Multiple viewpoints may coexist:
+//
+//     O(xₜ) = { O₁(xₜ), O₂(xₜ), ..., O_n(xₜ) }
+//
+// but:
+//
+//     O does NOT feed back into F or Π_𝓜
+//
+// unless explicitly re-embedded as a CONTROL channel (not observation).
+//
+// ---------------------------------------------------------------------------
+//
+// STRATIFIED OBSERVABILITY EXTENSION
+// ---------------------------------------------------------------------------
+//
+// Observational layers correspond to projections of the SAME state:
+//
+//     π⁺   view:   O₊(x)   = f₀(x)
+//     π⁺⁺  view:   O₊₊(x)  = f₁(x, v)
+//     π⁺⁺⁺ view:   O₊₊₊(x) = f₂(x, v, a, j)
+//
+// These do NOT change the manifold.
+//
+// They only change:
+//
+//     coordinate interpretation of 𝓜_mode
+//
+// ---------------------------------------------------------------------------
+//
+// CONSISTENCY CONDITION
+// ---------------------------------------------------------------------------
+//
+// For any observation O:
+//
+//     O(Π_𝓜(x)) = O(x)
+//
+// (idempotence under projection)
+//
+// meaning:
+//
+//     observation sees the constrained geometry, not raw evolution noise.
+//
+// ---------------------------------------------------------------------------
+//
+// DESIGN CONSEQUENCE
+// ---------------------------------------------------------------------------
+//
+// You can add unlimited observational viewpoints:
+//
+//   - diagnostics
+//   - monitoring
+//   - anomaly detection
+//   - geometric inference
+//   - multi-resolution visualization
+//
+// without affecting:
+//
+//   - stability
+//   - dynamics
+//   - feasibility constraints
+//
+// because they live in a separate semantic layer:
+//
+//     state evolution ≠ state interpretation
+//
+// ============================================================================
+//
+// SUMMARY
+// ---------------------------------------------------------------------------
+//
+// DVSM-π+++ is:
+//
+//   dynamics = F + Π_𝓜
+//   observations = O_k(𝓜)
+//
+// and these are categorically separated.
+//
+// ============================================================================
