@@ -660,7 +660,135 @@ class AdaptiveAgentNetwork:
         self.S = S_next
         self.H = H_next
         self.eta = eta_next
+// ----------------------------------------------------------------------------
+// ✅ Clean High-Performance DVSM / CML Vectorized Runtime
 
+                import numpy as np
+from typing import Callable
+
+class HighPerformanceCML:
+    """
+    Vectorized implementation of a frozen-frame,
+    graph-coupled contraction system.
+
+    Core properties:
+    - Snapshot isolation per tick
+    - Fully vectorized state evolution
+    - O(N^2) implicit interaction via broadcasting
+    - No Python-level iteration in update path
+    """
+
+    def __init__(self, num_agents: int, state_dim: int):
+        self.N = num_agents
+        self.D = state_dim
+
+        # Contiguous memory banks
+        self.S = np.zeros((self.N, self.D), dtype=np.float64)   # state
+        self.H = np.zeros(self.N, dtype=np.float64)             # drift
+        self.eta = np.full(self.N, 0.25, dtype=np.float64)      # contraction rate
+
+    def dispatch_cycle(
+        self,
+        adj_matrix: np.ndarray,
+        sigma: float,
+        F_A_vec: Callable[[np.ndarray, np.ndarray, float, np.ndarray], np.ndarray],
+        phi_vec: Callable[[np.ndarray], np.ndarray],
+        Psi_vec: Callable[[np.ndarray, np.ndarray], np.ndarray]
+    ) -> None:
+        """
+        Executes one synchronous frozen-frame update cycle.
+        """
+
+        # ============================================================
+        # 1. SNAPSHOT INVARIANT (FROZEN FRAME)
+        # ============================================================
+        S_frozen = self.S.copy()
+        eta_frozen = self.eta.copy()
+        H_frozen = self.H.copy()
+
+        # ============================================================
+        # 2. GRAPH NEIGHBOR AGGREGATION (ROW-NORMALIZED)
+        # ============================================================
+        row_sums = adj_matrix.sum(axis=1, keepdims=True)
+
+        norm_adj = np.divide(
+            adj_matrix,
+            row_sums,
+            out=np.zeros_like(adj_matrix),
+            where=row_sums != 0
+        )
+
+        S_neighbors = norm_adj @ S_frozen  # (N, D)
+
+        # ============================================================
+        # 3. CONTRACTIVE STATE UPDATE
+        # ============================================================
+        S_next = F_A_vec(S_frozen, S_neighbors, sigma, eta_frozen)
+
+        # ============================================================
+        # 4. PAIRWISE DEFECT FIELD (BROADCASTED EUCLIDEAN METRIC)
+        # ============================================================
+        delta_space = np.linalg.norm(
+            S_next[:, None, :] - S_frozen[None, :, :],
+            axis=2
+        )  # shape: (N, N)
+
+        # Mask by adjacency structure
+        masked = delta_space * (adj_matrix > 0)
+
+        # Node-level aggregated defect
+        delta_i = masked.sum(axis=1)
+
+        # ============================================================
+        # 5. DRIFT ACCUMULATION (IRREVERSIBLE MEMORY)
+        # ============================================================
+        self.H = H_frozen + phi_vec(delta_i)
+
+        # ============================================================
+        # 6. ADAPTIVE CONTRACTION UPDATE
+        # ============================================================
+        self.eta = Psi_vec(eta_frozen, delta_i)
+
+        # ============================================================
+        # 7. COMMIT STATE
+        # ============================================================
+        self.S = S_next
+// ============================================================================
+// DVSM — GRAPH-LOCAL vs GLOBAL COUPLING STRATEGY (DEV NOTE)
+// ============================================================================
+//
+// 1. GRAPH-LOCAL MODE
+// -------------------
+// S̄_i = Σ_j A_ij S_j
+// Cost: O(E·D)
+// Meaning: local diffusion, scalable, physically grounded on sparse graphs
+//
+// 2. GLOBAL MODE
+// ---------------
+// Δ_ij = ||S_i - S_j||₂
+// Cost: O(N²·D)
+// Meaning: full pairwise interaction field, captures global instability waves
+//
+// 3. HYBRID MODE
+// --------------
+// State evolution uses GRAPH-LOCAL coupling:
+//     S_i' = F(S_i, S̄_i, σ, η_i)
+//
+// While diagnostics / drift use GLOBAL field:
+//     Δ_ij = ||S_i' - S_j||₂
+//
+// 4. DESIGN TRADEOFF
+// ------------------
+// GRAPH-LOCAL → scalable, stable, sparse, physically interpretable
+// GLOBAL       → expressive, expensive, captures long-range coherence
+//
+// 5. SYSTEM POLICY
+// -----------------
+// Choose based on regime:
+// - MMO / large N  → GRAPH-LOCAL
+// - research / analysis → HYBRID
+// - small N / physics probing → GLOBAL
+// ============================================================================ 
 // ============================================================================
 // DVSM — INTELLECTUAL PROPERTY & MATHEMATICAL OWNERSHIP NOTICE
 // ============================================================================
