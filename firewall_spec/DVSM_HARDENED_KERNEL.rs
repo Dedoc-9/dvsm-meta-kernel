@@ -1,21 +1,19 @@
 // ============================================================================
 // DVSM — FULL CONSISTENCY PATCH (CAUSAL / EPISODIC / ARITHMETIC-RELATIVE)
 // ============================================================================
-//
 // ============================================================================
 // DVSM — VARIABLE DETERMINISM CONSTRAINT PATCH (USABILITY-ORIENTED REFINEMENT)
 // ============================================================================
+// Author: Daniel J. Dillberg
 //
 // PURPOSE:
 // ---------------------------------------------------------------------------
-//
 // This patch does NOT modify the DVSM model.
 //
 // It ONLY standardizes how “determinism” is interpreted under different
 // arithmetic and signal regimes for correct and usable reasoning.
 //
 // ---------------------------------------------------------------------------
-//
 // VARIABLE DETERMINISM MODEL:
 // ---------------------------------------------------------------------------
 //
@@ -32,7 +30,6 @@
 //   - F_A    (contraction stability behavior)
 //
 // ---------------------------------------------------------------------------
-//
 // THREE DETERMINISM REGIMES:
 // ---------------------------------------------------------------------------
 //
@@ -76,7 +73,6 @@
 //   variability originates in Σ_gen, not in F_A
 //
 // ---------------------------------------------------------------------------
-//
 // CORE USABILITY RULE:
 // ---------------------------------------------------------------------------
 //
@@ -86,7 +82,6 @@
 //   ✔ “DVSM is A-relative deterministic under fixed Σ_gen”
 //
 // ---------------------------------------------------------------------------
-//
 // PATCHED STRUCTURAL CONSISTENCY NOTES:
 // ---------------------------------------------------------------------------
 //
@@ -99,7 +94,6 @@
 //   - Cauchy surface interpretation (A-relative completeness condition)
 //
 // ---------------------------------------------------------------------------
-//
 // KEY CLARIFICATION:
 // ---------------------------------------------------------------------------
 //
@@ -112,11 +106,9 @@
 // into a context-sensitive, A-bounded definition.
 //
 // ---------------------------------------------------------------------------
-//
 // END VARIABLE DETERMINISM CONSTRAINT PATCH
 // ============================================================================ 
 // ============================================================================
-//
 // 1. SIGMA LAYER (STRICT TYPE SEPARATION)
 // ============================================================================
 
@@ -152,7 +144,6 @@ impl ReplaySigma {
 // This is enforced by trait boundary design, not comments.
 
 // ============================================================================
-//
 // 2. ARITHMETIC MODEL (A)
 // ============================================================================
 //
@@ -167,7 +158,6 @@ impl ReplaySigma {
 // for equivalence evaluation (NOT execution).
 //
 // ============================================================================
-//
 // 3. CONTRACTION OPERATOR F_A (STATEFUL, A-RELATIVE)
 // ============================================================================
 
@@ -199,7 +189,6 @@ impl DVSMKernel {
 // F_A is stateful; contraction history is implicit in w.
 
 // ============================================================================
-//
 // 4. PROJECTION ALGEBRA 𝒪 (CAUSALLY INERT)
 // ============================================================================
 
@@ -227,7 +216,6 @@ impl Projection for DVSMProjection {
 }
 
 // ============================================================================
-//
 // 5. TRAJECTORY OBJECT (REPRESENTATIVE, NOT ONTOLOGICAL)
 // ============================================================================
 
@@ -240,7 +228,6 @@ pub struct Traj<S> {
 // NOT the equivalence class itself
 
 // ============================================================================
-//
 // 6. TRAJECTORY EQUIVALENCE (~_A)
 // ============================================================================
 
@@ -258,7 +245,6 @@ pub trait TrajectoryEquivalence {
 //   identity is defined via tolerance class, not structural equality
 
 // ============================================================================
-//
 // 7. CAUCHY SURFACE (DVSM-RELATIVE FORM)
 // ============================================================================
 //
@@ -276,13 +262,11 @@ pub trait TrajectoryEquivalence {
 //   reconstruction of exact state history
 //
 // ============================================================================
-//
 // 8. GLOBAL INVARIANTS (RESTORED CONSISTENCY CONTRACT)
 // ============================================================================
 // ============================================================================
 // DVSM — FORMAL SPECIFICATION INTRO (ARITHMETIC-RELATIVE SYSTEM CORE)
 // ============================================================================
-//
 // FUNDAMENTAL MODEL:
 // ---------------------------------------------------------------------------
 //
@@ -307,7 +291,6 @@ pub trait TrajectoryEquivalence {
 //   y_t = 𝒪(S_t)
 //
 // ---------------------------------------------------------------------------
-//
 // ARITHMETIC MODEL A (CRITICAL CONSTRAINT):
 // ---------------------------------------------------------------------------
 //
@@ -345,7 +328,6 @@ pub trait TrajectoryEquivalence {
 //   [Traj]_A
 //
 // ---------------------------------------------------------------------------
-//
 // CAUCHY SURFACE (DVSM INTERPRETATION):
 // ---------------------------------------------------------------------------
 //
@@ -365,7 +347,6 @@ pub trait TrajectoryEquivalence {
 //   - A is consistent across execution
 //
 // ---------------------------------------------------------------------------
-//
 // SPECIFICATION VS IMPLEMENTATION SEPARATION:
 // ---------------------------------------------------------------------------
 //
@@ -415,7 +396,6 @@ pub trait TrajectoryEquivalence {
 //   → they must be explicitly propagated from this specification layer
 //
 // ============================================================================
-//
 // END DVSM FORMAL SPECIFICATION INTRO
 // ============================================================================
 //
@@ -438,7 +418,6 @@ pub trait TrajectoryEquivalence {
 //   Traj is a representative, not a primitive ontology object
 //
 // ============================================================================
-//
 // 9. FINAL STRUCTURAL FORM (STABLE DVSM CORE)
 // ============================================================================
 //
@@ -454,6 +433,5 @@ pub trait TrajectoryEquivalence {
 //   defined up to equivalence ~_A
 //
 // ============================================================================
-//
 // END DVSM CONSISTENCY PATCH
 // ============================================================================
