@@ -6,7 +6,7 @@
 // ============================================================================
 // Author: Daniel J. Dillberg
 //
-// PURPOSE:
+// PURPOSE: 
 // ---------------------------------------------------------------------------
 // This patch does NOT modify the DVSM model.
 //
@@ -431,6 +431,10 @@ pub trait TrajectoryEquivalence {
 //
 //   Traj(S₀, Σ_gen, F_A, A)
 //   defined up to equivalence ~_A
+//
+// It IS strongest as:
+// 
+// a bounded, arithmetic-aware contraction dynamics substrate for signal–state separation systems
 //
 // ============================================================================
 // END DVSM CONSISTENCY PATCH
