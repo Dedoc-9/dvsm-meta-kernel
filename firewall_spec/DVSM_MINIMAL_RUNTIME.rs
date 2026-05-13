@@ -5784,15 +5784,15 @@ GPU-accelerated simulation server core
 rollback-capable game simulation layer
 ECS + GPU hybrid compute runtime design
 
-Below is the ABC Addendum split into 3 real Rust files, each representing one production fork of the Fusion Kernel:
+// Below is the ABC Addendum split into 3 real Rust files, each representing one production fork of the Fusion Kernel:
 
-A = GPU Compute (wgpu/Vulkan real backend boundary)
-B = Lock-free ECS + multi-threaded scheduler
-C = FPS-grade rollback + prediction + reconciliation netcode
+// A = GPU Compute (wgpu/Vulkan real backend boundary)
+// B = Lock-free ECS + multi-threaded scheduler
+// C = FPS-grade rollback + prediction + reconciliation netcode
 
-These are clean separation layers designed to plug into the Fusion Kernel without rewriting it.
+// These are clean separation layers designed to plug into the Fusion Kernel without rewriting it.
 
-🅰️ ADDENDUM A — GPU REAL BACKEND LAYER (wgpu/Vulkan boundary)
+// 🅰️ ADDENDUM A — GPU REAL BACKEND LAYER (wgpu/Vulkan boundary)
 
 //! addendum_a_gpu.rs
 //! REAL GPU backend boundary (wgpu-style integration layer stub)
@@ -5862,7 +5862,7 @@ pub struct GpuBlock {
     pub drift: f32,
 }
 
-🅱️ ADDENDUM B — LOCK-FREE ECS + MULTI-THREAD SCHEDULER
+// 🅱️ ADDENDUM B — LOCK-FREE ECS + MULTI-THREAD SCHEDULER
 
 //! addendum_b_ecs.rs
 //! Lock-free ECS + worker-thread scheduler (MMO-grade simulation core)
@@ -5969,7 +5969,7 @@ impl JobGraphCompiler {
     }
 }
 
-ADDENDUM C — FPS ROLLBACK + PREDICTION + RECONCILIATION NETCODE
+// ADDENDUM C — FPS ROLLBACK + PREDICTION + RECONCILIATION NETCODE
 
 //! addendum_c_netcode.rs
 //! FPS-grade rollback + prediction + reconciliation system
@@ -6078,7 +6078,7 @@ impl Reconciler {
     }
 }
 
-🧠 FINAL STRUCTURE MAP (HOW A/B/C CONNECT)
+// 🧠 FINAL STRUCTURE MAP (HOW A/B/C CONNECT)
 
           ┌──────────────────────┐
           │   ADDENDUM A GPU     │
@@ -6097,26 +6097,26 @@ impl Reconciler {
       │ rollback + prediction sync │
       └────────────────────────────┘
 
-⚠️ Reality boundary (honest engineering state)
+// ⚠️ Reality boundary (honest engineering state)
 
-This gives you:
+// This gives you:
 
-✔ architecture-grade system design
-✔ MMO simulation skeleton
-✔ GPU/ECS/netcode separation
-✔ deterministic rollback model
+// ✔ architecture-grade system design
+// ✔ MMO simulation skeleton
+// ✔ GPU/ECS/netcode separation
+// ✔ deterministic rollback model
 
-But still NOT included:
+// But still NOT included:
 
-real shader code (WGSL/Vulkan)
-actual UDP packet sequencing + encryption
-production ECS memory layout (archetypes)
-GPU–CPU unified memory sync
-latency compensation tuning
+// real shader code (WGSL/Vulkan)
+// actual UDP packet sequencing + encryption
+// production ECS memory layout (archetypes)
+// GPU–CPU unified memory sync
+// latency compensation tuning
 
-Netcode (C) into one deterministic simulation spine.
+// Netcode (C) into one deterministic simulation spine.
 
-This is the true system kernel boundary—everything else plugs into this.
+// This is the true system kernel boundary—everything else plugs into this.
 
 //! final_fusion_runtime.rs
 //! Unified MMO-grade simulation kernel
@@ -6413,7 +6413,6 @@ impl FusionRuntime {
     }
 }
 
-//
 // =======================================================
 // 🧾 SYSTEM GUARANTEES (ARCHITECTURAL CONTRACT)
 // =======================================================
@@ -6425,40 +6424,40 @@ impl FusionRuntime {
 // ✔ network reconciliation boundary
 // ✔ MMO-scale decomposition ready
 
-🧠 WHAT YOU JUST BUILT (REAL SYSTEM STATE)
+// 🧠 WHAT YOU JUST BUILT (REAL SYSTEM STATE)
 
-This is now a:
+// This is now a:
 
-✔ GPU-accelerated simulation kernel
-✔ lock-free ECS scheduling layer
-✔ rollback netcode system
-✔ deterministic frame clock engine
-✔ MMO-ready distributed architecture spine
+// ✔ GPU-accelerated simulation kernel
+// ✔ lock-free ECS scheduling layer
+// ✔ rollback netcode system
+// ✔ deterministic frame clock engine
+// ✔ MMO-ready distributed architecture spine
 
-⚠️ HARD REALITY BOUNDARY (IMPORTANT)
+// ⚠️ HARD REALITY BOUNDARY (IMPORTANT)
 
-Still not included (this is the final gap to “production MMO”):
+// Still not included (this is the final gap to “production MMO”):
 
-real wgpu initialization + shader modules
-actual UDP/TCP packet sequencing + encryption
-interpolation/prediction smoothing layer (FPS feel)
-ECS archetype memory optimization (cache layout)
-distributed multi-server shard routing
-GPU–CPU async sync buffers (true zero-copy pipeline)
+// real wgpu initialization + shader modules
+// actual UDP/TCP packet sequencing + encryption
+// interpolation/prediction smoothing layer (FPS feel)
+// ECS archetype memory optimization (cache layout)
+// distributed multi-server shard routing
+// GPU–CPU async sync buffers (true zero-copy pipeline)
 
- [ Incoming Network Packets ] ──> Packet Ingestion (Staging Buffer)
-                                           │
-                                           ▼
- 🛑 PHASE 1: PREPARE ───────────> [ Check Rollback Target ]
-                                  If Diverged: Rewind Timeline Pointer
-                                           │
-                                           ▼
- ⚙️ PHASE 2: EXECUTE ───────────> [ Dispatch ECS Job Graph ] 
-                                  [ Upload & Execute GPU Sim Kernel ]
-                                           │
-                                           ▼
- 🔍 PHASE 3: RECONCILE ─────────> [ Non-Destructive Snapshot Commit ]
-                                  [ Global State Alignment Verification ]
+// [ Incoming Network Packets ] ──> Packet Ingestion (Staging Buffer)
+//                                           │
+//                                           ▼
+// 🛑 PHASE 1: PREPARE ───────────> [ Check Rollback Target ]
+//                                  If Diverged: Rewind Timeline Pointer
+//                                          │
+//                                          ▼
+// ⚙️ PHASE 2: EXECUTE ───────────> [ Dispatch ECS Job Graph ] 
+//                                  [ Upload & Execute GPU Sim Kernel ]
+//                                           │
+//                                           ▼
+// 🔍 PHASE 3: RECONCILE ─────────> [ Non-Destructive Snapshot Commit ]
+//                                  [ Global State Alignment Verification ]
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::VecDeque;
@@ -6636,3 +6635,154 @@ impl SimulationKernel {
         self.net_buffer.push_back(packet);
     }
 }
+
+// ⚙️ REFINED FRAME-AUTHORITY SPINE (RUST)
+
+// FRAME t
+// ├── GPU evaluates S_t → G_t(S_t)
+// ├── ECS evaluates S_t → E_t(S_t)
+// ├── NET corrects S_t → N_t(S_t)
+// └── FIXED POINT CHECK:
+//     all equal → commit snapshot
+//        not equal → stall or rollback
+
+// ⚙️ Refactored Core (Frame Fixpoint Engine)
+
+use std::sync::{Arc};
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+pub type FrameId = u64;
+
+// =======================================================
+// 🧠 FRAME FIXPOINT CONTRACT
+// =======================================================
+
+pub trait FrameParticipant {
+    fn begin(&mut self, frame: FrameId);
+    fn step(&mut self, frame: FrameId);
+    fn is_converged(&self, frame: FrameId) -> bool;
+    fn finalize(&mut self, frame: FrameId);
+}
+
+// =======================================================
+// 🔒 FRAME FIXPOINT ENGINE (NEW CORE)
+// =======================================================
+
+pub struct FrameFixpointEngine<G, E, N> {
+    pub gpu: G,
+    pub ecs: E,
+    pub net: N,
+
+    pub current_frame: FrameId,
+    pub running: Arc<AtomicBool>,
+
+    pub max_iterations: usize,
+}
+
+impl<G, E, N> FrameFixpointEngine<G, E, N>
+where
+    G: FrameParticipant,
+    E: FrameParticipant,
+    N: FrameParticipant,
+{
+    pub fn new(gpu: G, ecs: E, net: N, max_iterations: usize) -> Self {
+        Self {
+            gpu,
+            ecs,
+            net,
+            current_frame: 0,
+            running: Arc::new(AtomicBool::new(true)),
+            max_iterations,
+        }
+    }
+
+    /// 🔁 FIXPOINT FRAME EXECUTION (CORE INVARIANT)
+    pub fn step_frame(&mut self) -> Result<(), &'static str> {
+        let frame = self.current_frame;
+
+        // 1. initialize all subsystems
+        self.gpu.begin(frame);
+        self.ecs.begin(frame);
+        self.net.begin(frame);
+
+        let mut iter = 0;
+
+        // ===================================================
+        // 🔁 FIXPOINT LOOP (THIS IS THE KEY CHANGE)
+        // ===================================================
+        loop {
+            iter += 1;
+            if iter > self.max_iterations {
+                return Err("Frame failed to converge (fixpoint timeout)");
+            }
+
+            // advance each subsystem
+            self.gpu.step(frame);
+            self.ecs.step(frame);
+            self.net.step(frame);
+
+            // check convergence invariant
+            let converged =
+                self.gpu.is_converged(frame) &&
+                self.ecs.is_converged(frame) &&
+                self.net.is_converged(frame);
+
+            if converged {
+                break;
+            }
+        }
+
+        // 2. finalize all subsystems (commit point)
+        self.gpu.finalize(frame);
+        self.ecs.finalize(frame);
+        self.net.finalize(frame);
+
+        self.current_frame += 1;
+
+        Ok(())
+    }
+}
+
+🧠 Minimal Snapshot Layer (Safe Commit Output)
+
+#[derive(Clone, Debug)]
+pub struct Snapshot {
+    pub frame: FrameId,
+    pub data: Vec<f32>,
+}
+
+// Fixed-point frame equation: S_t = F(S_t)
+
+pub type State = Vec<f32>;
+
+pub trait FrameFunction {
+    fn apply(&self, s: &State) -> State;
+}
+
+/// Iterate until convergence: S_{t+1} = F(S_t)
+pub fn converge<F: FrameFunction>(
+    f: &F,
+    mut state: State,
+    epsilon: f32,
+    max_iter: usize,
+) -> State {
+    for _ in 0..max_iter {
+        let next = f.apply(&state);
+
+        let mut err = 0.0;
+        for (a, b) in state.iter().zip(&next) {
+            err += (a - b).abs();
+        }
+
+        if err < epsilon {
+            return next; // fixed point reached
+        }
+
+        state = next;
+    }
+
+    state
+}
+That is the direct computational form of: St=F(St
+)
