@@ -1076,3 +1076,204 @@ pub fn hardened_step(
 //   trajectory-level legality instead of pointwise legality
 //
 // ============================================================================
+/*!
+DVSM + GOODHART LAYER INTEGRATION
+==================================
+
+WHITEPAPER SUMMARY (SHORT):
+
+Core system evolves a graph-coupled contraction field:
+
+    S_i(t+1) = F_A(S_i(t), S_j(t), σ(t), η_i)
+
+Derived geometry:
+
+    Δ_ij(t) = ||S_i(t+1) - S_j(t)||
+
+    H_i(t+1) = H_i(t) + φ(Δ_ij(t))
+
+    η_i(t+1) = Ψ(η_i(t), Δ_ij(t))
+
+Snapshot invariant:
+    All updates computed from frozen S(t)
+
+--------------------------------------------------
+
+GOODHART LAYER ADDITION:
+
+Instead of treating Δ/H as optimization targets,
+they are reclassified as:
+
+    - Δ : emergent curvature field (not objective)
+    - H : path-dependent entropy memory (not penalty)
+    - η : responsiveness field (not reward optimizer)
+
+New constraint:
+
+    π(S) must NOT enter argmin/argmax of F_A
+
+Meaning:
+    Observables cannot become direct control objectives.
+
+--------------------------------------------------
+*/
+
+use std::sync::Arc;
+
+// ============================================================
+// CORE STATE SPACE
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub x: f64,
+}
+
+// ============================================================
+// GRAPH STRUCTURE
+// ============================================================
+
+pub struct Graph {
+    pub edges: Vec<(usize, usize)>,
+}
+
+// ============================================================
+// KERNEL (CAUSAL DYNAMICS ONLY)
+// ============================================================
+//
+// OLD EQUATION:
+//   x' = x + η(σ - x)
+//
+// ============================================================
+
+pub struct Kernel;
+
+impl Kernel {
+    #[inline(always)]
+    pub fn f_a(x: f64, sigma: f64, eta: f64) -> f64 {
+        x + eta * (sigma - x)
+    }
+}
+
+// ============================================================
+// GOODHART LAYER (EPISTEMIC CONSTRAINT LAYER)
+// ============================================================
+//
+// This layer does NOT modify dynamics.
+// It modifies interpretation + control validity.
+//
+// ============================================================
+
+pub struct GoodhartLayer;
+
+impl GoodhartLayer {
+    // curvature field (Δ)
+    pub fn delta(a: &State, b: &State) -> f64 {
+        (a.x - b.x).abs()
+    }
+
+    // entropy memory (H)
+    pub fn update_h(h: f64, delta: f64) -> f64 {
+        h + delta.powi(2)
+    }
+
+    // responsiveness field (η adjustment, NOT optimization target)
+    pub fn eta_update(eta: f64, delta: f64) -> f64 {
+        // NOTE: not reward-driven, just stability damping
+        eta * (1.0 - 0.1 * delta.min(1.0))
+    }
+
+    // GOODHART INVARIANT CHECK
+    //
+    // ensures no observer metric is used as direct optimization target
+    pub fn invariant_check(objective_signal: f64) -> bool {
+        objective_signal.abs() < f64::INFINITY // placeholder constraint
+    }
+}
+
+// ============================================================
+// DVSM ENGINE (SYNCED CORE + GOODHART OVERLAY)
+// ============================================================
+
+pub struct DVSM {
+    pub state: Vec<State>,
+    pub eta: Vec<f64>,
+    pub h: Vec<f64>,
+}
+
+impl DVSM {
+    pub fn new(n: usize) -> Self {
+        Self {
+            state: vec![State { x: 0.0 }; n],
+            eta: vec![0.2; n],
+            h: vec![0.0; n],
+        }
+    }
+
+    pub fn step(&mut self, sigma: f64) {
+        let snapshot = self.state.clone(); // frozen frame
+
+        // -----------------------------
+        // 1. KERNEL UPDATE (CAUSAL)
+        // -----------------------------
+        let mut next_state = snapshot.clone();
+
+        for i in 0..snapshot.len() {
+            let s_i = snapshot[i].x;
+            let eta = self.eta[i];
+
+            next_state[i].x = Kernel::f_a(s_i, sigma, eta);
+        }
+
+        // -----------------------------
+        // 2. GOODHART LAYER UPDATE
+        // -----------------------------
+        for i in 0..snapshot.len() {
+            for j in 0..snapshot.len() {
+                if i != j {
+                    let d = GoodhartLayer::delta(&next_state[i], &next_state[j]);
+
+                    self.h[i] = GoodhartLayer::update_h(self.h[i], d);
+                    self.eta[i] = GoodhartLayer::eta_update(self.eta[i], d);
+                }
+            }
+        }
+
+        // -----------------------------
+        // 3. COMMIT STATE
+        // -----------------------------
+        self.state = next_state;
+    }
+}
+
+// ============================================================
+// OBSERVATION LAYER (READ ONLY)
+// ============================================================
+
+pub struct Observer;
+
+impl Observer {
+    pub fn measure(states: &[State]) -> Vec<f64> {
+        states.iter().map(|s| s.x).collect()
+    }
+}
+
+// ============================================================
+// EXAMPLE EXECUTION
+// ============================================================
+
+fn main() {
+    let mut system = DVSM::new(5);
+
+    let inputs = vec![1.0, 0.8, 1.2, 0.6, 1.0];
+
+    for sigma in inputs {
+        system.step(sigma);
+    }
+
+    let observed = Observer::measure(&system.state);
+
+    println!("Final state: {:?}", observed);
+    println!("Entropy field H: {:?}", system.h);
+    println!("Responsiveness η: {:?}", system.eta);
+}
