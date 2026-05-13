@@ -1,5 +1,12 @@
 // ============================================================================
 // DVSM MC — HARDENED GOODHART-RESISTANT CONTRACTION GEOMETRY
+
+// DVSM MC is now:
+// a state evolution system
+// with embedded geometry constraints
+// operating in derivative-augmented state space
+// with stability constraints replacing reward logic
+
 // ============================================================================
 // Author: Daniel J. Dillberg
 // ============================================================================
