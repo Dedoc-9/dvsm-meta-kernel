@@ -884,3 +884,133 @@ class HighPerformanceCML:
 // ============================================================================
 // END IP NOTICE
 // ============================================================================
+// ============================================================================
+// DVSM GRAPH RUNTIME — ADDENDUM (HARDENED FRAME + MORPHISM CORRECTIONS)
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This addendum enforces strict frozen-frame semantics, eliminates
+// partial-state coupling, and upgrades Δ and η into continuous morphism fields.
+//
+// NO NEW SYSTEM COMPONENTS ARE INTRODUCED.
+// ONLY SEMANTIC AND STRUCTURAL CORRECTIONS.
+//
+// ============================================================================
+
+impl Graph {
+
+    // ============================================================
+    // SAFE NEIGHBOR ACCESS (NO PANIC INVARIANT)
+    // ============================================================
+
+    #[inline]
+    fn neighbors<'a>(&'a self, i: usize) -> &'a [usize] {
+        self.edges.get(&i).map(|v| v.as_slice()).unwrap_or(&[])
+    }
+
+    // ============================================================
+    // METRIC MORPHISM (Δ AS TRANSITION GEOMETRY OPERATOR)
+    // ============================================================
+
+    #[inline]
+    fn metric(&self, a: f64, b: f64) -> f64 {
+        (a - b).abs()
+    }
+
+    // ============================================================
+    // FRAME STEP (FULL SNAPSHOT + ATOMIC COMMIT)
+    // ============================================================
+
+    pub fn synchronous_tick(&mut self, sigma_t: f64) {
+
+        // --------------------------------------------------------
+        // FRAME t SNAPSHOT (IMMUTABLE CAUSAL BASELINE)
+        // --------------------------------------------------------
+        let frozen_frame = self.nodes.clone();
+
+        let mut next_frame: HashMap<usize, Node> = HashMap::new();
+
+        // ========================================================
+        // PHASE 1 — CAUSAL MORPHISM F_A
+        // ========================================================
+        for (&i, node_t) in &frozen_frame {
+
+            let neighbors = self.neighbors(i);
+
+            let mut coupling = 0.0;
+
+            for &j in neighbors {
+                if let Some(nj) = frozen_frame.get(&j) {
+                    let diff = node_t.causal.value - nj.causal.value;
+
+                    coupling += node_t.epistemic.eta * (sigma_t - diff);
+                }
+            }
+
+            let s_next = node_t.causal.value + coupling;
+
+            // provisional node (epistemic filled later)
+            next_frame.insert(i, Node {
+                causal: CausalState { value: s_next },
+                epistemic: node_t.epistemic.clone(), // carry forward baseline
+            });
+        }
+
+        // ========================================================
+        // PHASE 2 — EPISTEMIC MORPHISMS (STATE-LATE PROJECTION)
+        // ========================================================
+        for (&i, node_t) in &frozen_frame {
+
+            let neighbors = self.neighbors(i);
+
+            let s_i_t1 = next_frame.get(&i).unwrap().causal.value;
+
+            let mut delta_sum = 0.0;
+            let mut deltas = HashMap::new();
+
+            for &j in neighbors {
+                if let Some(nj) = frozen_frame.get(&j) {
+
+                    // Δ AS MORPHISM (transition geometry projection)
+                    let d = self.metric(s_i_t1, nj.causal.value);
+
+                    deltas.insert(j, d);
+                    delta_sum += d;
+                }
+            }
+
+            // ----------------------------------------------------
+            // ENTROPY FIELD (continuous accumulation functional)
+            // H_i(t+1) = H_i(t) + φ(Δ)
+            // ----------------------------------------------------
+            let next_entropy =
+                node_t.epistemic.entropy + (0.05 * delta_sum);
+
+            // ----------------------------------------------------
+            // η AS CONTINUOUS STABILITY FIELD (NO HARD THRESHOLDS)
+            // ----------------------------------------------------
+            let decay = delta_sum / (1.0 + delta_sum);
+
+            let next_eta =
+                node_t.epistemic.eta * (1.0 - 0.1 * decay)
+                + 0.01 * (1.0 - decay);
+
+            // ----------------------------------------------------
+            // WRITE BACK EPISTEMIC STATE (STAGED ONLY)
+            // ----------------------------------------------------
+            if let Some(n) = next_frame.get_mut(&i) {
+                n.epistemic = EpistemicState {
+                    delta: deltas,
+                    entropy: next_entropy,
+                    eta: next_eta.clamp(0.01, 0.95),
+                };
+            }
+        }
+
+        // ========================================================
+        // ATOMIC FRAME COMMIT (NO PARTIAL VISIBILITY)
+        // ========================================================
+        self.nodes = next_frame;
+    }
+}
