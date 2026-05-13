@@ -671,3 +671,204 @@ fn main() {
         }
     }
 }
+/*!
+# DVSM CORE ALGEBRAIC PROCESS — FUNDAMENTAL EQUATIONS
+
+This module defines the irreducible algebra of the system.
+
+All higher structures (connections, torsion, holonomy, sheaves)
+reduce to a single coupled dynamical system:
+
+------------------------------------------------------------
+STATE SPACE
+------------------------------------------------------------
+
+S_i(t) ∈ ℝⁿ        // local node state
+η_i ∈ (0,1)        // contraction coefficient
+H_i ∈ ℝ₊           // accumulated drift
+
+σ(t) ∈ ℝⁿ          // external excitation signal
+S_j(t) ∈ ℝⁿ        // neighbor state (interaction partner)
+
+------------------------------------------------------------
+1. FUNDAMENTAL STATE EVOLUTION EQUATION
+------------------------------------------------------------
+
+S_i(t+1) = S_i(t) + η_i * ( (σ(t) + S_j(t)) - S_i(t) )
+
+Equivalent canonical form:
+
+S_i(t+1) = (1 - η_i) S_i(t) + η_i (σ(t) + S_j(t))
+
+------------------------------------------------------------
+2. INTERACTION ERROR (OBSERVABLE DEFECT)
+------------------------------------------------------------
+
+Δ_ij(t) = || S_i(t+1) - S_j(t+1) ||₂
+
+This is the ONLY observable coupling signal in the system.
+
+------------------------------------------------------------
+3. ADAPTIVE CONTRACTION DYNAMICS
+------------------------------------------------------------
+
+If Δ_ij(t) > ε:
+
+    η_i ← η_i (1 - η_i)
+    H_i ← H_i + Δ_ij(t)
+
+Interpretation:
+- η shrinks nonlinearly under instability
+- H accumulates irreversible disagreement
+
+------------------------------------------------------------
+4. FAILURE / FRACTURE CONDITION
+------------------------------------------------------------
+
+Node fractures iff:
+
+H_i > H_max
+
+------------------------------------------------------------
+5. GLOBAL SYSTEM INTERPRETATION (REDUCTION LAW)
+
+All higher constructs reduce to:
+
+- curvature  ≡ Δ (pairwise inconsistency)
+- torsion    ≡ η update nonlinearity
+- holonomy   ≡ Σ Δ over time (path accumulation)
+
+------------------------------------------------------------
+6. SYSTEM FIXED POINT CONDITION (STABILITY)
+
+Stable regime satisfies:
+
+S_i(t+1) ≈ S_j(t+1)
+Δ_ij(t) → 0
+η_i → η* (constant attractor)
+H_i bounded
+
+------------------------------------------------------------
+END FUNDAMENTAL SYSTEM
+*/
+/*!
+DVSM CORE — n-DIMENSIONAL STATE DYNAMICS (MINIMAL EXECUTION MODEL)
+
+This file implements the irreducible system:
+
+    S_i(t+1) = (1 - η_i) S_i(t) + η_i (σ(t) + S_j(t))
+
+with:
+- Δ_ij = ||S_i - S_j||₂
+- adaptive η update
+- bounded drift H
+*/
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NodeStatus {
+    Stable,
+    Fractured,
+}
+
+const N: usize = 8; // Target dimension (tunable: 3, 4, 8, 16...)
+
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub state: [f32; N],
+    pub eta: f32,
+    pub drift: f32,
+    pub drift_budget: f32,
+    pub epsilon: f32,
+}
+
+impl Node {
+    pub fn new(state: [f32; N], eta: f32, epsilon: f32, drift_budget: f32) -> Self {
+        Self {
+            state,
+            eta,
+            drift: 0.0,
+            drift_budget,
+            epsilon,
+        }
+    }
+
+    /// Core algebraic update step:
+    /// S_{t+1} = (1 - η)S_t + η(σ + S_neighbor)
+    pub fn step(&mut self, sigma: &[f32; N], neighbor: &[f32; N]) -> NodeStatus {
+        let mut next = [0.0f32; N];
+
+        // ---- STATE EVOLUTION ----
+        for i in 0..N {
+            let excitation = sigma[i] + neighbor[i];
+            next[i] = (1.0 - self.eta) * self.state[i] + self.eta * excitation;
+        }
+
+        // ---- OBSERVABLE DEFECT (Δ_ij) ----
+        let mut defect = 0.0f32;
+        for i in 0..N {
+            let d = next[i] - neighbor[i];
+            defect += d * d;
+        }
+        defect = defect.sqrt();
+
+        // ---- ADAPTATION RULE ----
+        if defect > self.epsilon {
+            self.drift += defect;
+            self.eta *= 1.0 - self.eta; // nonlinear contraction update
+        }
+
+        self.state = next;
+
+        // ---- FAILURE CONDITION ----
+        if self.drift > self.drift_budget {
+            NodeStatus::Fractured
+        } else {
+            NodeStatus::Stable
+        }
+    }
+}
+
+/// Euclidean distance helper (explicit, no allocations)
+pub fn l2_distance(a: &[f32; N], b: &[f32; N]) -> f32 {
+    let mut sum = 0.0;
+    for i in 0..N {
+        let d = a[i] - b[i];
+        sum += d * d;
+    }
+    sum.sqrt()
+}
+
+/// Minimal test harness
+fn main() {
+    let mut a = Node::new([1.0; N], 0.25, 0.01, 10.0);
+    let mut b = Node::new([0.5; N], 0.30, 0.01, 10.0);
+
+    let stream = [
+        [0.2; N],
+        [0.4; N],
+        [5.0; N], // perturbation spike
+    ];
+
+    for (t, sigma) in stream.iter().enumerate() {
+        let a_snap = a.state;
+        let b_snap = b.state;
+
+        let sa = a.step(sigma, &b_snap);
+        let sb = b.step(sigma, &a_snap);
+
+        println!(
+            "t={} | Δab={:.4} | η_a={:.3} η_b={:.3} | drift_a={:.3} drift_b={:.3}",
+            t,
+            l2_distance(&a.state, &b.state),
+            a.eta,
+            b.eta,
+            a.drift,
+            b.drift
+        );
+
+        if sa == NodeStatus::Fractured || sb == NodeStatus::Fractured {
+            println!("FRACTURE DETECTED — SYSTEM TERMINATED");
+            break;
+        }
+    }
+}
