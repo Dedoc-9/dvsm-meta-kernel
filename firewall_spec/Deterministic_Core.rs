@@ -1,0 +1,374 @@
+// ============================================================================
+// DVSM — DETERMINISTIC SIGNAL LAYER
+// Strict Separation: Generative σ vs Epistemic σ
+// Author: Daniel J. Dillberg
+// ============================================================================
+//
+// CORE AXIOM:
+//
+//   σ_gen : Time → Signal        (causal / generative)
+//   σ_epi : Trace → Signal       (epistemic / reconstructive)
+//
+// NO CROSS-INSTANCE LAW EXISTS BETWEEN THEM.
+//
+// ============================================================================
+
+use std::marker::PhantomData;
+
+// ============================================================================
+// 1. CORE SIGNAL SPACE
+// ============================================================================
+
+pub type Signal = f64;
+pub type Time = usize;
+
+// ============================================================================
+// 2. GENERATIVE SIGMA LAYER (CAUSAL)
+// ============================================================================
+
+/// Marker: produces signals forward in time
+pub trait GenerativeSigma {}
+
+/// Finite trajectory capability
+pub trait FiniteSigma {
+    fn len(&self) -> usize;
+}
+
+/// Infinite law-governed generator capability
+pub trait InfiniteSigma {}
+
+/// Only generative σ are valid DVSM inputs
+pub trait SigmaLaw: GenerativeSigma {}
+
+// ============================================================================
+// 3. OPTIONAL CONTROL CAPABILITY (NOT UNIVERSAL)
+// ============================================================================
+
+pub trait Resettable {
+    fn reset(&mut self);
+}
+
+// ============================================================================
+// 4. SIGMA FUNCTOR (GENERATION ONLY)
+// ============================================================================
+
+pub trait SigmaFunctor: SigmaLaw {
+    fn next(&mut self) -> Option<Signal>;
+}
+
+// ============================================================================
+// 5. STATIC SIGMA (FINITE GENERATIVE TRAJECTORY)
+// ============================================================================
+
+pub struct StaticSigma<const N: usize> {
+    pub data: [Signal; N],
+    pub index: usize,
+}
+
+impl<const N: usize> GenerativeSigma for StaticSigma<N> {}
+impl<const N: usize> FiniteSigma for StaticSigma<N> {
+    fn len(&self) -> usize { N }
+}
+impl<const N: usize> SigmaLaw for StaticSigma<N> {}
+
+impl<const N: usize> SigmaFunctor for StaticSigma<N> {
+    fn next(&mut self) -> Option<Signal> {
+        if self.index >= N {
+            return None;
+        }
+
+        let v = self.data[self.index];
+        self.index += 1;
+        Some(v)
+    }
+}
+
+impl<const N: usize> Resettable for StaticSigma<N> {
+    fn reset(&mut self) {
+        self.index = 0;
+    }
+}
+
+// ============================================================================
+// 6. ITERATIVE SIGMA (INFINITE GENERATIVE LAW)
+// ============================================================================
+
+pub struct IterSigma {
+    state: u64,
+    initial: u64,
+    limit: u64,
+}
+
+impl IterSigma {
+    pub fn new(seed: u64, limit: u64) -> Self {
+        Self {
+            state: seed,
+            initial: seed,
+            limit,
+        }
+    }
+
+    fn step_raw(&mut self) -> Signal {
+        self.state = self.state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1);
+
+        (self.state % self.limit) as Signal / self.limit as Signal
+    }
+}
+
+impl GenerativeSigma for IterSigma {}
+impl InfiniteSigma for IterSigma {}
+impl SigmaLaw for IterSigma {}
+
+impl SigmaFunctor for IterSigma {
+    fn next(&mut self) -> Option<Signal> {
+        Some(self.step_raw())
+    }
+}
+
+impl Resettable for IterSigma {
+    fn reset(&mut self) {
+        self.state = self.initial;
+    }
+}
+
+// ============================================================================
+// 7. REPLAY SIGMA (EPISTEMIC ONLY — NOT GENERATIVE)
+// ============================================================================
+
+pub struct ReplaySigma {
+    trace: Vec<Signal>,
+    index: usize,
+}
+
+impl ReplaySigma {
+    pub fn new(trace: Vec<Signal>) -> Self {
+        Self { trace, index: 0 }
+    }
+}
+
+/// IMPORTANT:
+// Replay is NOT generative σ
+pub trait EpistemicSigma {}
+
+impl EpistemicSigma for ReplaySigma {}
+
+// NOTE:
+// NO SigmaLaw, NO GenerativeSigma, NO Bounded semantics
+
+impl ReplaySigma {
+    pub fn next(&mut self) -> Option<Signal> {
+        if self.index >= self.trace.len() {
+            return None;
+        }
+
+        let v = self.trace[self.index];
+        self.index += 1;
+        Some(v)
+    }
+}
+
+// ============================================================================
+// 8. DVSM KERNEL (UNCHANGED — PURE CONTRACTION)
+// ============================================================================
+
+pub struct DVSMKernel {
+    pub w: Signal,
+    pub eta: Signal,
+}
+
+impl DVSMKernel {
+    pub fn new(w: Signal, eta: Signal) -> Self {
+        Self { w, eta }
+    }
+
+    pub fn step(&mut self, sigma: Signal) -> Signal {
+        self.w = self.w + self.eta * (sigma - self.w);
+        self.w
+    }
+}
+
+// ============================================================================
+// 9. DVSM RUNTIME (GENERATION ONLY)
+// ============================================================================
+
+pub struct DVSMRuntime<S: SigmaFunctor> {
+    sigma: S,
+    kernel: DVSMKernel,
+}
+
+impl<S: SigmaFunctor> DVSMRuntime<S> {
+    pub fn new(sigma: S, kernel: DVSMKernel) -> Self {
+        Self { sigma, kernel }
+    }
+
+    pub fn run(&mut self, steps: usize) -> Vec<Signal> {
+        let mut out = Vec::with_capacity(steps);
+
+        for _ in 0..steps {
+            let sigma_t = match self.sigma.next() {
+                Some(v) => v,
+                None => break,
+            };
+
+            let w = self.kernel.step(sigma_t);
+            out.push(w);
+        }
+
+        out
+    }
+}
+// ============================================================================
+// DVSM / SIGMA LAYER — DEVELOPER NOTES BLOCK (v2.3 HARDENED)
+// ============================================================================
+//
+// PURPOSE:
+// ---------------------------------------------------------------------------
+// This section is a non-executable interpretive constraint layer.
+//
+// It defines:
+//   - reasoning invariants
+//   - forbidden interpretations
+//   - causal boundary rules
+//
+// It does NOT:
+//   - define runtime behavior
+//   - introduce new system semantics
+//   - extend σ, T, or Replay structure
+//
+// It is strictly a *semantic firewall*, not a theory extension.
+//
+// ============================================================================
+//
+// 1. CORE ARCHITECTURAL SEPARATION (REFERENCE ONLY)
+// ============================================================================
+//
+// DVSM is partitioned into disjoint domains:
+//
+//   (A) GENERATIVE σ (causal)
+//       - StaticSigma
+//       - IterSigma
+//       - governed by SigmaLaw
+//
+//   (B) OPERATOR T (causal contraction only)
+//       - DVSMKernel
+//       - state update only
+//       - invariant to σ construction mechanism
+//
+//   (C) EPISTEMIC σ (non-causal)
+//       - ReplaySigma
+//       - trace reconstruction only
+//       - explicitly excluded from SigmaLaw
+//
+// ============================================================================
+//
+// 2. INVARIANTS (HARD DESIGN CONTRACTS)
+// ============================================================================
+//
+// INVARIANT 1:
+//   T must remain invariant to σ origin and σ construction law.
+//
+// INVARIANT 2:
+//   σ-generators must not depend on T state or outputs.
+//
+// INVARIANT 3:
+//   Epistemic reconstruction (ReplaySigma) is causally inert.
+//
+// INVARIANT 4:
+//   Determinism is a property of σ construction, not execution.
+//
+// ============================================================================
+//
+// 3. FORBIDDEN INTERPRETATIONS
+// ============================================================================
+//
+// The following interpretations are INVALID:
+//
+//   - treating ReplaySigma as generative or causal
+//   - inferring geometric or topological structure from traces
+//   - assuming convergence implies optimization or learning
+//   - interpreting σ as state memory of DVSM
+//   - treating reset() as global time symmetry of DVSM system
+//     unless equivalence of generative σ-trajectories is explicitly proven
+//
+// ============================================================================
+//
+// 4. ENGINEERING GHOST RULE (REFINED)
+// ============================================================================
+//
+// A "ghost" is any implicit assumption that:
+//
+//   - is not encoded in the type system
+//   - but is used in reasoning about execution behavior
+//
+// Examples:
+//
+//   ❌ assuming IterSigma nondeterminism implies stochasticity
+//   ❌ assuming trace smoothness implies continuity or geometry
+//   ❌ assuming replay equivalence implies generative equivalence
+//
+// GHOST RULE:
+//
+//   If it is not encoded in types, it has no causal status in DVSM
+//   execution semantics.
+//
+// NOTE:
+//   This does NOT invalidate epistemic or documentation layers.
+//   It only constrains causal interpretation.
+//
+// ============================================================================
+//
+// 5. FAILURE MODES (ENGINEERING REALITY LAYER)
+// ============================================================================
+//
+// Known implementation hazards:
+//
+//   - hidden nondeterminism in floating-point evaluation order
+//   - accidental σ–T coupling via shared mutable state
+//   - replay divergence due to non-canonical serialization
+//   - misinterpretation of finite sampling as bounded dynamics
+//
+// Mitigation:
+//
+//   - enforce σ purity boundary at API level
+//   - isolate kernel state (w, η) strictly
+//   - treat replay as read-only epistemic projection
+//
+// ============================================================================
+//
+// 6. SYSTEM CLASSIFICATION (NON-PROBABILISTIC CLARIFICATION)
+// ============================================================================
+//
+// DVSM is NOT a stochastic-inference model.
+//
+// Apparent stochasticity arises only from deterministic signal laws.
+//
+// Therefore:
+//
+//   - no probabilistic semantics are assumed
+//   - no inference distribution is modeled
+//   - all variability is law-derived, not random
+//
+// ============================================================================
+//
+// 7. DESIGN INTENT SUMMARY
+// ============================================================================
+//
+// DVSM is:
+//
+//   - a contraction operator over externally defined signal laws
+//   - with strict causal separation between generation (σ),
+//     transformation (T), and reconstruction (Replay)
+//
+// DVSM is NOT:
+//
+//   - a learning system
+//   - a probabilistic model
+//   - a geometric or topological structure
+//   - a variational optimization system
+//
+// ============================================================================
+//
+// END DEVELOPER NOTES BLOCK
+// ============================================================================
