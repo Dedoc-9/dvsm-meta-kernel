@@ -1014,3 +1014,40 @@ impl Graph {
         self.nodes = next_frame;
     }
 }
+
+// ============================================================================
+// DVSM — GRAPH-LOCAL vs GLOBAL COUPLING STRATEGY (DEV NOTE)
+// ============================================================================
+//
+// 1. GRAPH-LOCAL MODE
+// -------------------
+// S̄_i = Σ_j A_ij S_j
+// Cost: O(E·D)
+// Meaning: local diffusion, scalable, physically grounded on sparse graphs
+//
+// 2. GLOBAL MODE
+// ---------------
+// Δ_ij = ||S_i - S_j||₂
+// Cost: O(N²·D)
+// Meaning: full pairwise interaction field, captures global instability waves
+//
+// 3. HYBRID MODE
+// --------------
+// State evolution uses GRAPH-LOCAL coupling:
+//     S_i' = F(S_i, S̄_i, σ, η_i)
+//
+// While diagnostics / drift use GLOBAL field:
+//     Δ_ij = ||S_i' - S_j||₂
+//
+// 4. DESIGN TRADEOFF
+// ------------------
+// GRAPH-LOCAL → scalable, stable, sparse, physically interpretable
+// GLOBAL       → expressive, expensive, captures long-range coherence
+//
+// 5. SYSTEM POLICY
+// -----------------
+// Choose based on regime:
+// - MMO / large N  → GRAPH-LOCAL
+// - research / analysis → HYBRID
+// - small N / physics probing → GLOBAL
+// ============================================================================ 
