@@ -110,6 +110,13 @@
 // graph-coupled contraction field
 // stability-aware iterative map
 // observable-rich simulation kernel
+
+// DVSM core insight (dual-geometry model):
+// 1) State geometry: S evolves via contractive dynamics (F_A)
+// 2) Stability geometry: Δ, H, η form a separate “stress manifold”
+// 3) No feedback from stress → state within same frame (snapshot rule)
+// 4) System = (S-space evolution) + (diagnostic geometry overlay)
+
 //
 // ============================================================================
 // DVSM — CLARIFICATION (ARITHMETIC MODEL SPLIT + MUTATION SEMANTICS)
