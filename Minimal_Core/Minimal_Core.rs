@@ -1216,3 +1216,100 @@ let fracture  = pi_fracture(&snap);
 // - clean separation: physics vs interpretation
 //
 // ============================================================
+
+// ============================================================
+// DVSM — MUTATION MODEL (BEGINNER CLEAR VERSION)
+// ============================================================
+//
+// CORE IDEA:
+//
+// There are ONLY 2 things in the system:
+//
+//   1. MUTATIONS  → change reality (state S)
+//   2. OBSERVATIONS → read reality (no changes)
+//
+// Everything else is just structure around these two rules.
+//
+// ============================================================
+// WHAT IS A "MUTATION"?
+// ============================================================
+//
+// A mutation is ANY write to system state:
+//
+//   state.s[i] = x          // mutation
+//   state.eta *= 0.99       // mutation
+//   vec.push(value)         // mutation
+//
+// If memory changes → it is a mutation.
+//
+// Think:
+//   "I changed the world"
+//
+// ============================================================
+// WHAT IS AN "OBSERVATION"?
+// ============================================================
+//
+// An observation reads state but does NOT change it:
+//
+//   let x = state.s[i]      // read only
+//   let d = norm(a, b)      // computed value
+//   snapshot.clone()        // copy only, no edits
+//
+// Think:
+//   "I looked at the world"
+//
+// ============================================================
+// DVSM RULE (VERY IMPORTANT)
+// ============================================================
+//
+// ONLY ONE PLACE CAN MUTATE:
+//
+//   → the kernel step function
+//
+// EVERYTHING ELSE IS READ-ONLY.
+//
+// ============================================================
+// EXECUTION FLOW (FROZEN FRAME MODEL)
+// ============================================================
+//
+// 1. FREEZE CURRENT WORLD
+//    snapshot = state.clone()
+//
+// 2. COMPUTE NEXT WORLD (PURE MATH)
+//    next = F_A(snapshot, sigma, eta)
+//
+// 3. COMMIT MUTATION (ONLY HERE)
+//    state = next
+//
+// 4. OBSERVE (NO CHANGES ALLOWED)
+//    π_classical(snapshot)
+//    π_fracture(snapshot)
+//
+// ============================================================
+// WHY THIS MATTERS
+// ============================================================
+//
+// Without this rule:
+//   - bugs depend on update order
+//   - logs can change behavior
+//   - parallel runs become unstable
+//   - debugging affects simulation (BAD)
+//
+// With this rule:
+//   - system is deterministic
+//   - replay is exact
+//   - observers cannot interfere
+//   - GPU/CPU parallelism is safe
+//
+// ============================================================
+// SIMPLE ANALOGY
+// ============================================================
+//
+// Mutation   = rewriting a book
+// Observation = reading a photocopy
+//
+// DVSM rule:
+//   "Only the author (kernel) can write the book."
+//   "Everyone else only reads copies."
+//
+// ============================================================
