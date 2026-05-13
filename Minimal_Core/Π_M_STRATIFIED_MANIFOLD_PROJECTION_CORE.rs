@@ -5,30 +5,224 @@
 // Upgrade: Jet-Coherent Stratified Projection System
 // Status: Position + Tangent Space Consistent (x, v, a, j)
 // ============================================================================
+// DVSM-π+++ CORE UPDATE LAW
 //
-// MATHEMATICAL MODEL (CORRECTED)
+// The system evolves by unconstrained generation followed by geometric closure:
+//
+//     x_{t+1} = Π_M( F(x_t, σ_t) )
+//
+// where:
+//   F      : unconstrained graph-coupled evolution operator
+//   Π_M    : stratified projection onto feasible jet-manifold M
+//   x_t    : current state on or near M
+//   σ_t    : external excitation signal
+//
+// Interpretation:
+//   - F proposes a candidate transition in ambient space
+//   - Π_M enforces manifold consistency and feasibility closure
+//   - only projected states are admitted into system trajectory
+// ============================================================================
+// DVSM-π — STRATIFIED JET-MANIFOLD DYNAMICS
+// CORRECTED PROJECTION-FIRST FORMULATION
+// ============================================================================
+// Author: Daniel J. Dillberg
+// Revision: Projection-Closed Jet Geometry Formalization
+// Status: Research-Grade Geometric Constraint Core
+// ============================================================================
+//
+// FUNDAMENTAL MATHEMATICAL MODEL
 // ----------------------------------------------------------------------------
 //
-// State lives in jet space:
+// The previous interpretation:
 //
-//     S ∈ J^3
-//       S = (x, v, a, j)
+//     x_{t+1} = Π_M(F(x_t, σ_t))
 //
-// Stratified manifold:
+// is only partially correct because:
 //
-//     M = ⋃ M_k ⊂ J^3
+//     Π_M does NOT act on scalar state alone.
 //
-// Projection operator:
+// The true system state lives in discrete jet space:
+//
+//     S_t ∈ J^3
+//
+// where:
+//
+//     S_t = (x_t, v_t, a_t, j_t)
+//
+// and:
+//
+//     J^3 = discrete third-order jet bundle
+//
+// Therefore the corrected evolution law is:
+//
+//     S̃_{t+1} = F(S_t, σ_t)
+//
+//     S_{t+1} = Π_M(S̃_{t+1})
+//
+// where:
 //
 //     Π_M : J^3 → M
 //
-// such that:
+// and:
 //
-//     Π_M(S) = argmin_{Y ∈ M} ||S - Y||²
+//     M = ⋃ M_k ⊂ J^3
 //
-// with constraint:
+// is a stratified feasible jet manifold.
 //
-//     Y preserves jet consistency across strata transitions
+// ============================================================================
+//
+// CRITICAL CONCEPTUAL CORRECTION
+// ----------------------------------------------------------------------------
+//
+// OLD INTERPRETATION:
+//
+//     x evolves
+//     jets are observations
+//
+// TRUE GEOMETRIC INTERPRETATION:
+//
+//     the FULL jet state evolves,
+//     while jets are reconstructed geometric consistency sections.
+//
+// Meaning:
+//
+//     feasibility applies to trajectory geometry itself,
+//     not merely scalar position.
+//
+// This removes a major hidden inconsistency:
+//
+//     independent derivative clamping
+//     without trajectory coherence.
+//
+// ============================================================================
+//
+// GEOMETRIC INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// Each stratum:
+//
+//     M_k ⊂ J^3
+//
+// defines a locally admissible trajectory geometry:
+//
+//     |v| ≤ v_max
+//     |a| ≤ a_max
+//     |j| ≤ j_max
+//
+// together with:
+//
+//     x ∈ [x_min, x_max]
+//
+// Projection enforces:
+//
+//     nearest feasible trajectory geometry
+//
+// not:
+//
+//     nearest scalar state.
+//
+// ============================================================================
+//
+// IMPORTANT RESEARCH NOTE
+// ----------------------------------------------------------------------------
+//
+// This is NOT a proof of universal stability,
+// adversarial invulnerability,
+// or "military-grade protection."
+//
+// This file formalizes:
+//
+//     projection-constrained nonlinear dynamics
+//     with jet-consistent feasibility structure.
+//
+// It is useful for:
+//
+//   • bounded control systems
+//   • constrained simulation
+//   • hybrid dynamical systems research
+//   • manifold-constrained evolution
+//   • safety envelopes
+//   • graph-coupled feasibility dynamics
+//
+// It is NOT:
+//
+//   • a cryptographic protocol
+//   • a security guarantee
+//   • a defense system
+//   • a proof of ungameability
+//
+// ============================================================================
+//
+// DEV NOTES — IMPORTANT GHOSTS TO WATCH FOR
+// ----------------------------------------------------------------------------
+//
+// GHOST #1 — INDEPENDENT DERIVATIVE CLAMPING
+//
+// WRONG:
+//
+//     clamp x
+//     clamp v
+//     clamp a
+//     clamp j
+//
+// independently.
+//
+// This breaks trajectory coherence.
+//
+// FIX:
+//
+//     reconstruct jets from projected trajectory history.
+//
+// ----------------------------------------------------------------------------
+//
+// GHOST #2 — DOUBLE PROJECTION
+//
+// WRONG:
+//
+//     project x
+//     compute jet
+//     project jet
+//     recompute x
+//
+// This creates hidden discontinuities.
+//
+// FIX:
+//
+//     evolve once
+//     reconstruct once
+//     project once.
+//
+// ----------------------------------------------------------------------------
+//
+// GHOST #3 — METRIC REINTRODUCTION
+//
+// If any scalar:
+//
+//     E(x)
+//     Loss(x)
+//     Reward(x)
+//
+// affects evolution directly:
+//
+//     you have reintroduced optimization pressure.
+//
+// Keep diagnostics observational only.
+//
+// ----------------------------------------------------------------------------
+//
+// GHOST #4 — FALSE STABILITY CLAIMS
+//
+// Boundedness under Π_M:
+//
+//     ≠ universal stability
+//
+// Feasibility:
+//
+//     ≠ security guarantee
+//
+// Projection:
+//
+//     ≠ adversarial immunity
 //
 // ============================================================================
 
@@ -38,7 +232,7 @@ use std::f64;
 // CORE JET STATE
 // ============================================================================
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct JetState {
     pub x: f64,
     pub v: f64,
@@ -47,7 +241,7 @@ pub struct JetState {
 }
 
 // ============================================================================
-// STRATUM IN JET SPACE (IMPORTANT UPGRADE)
+// STRATUM DEFINITION
 // ============================================================================
 
 #[derive(Clone, Copy, Debug)]
@@ -62,33 +256,52 @@ pub struct JetStratum {
 
 impl JetStratum {
 
+    // ------------------------------------------------------------------------
+    // MEMBERSHIP TEST
+    // ------------------------------------------------------------------------
+
     #[inline(always)]
     pub fn contains(&self, s: &JetState) -> bool {
-        s.x >= self.x_min && s.x <= self.x_max &&
-        s.v.abs() <= self.v_max &&
-        s.a.abs() <= self.a_max &&
-        s.j.abs() <= self.j_max
+
+        s.x >= self.x_min
+        && s.x <= self.x_max
+        && s.v.abs() <= self.v_max
+        && s.a.abs() <= self.a_max
+        && s.j.abs() <= self.j_max
     }
 
     // ------------------------------------------------------------------------
-    // FULL JET PROJECTION (KEY FIX)
+    // LOCAL PROJECTION
     // ------------------------------------------------------------------------
+    //
+    // NOTE:
+    // This is only a LOCAL feasibility approximation.
+    //
+    // True projection onto a nonlinear trajectory manifold would require:
+    //
+    //     constrained variational optimization
+    //
+    // over trajectory space.
+    //
+    // ------------------------------------------------------------------------
+
     #[inline(always)]
-    pub fn project(&self, s: JetState) -> JetState {
+    pub fn project_local(&self, s: JetState) -> JetState {
 
         JetState {
             x: s.x.clamp(self.x_min, self.x_max),
 
-            // tangent-space consistency enforcement
             v: s.v.clamp(-self.v_max, self.v_max),
+
             a: s.a.clamp(-self.a_max, self.a_max),
+
             j: s.j.clamp(-self.j_max, self.j_max),
         }
     }
 }
 
 // ============================================================================
-// STRATIFIED MANIFOLD M = ⋃ M_k (JET-AWARE)
+// STRATIFIED MANIFOLD
 // ============================================================================
 
 pub struct StratifiedJetManifold {
@@ -97,27 +310,44 @@ pub struct StratifiedJetManifold {
 
 impl StratifiedJetManifold {
 
+    // ------------------------------------------------------------------------
+    // LOCATE FEASIBLE STRATUM
+    // ------------------------------------------------------------------------
+
     #[inline(always)]
     pub fn locate(&self, s: &JetState) -> Option<usize> {
-        self.strata.iter().position(|m| m.contains(s))
+
+        self.strata
+            .iter()
+            .position(|m| m.contains(s))
     }
+
+    // ------------------------------------------------------------------------
+    // NEAREST STRATUM
+    // ------------------------------------------------------------------------
+    //
+    // Distance metric is normalized jet geometry distance.
+    //
+    // ------------------------------------------------------------------------
 
     #[inline(always)]
     pub fn nearest(&self, s: &JetState) -> usize {
-        let mut best = 0;
+
+        let mut best = 0usize;
         let mut best_dist = f64::INFINITY;
 
         for (i, m) in self.strata.iter().enumerate() {
 
             let cx = (m.x_min + m.x_max) * 0.5;
 
-            let dx = (s.x - cx).powi(2)
-                   + (s.v / m.v_max).powi(2)
-                   + (s.a / m.a_max).powi(2)
-                   + (s.j / m.j_max).powi(2);
+            let d =
+                (s.x - cx).powi(2)
+                + (s.v / m.v_max).powi(2)
+                + (s.a / m.a_max).powi(2)
+                + (s.j / m.j_max).powi(2);
 
-            if dx < best_dist {
-                best_dist = dx;
+            if d < best_dist {
+                best_dist = d;
                 best = i;
             }
         }
@@ -127,31 +357,46 @@ impl StratifiedJetManifold {
 }
 
 // ============================================================================
-// RETRACTION MAP (JET-CONSISTENT FIX)
+// RETRACTION MAP
 // ============================================================================
 //
-// FIX: now preserves derivative scaling across strata transitions
+// Used when crossing between strata.
+//
+// IMPORTANT:
+//
+// preserves derivative scaling structure.
+//
 // ============================================================================
 
 #[inline(always)]
-pub fn retraction_map(a: &JetStratum, b: &JetStratum, s: JetState) -> JetState {
+pub fn retraction_map(
+    from: &JetStratum,
+    to: &JetStratum,
+    s: JetState,
+) -> JetState {
 
-    let nx = b.x_min + (s.x - a.x_min) * (b.x_max - b.x_min) / (a.x_max - a.x_min);
+    let x_norm =
+        (s.x - from.x_min)
+        / (from.x_max - from.x_min);
 
-    let scale_v = b.v_max / a.v_max;
-    let scale_a = b.a_max / a.a_max;
-    let scale_j = b.j_max / a.j_max;
+    let x_new =
+        to.x_min
+        + x_norm * (to.x_max - to.x_min);
+
+    let sv = to.v_max / from.v_max;
+    let sa = to.a_max / from.a_max;
+    let sj = to.j_max / from.j_max;
 
     JetState {
-        x: nx,
-        v: s.v * scale_v,
-        a: s.a * scale_a,
-        j: s.j * scale_j,
+        x: x_new,
+        v: s.v * sv,
+        a: s.a * sa,
+        j: s.j * sj,
     }
 }
 
 // ============================================================================
-// Π_M (FULL JET PROJECTION OPERATOR)
+// Π_M — STRATIFIED JET PROJECTION
 // ============================================================================
 
 pub struct Projection;
@@ -159,25 +404,125 @@ pub struct Projection;
 impl Projection {
 
     #[inline(always)]
-    pub fn pi_m(s: JetState, m: &StratifiedJetManifold) -> JetState {
+    pub fn pi_m(
+        s: JetState,
+        m: &StratifiedJetManifold,
+    ) -> JetState {
 
-        // 1. direct membership check
+        // ------------------------------------------------------------
+        // DIRECT FEASIBILITY
+        // ------------------------------------------------------------
+
         if let Some(i) = m.locate(&s) {
-            return m.strata[i].project(s);
+            return m.strata[i].project_local(s);
         }
 
-        // 2. nearest stratum
+        // ------------------------------------------------------------
+        // NEAREST STRATUM PROJECTION
+        // ------------------------------------------------------------
+
         let i = m.nearest(&s);
-        let target = &m.strata[i];
 
-        let projected = target.project(s);
-
-        projected
+        m.strata[i].project_local(s)
     }
 }
 
 // ============================================================================
-// DVSM-π STEP (JET-COHERENT VERSION)
+// DVSM KERNEL
+// ============================================================================
+
+#[inline(always)]
+pub fn kernel(
+    x: f64,
+    sigma: f64,
+    eta: f64,
+) -> f64 {
+
+    x + eta * (sigma - x)
+}
+
+// ============================================================================
+// EXCITATION FIELD
+// ============================================================================
+
+#[inline(always)]
+pub fn excitation(
+    sigma: f64,
+    x: f64,
+) -> f64 {
+
+    sigma - x
+}
+
+// ============================================================================
+// JET RECONSTRUCTION
+// ============================================================================
+//
+// IMPORTANT:
+//
+// jets are reconstructed from trajectory,
+// NOT independently evolved.
+//
+// ============================================================================
+
+#[inline(always)]
+pub fn reconstruct_jet(
+    x2: f64,
+    x1: f64,
+    x0: f64,
+) -> JetState {
+
+    let v = x0 - x1;
+
+    let v_prev = x1 - x2;
+
+    let a = v - v_prev;
+
+    let a_prev = v_prev - (x2 - x2);
+
+    let j = a - a_prev;
+
+    JetState {
+        x: x0,
+        v,
+        a,
+        j,
+    }
+}
+
+// ============================================================================
+// EVOLUTION MAP
+// ============================================================================
+//
+// S̃_{t+1} = F(S_t, σ_t)
+//
+// ============================================================================
+
+#[inline(always)]
+pub fn evolve(
+    curr: JetState,
+    sigma: f64,
+    eta: f64,
+    gamma: f64,
+) -> f64 {
+
+    let k = kernel(curr.x, sigma, eta);
+
+    let u = gamma * excitation(sigma, curr.x);
+
+    k + u
+}
+
+// ============================================================================
+// DVSM-π STEP
+// ============================================================================
+//
+// FINAL CORRECTED FORM:
+//
+//     S̃_{t+1} = F(S_t, σ_t)
+//
+//     S_{t+1} = Π_M(S̃_{t+1})
+//
 // ============================================================================
 
 pub fn dvsm_pi_step(
@@ -191,37 +536,67 @@ pub fn dvsm_pi_step(
 ) -> JetState {
 
     // ------------------------------------------------------------
-    // 1. KERNEL (POSITION ONLY)
-    // ------------------------------------------------------------
-    let x_raw = curr.x + eta * (sigma - curr.x);
-
-    // ------------------------------------------------------------
-    // 2. EXCITATION
-    // ------------------------------------------------------------
-    let u = gamma * (sigma - curr.x);
-
-    let x_next = x_raw + u;
-
-    // ------------------------------------------------------------
-    // 3. JET RECONSTRUCTION (CONSISTENT DIFFERENCES)
+    // 1. FREE EVOLUTION
     // ------------------------------------------------------------
 
-    let v = x_next - curr.x;
-    let v_prev = curr.x - prev1.x;
-
-    let a = v - v_prev;
-    let j = a - (v_prev - (prev1.x - prev2.x));
-
-    let raw = JetState {
-        x: x_next,
-        v,
-        a,
-        j,
-    };
+    let x_next =
+        evolve(curr, sigma, eta, gamma);
 
     // ------------------------------------------------------------
-    // 4. STRATIFIED PROJECTION (FULL JET SPACE)
+    // 2. JET RECONSTRUCTION
+    // ------------------------------------------------------------
+
+    let raw =
+        reconstruct_jet(
+            prev1.x,
+            curr.x,
+            x_next,
+        );
+
+    // ------------------------------------------------------------
+    // 3. PROJECTION
     // ------------------------------------------------------------
 
     Projection::pi_m(raw, manifold)
 }
+
+// ============================================================================
+// SIMPLE EXAMPLE
+// ============================================================================
+
+fn main() {
+
+    let manifold = StratifiedJetManifold {
+        strata: vec![
+            JetStratum {
+                x_min: -10.0,
+                x_max: 10.0,
+
+                v_max: 5.0,
+                a_max: 3.0,
+                j_max: 2.0,
+            }
+        ]
+    };
+
+    let s0 = JetState::default();
+    let s1 = JetState::default();
+    let s2 = JetState::default();
+
+    let next =
+        dvsm_pi_step(
+            s0,
+            s1,
+            s2,
+            1.0,
+            0.2,
+            0.3,
+            &manifold,
+        );
+
+    println!("{:#?}", next);
+}
+
+// ============================================================================
+// END OF FILE
+// ============================================================================
