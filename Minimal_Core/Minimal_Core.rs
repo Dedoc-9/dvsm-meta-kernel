@@ -1194,3 +1194,25 @@ impl<const N: usize> Observer<N> {
 // 4. Frame invariance guaranteed via snapshot cloning
 //
 // ============================================================
+//
+// // Benefit in one view:
+
+// 1. deterministic kernel (no observer interference)
+fn step_only(state: &mut State, sigma: &[f64]) {
+    state.s = f_a(&state, sigma).s;
+}
+
+// 2. snapshot = immutable truth
+let snap = state.clone();
+
+// 3. multiple π-modes run in parallel (no mutation)
+let classical = pi_classical(&snap);
+let fracture  = pi_fracture(&snap);
+
+// BENEFITS:
+// - deterministic replay
+// - no debug/telemetry side effects
+// - parallel analysis (CPU/GPU ready)
+// - clean separation: physics vs interpretation
+//
+// ============================================================
