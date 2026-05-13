@@ -289,4 +289,416 @@
 //
 //       w_{t+1} = T(w_t, σ_t)
 //
-// ============================================================================```
+// ============================================================================
+// ============================================================================
+// DVSM / SYSTEMS REPOSITORY — ARCHITECTURE README (v1.0)
+// STRICT DETERMINISM + CONSTRAINT-BASED CONTROL STACK
+// ============================================================================
+//
+// LICENSE:
+// This repository is released under AGPLv3.
+// All derivations, modifications, and network deployments must comply
+// with AGPLv3 requirements.
+//
+// AUTHOR:
+// Solo developer (self-contained research implementation)
+//
+// ============================================================================
+//
+// 0. CORE ARCHITECTURAL PRINCIPLE
+// ============================================================================
+//
+// All modules in this repository implement variations of:
+//
+//     w_{t+1} = T(w_t, σ_t)
+//     y_t     = O(w_t)
+//     ℓ_t     = L(y_t)
+//
+// Where:
+//
+//   T = deterministic or constrained stochastic contraction operator
+//   σ = exogenous or structured input signal
+//   O = observation projection (non-causal)
+//   L = evaluation functional (non-causal)
+//
+// STRICT RULE:
+//
+//   - T is the ONLY causal update channel
+//   - O and L are read-only projections
+//   - No module is allowed to introduce hidden state coupling
+//
+// Determinism note:
+//
+//   "strict determinism" applies to structural execution paths.
+//   stochasticity, where present, is explicitly seeded or abstracted.
+//
+// ============================================================================
+//
+// 1. MODULE FAMILY OVERVIEW
+// ============================================================================
+//
+// Each file is a different *constraint deformation or execution topology*
+// over the same contraction kernel family.
+//
+// They are NOT separate theories.
+// They are different instantiations of the same operator algebra.
+//
+// ============================================================================
+// 2. FILE-BY-FILE PURPOSE MAP
+// ============================================================================
+
+/*
+
+────────────────────────────────────────────────────────────────────────────
+A) dvsm_contraction_kernel.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Minimal contraction operator implementation.
+
+PURPOSE:
+    - Defines the base stochastic contraction map T
+    - Implements η-driven convergence dynamics
+    - Serves as algebraic root of all DVSM systems
+
+REAL-WORLD ANALOGS:
+    - adaptive filters
+    - stochastic approximation (Robbins–Monro form)
+    - gradient-free control updates
+
+IMPORTANCE LEVEL:
+    ★ foundational kernel (everything depends on this)
+
+────────────────────────────────────────────────────────────────────────────
+B) dvsm_bounded_state_machine.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Finite-bounded contraction system with stability constraints.
+
+PURPOSE:
+    - Enforces bounded state evolution
+    - Prevents divergence via structural constraints
+    - Adds safety envelope around kernel behavior
+
+REAL-WORLD ANALOGS:
+    - embedded controllers
+    - firmware state machines
+    - bounded estimators in control systems
+
+KEY FEATURE:
+    Explicit stability gating (η bounds / saturation behavior)
+
+────────────────────────────────────────────────────────────────────────────
+C) dvsm_bounded_fifo_dynamical_system.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Time-windowed contraction system with memory-limited dynamics.
+
+PURPOSE:
+    - Introduces FIFO-constrained temporal state window
+    - Approximates delayed observation systems
+    - Simulates bounded memory dynamical systems
+
+REAL-WORLD ANALOGS:
+    - streaming signal processors
+    - sensor smoothing pipelines
+    - rolling-window estimators
+
+DISTINGUISHING PROPERTY:
+    State depends on finite history buffer, not global memory
+
+────────────────────────────────────────────────────────────────────────────
+D) stochastic_control_system.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Full control-theoretic DVSM instantiation.
+
+PURPOSE:
+    - Implements stochastic control loop interpretation of DVSM
+    - Adds input-output feedback structure
+    - Encodes control-like semantics on top of contraction kernel
+
+REAL-WORLD ANALOGS:
+    - adaptive control systems
+    - Kalman-like iterative estimators (structural analogy only)
+    - reinforcement-free control loops
+
+NOTE:
+    Does NOT implement learning — only contraction-based adjustment
+
+────────────────────────────────────────────────────────────────────────────
+E) stochastic_control_loop.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Minimal closed-loop execution wrapper.
+
+PURPOSE:
+    - Executes T → O → L cycle repeatedly
+    - Provides runtime orchestration of DVSM system
+    - Keeps causal separation strict
+
+REAL-WORLD ANALOGS:
+    - embedded runtime loop
+    - signal feedback loop controller
+    - simulation tick engine
+
+DISTINCTION FROM SYSTEM FILE:
+    This is orchestration, not model definition
+
+────────────────────────────────────────────────────────────────────────────
+F) inverse_adaptive_filter.rs (ANC SYSTEM)
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Inverse system identification via contraction dynamics.
+
+PURPOSE:
+    - Implements adaptive cancellation (noise suppression behavior)
+    - Models inverse signal convergence via contraction
+    - Represents error-minimization without explicit gradient descent
+
+REAL-WORLD ANALOGS:
+    - active noise cancellation (ANC)
+    - echo cancellation systems
+    - signal inversion filters
+
+IMPORTANT:
+    Behavior emerges from contraction, not optimization primitives
+
+────────────────────────────────────────────────────────────────────────────
+G) compression_rust_intro.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Lossy projection via contraction collapse.
+
+PURPOSE:
+    - Demonstrates compression as state contraction
+    - Maps high-variance signals into reduced representation
+    - Serves as conceptual bridge between DVSM and information reduction
+
+REAL-WORLD ANALOGS:
+    - feature extraction pipelines
+    - quantization systems
+    - dimensionality reduction (nonlinear, implicit)
+
+────────────────────────────────────────────────────────────────────────────
+H) shared_state.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Cross-system state representation container.
+
+PURPOSE:
+    - Defines shared immutable or semi-structured state objects
+    - Enables multi-module interoperability without coupling dynamics
+    - Acts as neutral data substrate
+
+REAL-WORLD ANALOGS:
+    - message buses
+    - shared memory buffers
+    - serialized state snapshots
+
+IMPORTANT RULE:
+    Shared state is NEVER causal — only transportable
+
+────────────────────────────────────────────────────────────────────────────
+I) variable_state_v1_v2.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Evolution of state representation formats.
+
+PURPOSE:
+    - Demonstrates schema evolution across DVSM versions
+    - Encodes versioned state interpretation layers
+    - Provides backward-compatible interpretation logic
+
+REAL-WORLD ANALOGS:
+    - protocol versioning
+    - telemetry schema evolution
+    - backward-compatible system state encoding
+
+────────────────────────────────────────────────────────────────────────────
+J) eil_hardened.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Hardening layer for deterministic execution constraints.
+
+PURPOSE:
+    - Enforces strict determinism constraints
+    - Removes implicit stochastic ambiguity
+    - Stabilizes execution semantics under formal reduction rules
+
+REAL-WORLD ANALOGS:
+    - safety-critical runtime systems
+    - formal verification scaffolds
+    - deterministic simulation kernels
+
+IMPORTANT:
+    This file does NOT define a layer — it enforces invariants globally
+
+────────────────────────────────────────────────────────────────────────────
+K) stochastic_contraction_system.rs
+────────────────────────────────────────────────────────────────────────────
+CORE ROLE:
+    Generalized stochastic contraction framework.
+
+PURPOSE:
+    - Unified abstraction over all DVSM contraction variants
+    - Encodes parameterized contraction geometry
+    - Serves as theoretical superset of kernel implementations
+
+REAL-WORLD ANALOGS:
+    - stochastic dynamical systems
+    - nonlinear control systems
+    - adaptive estimation frameworks
+
+────────────────────────────────────────────────────────────────────────────
+
+3. CROSS-FILE ARCHITECTURAL RULES
+────────────────────────────────────────────────────────────────────────────
+
+✔ All systems reduce to contraction dynamics (T)
+✔ O and L are observational only (non-causal)
+✔ No file is allowed to introduce hidden feedback paths
+✔ Shared state is non-causal and transport-only
+✔ Versioned state is representational, not ontological
+✔ Determinism refers to execution path stability, not absence of noise
+
+// ============================================================================
+// 4. DETERMINISM CLAUSE (REFINED)
+// ============================================================================
+//
+// Determinism is NOT an intrinsic property of T alone.
+//
+// It is a property of the full execution tuple:
+//
+//     (T, w₀, σₜ)
+//
+// CASES:
+//
+// 1) Fully deterministic regime:
+//    - σₜ is fixed (or fully seeded)
+//    - T is deterministic
+//
+//    ⇒ identical inputs + identical seeds → identical trajectories
+//
+// 2) Stochastic regime:
+//    - σₜ is stochastic or externally sampled
+//
+//    ⇒ trajectories are distributionally deterministic,
+//       but not path-deterministic
+//
+// KEY POINT:
+//
+//   Determinism depends entirely on whether σₜ is:
+//
+//     • fixed (closed system)
+//     • stochastic (open system)
+//
+// NOT on T alone.
+//
+// FORMAL SUMMARY:
+//
+//   T may be deterministic while the system is non-deterministic
+//   due to σₜ injection.
+//
+// ============================================================================
+// DVSM — FIXED σₜ DETERMINISTIC EXECUTION EXAMPLE
+// ============================================================================
+
+pub trait Operator {
+    fn step(&mut self, sigma: f64) -> f64;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic contraction kernel
+// w_{t+1} = w_t + η(σ_t - w_t)
+// ---------------------------------------------------------------------------
+pub struct DVSMKernel {
+    pub w: f64,
+    pub eta: f64,
+}
+
+impl DVSMKernel {
+    pub fn new(w: f64, eta: f64) -> Self {
+        Self { w, eta }
+    }
+}
+
+impl Operator for DVSMKernel {
+    fn step(&mut self, sigma: f64) -> f64 {
+        self.w = self.w + self.eta * (sigma - self.w);
+        self.w
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Fixed σₜ generator (deterministic input stream)
+// ---------------------------------------------------------------------------
+pub struct FixedSigma {
+    pub sequence: Vec<f64>,
+    pub index: usize,
+}
+
+impl FixedSigma {
+    pub fn new(sequence: Vec<f64>) -> Self {
+        Self { sequence, index: 0 }
+    }
+
+    pub fn next(&mut self) -> Option<f64> {
+        if self.index >= self.sequence.len() {
+            return None;
+        }
+        let v = self.sequence[self.index];
+        self.index += 1;
+        Some(v)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Execution
+// ---------------------------------------------------------------------------
+fn main() {
+    // Fixed σₜ (this is what makes the system deterministic)
+    let mut sigma_stream = FixedSigma::new(vec![1.0, 0.5, 0.25, 0.75, 1.0]);
+
+    let mut kernel = DVSMKernel::new(0.0, 0.1);
+
+    let mut trace = Vec::new();
+
+    while let Some(sigma_t) = sigma_stream.next() {
+        let w = kernel.step(sigma_t);
+        trace.push(w);
+    }
+
+    println!("trajectory = {:?}", trace);
+}
+
+// ============================================================================
+//
+// 5. INTELLECTUAL PROPERTY + AGPLv3 CLARIFICATION
+// ============================================================================
+//
+// This repository:
+//
+// - is licensed under AGPLv3
+// - is a research-oriented deterministic systems framework
+// - contains no proprietary enforcement mechanisms
+//
+// IMPORTANT:
+//
+// The "DVSM architecture" described here is an open theoretical structure
+// implemented in software form.
+//
+// No claims are made regarding exclusivity of mathematical ideas.
+//
+// Users are free to:
+//   - study
+//   - modify
+//   - redistribute under AGPLv3
+//
+// PROVIDED THAT:
+//   - source remains open under network use (AGPL requirement)
+//   - derivative systems preserve license compliance
+//
+// ============================================================================
+//
+// END OF ARCHITECTURE README
+// ============================================================================
