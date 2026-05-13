@@ -623,3 +623,160 @@ impl DVSM {
 // ============================================================================
 // END DEV NOTES
 // ============================================================================
+// ============================================================================
+// GOODHART CONCEPT NOTE BLOCK — DVSM MC INTERPRETATION LAYER
+// ============================================================================
+//
+// CLASSICAL GOODHART’S LAW
+// ----------------------------------------------------------------------------
+//
+//     “When a measure becomes a target, it ceases to be a good measure.”
+//
+// In scalar systems, this manifests as:
+//
+//     optimize(metric(x)) → metric loses correlation with truth
+//
+// because optimization pressure collapses the proxy-function alignment.
+//
+// ----------------------------------------------------------------------------
+// DVSM REFORMULATION (KEY SHIFT)
+// ----------------------------------------------------------------------------
+//
+// DVSM does NOT treat Goodhart’s Law as a statistical failure.
+//
+// It treats it as a GEOMETRIC DECOUPLING EVENT:
+//
+//     metric-space  ⟂  state-space geometry
+//
+// i.e.
+//
+//     optimization path ≠ true system manifold trajectory
+//
+// ----------------------------------------------------------------------------
+// CORE DVSM INSIGHT
+// ----------------------------------------------------------------------------
+//
+// Goodhart failure occurs when:
+//
+//     control variables are defined in observation space
+//     instead of trajectory space (J³ manifold)
+//
+// DVSM therefore enforces:
+//
+//     x_t ∈ 𝓜 ⊂ J³(ℝⁿ)
+//
+// meaning:
+//
+//     validity is a property of trajectories, not points.
+//
+// ----------------------------------------------------------------------------
+// FAILURE MODE CLASSIFICATION IN DVSM TERMS
+// ----------------------------------------------------------------------------
+//
+// (1) POINTWISE GOODHART FAILURE
+//     - optimizing x_t directly
+//     - ignores v, a, j consistency
+//     → produces “locally valid but globally invalid” paths
+//
+// (2) DERIVATIVE EXPLOITATION
+//     - gaming acceleration/jerk proxies
+//     - induces oscillatory or burst dynamics
+//     → violates jet coherence without breaking point constraints
+//
+// (3) LONG-HORIZON DRIFT COLLAPSE
+//     - small per-step bias accumulation
+//     - leads to H_t divergence (stress memory explosion)
+//
+// ----------------------------------------------------------------------------
+// DVSM RESPONSE STRATEGY
+// ----------------------------------------------------------------------------
+//
+// Instead of penalizing metrics, DVSM:
+//
+//     constrains admissible evolution paths in jet-space
+//
+// Formally:
+//
+//     x_{t+1} = Π_𝓜( F(x_t, σ_t, G) )
+//
+// where Goodhart resistance emerges from:
+//
+//     Π_𝓜 : removing non-manifold trajectories
+//
+// not from:
+//
+//     reward shaping or scalar penalty tuning
+//
+// ----------------------------------------------------------------------------
+// IMPORTANT DISTINCTION
+// ----------------------------------------------------------------------------
+//
+// DVSM explicitly rejects:
+//
+//     metric-as-control-channel design
+//
+// meaning:
+//
+//     O(x_t) ∉ F control inputs
+//
+// even indirectly (no gradient leakage, no adaptive reward feedback).
+//
+// ----------------------------------------------------------------------------
+// GOODHART IN DVSM IS NOT:
+// ----------------------------------------------------------------------------
+//
+//   ✗ a loss function problem
+//   ✗ a reward hacking issue
+//   ✗ a statistical misgeneralization artifact
+//
+// ----------------------------------------------------------------------------
+// GOODHART IN DVSM IS:
+// ----------------------------------------------------------------------------
+//
+//   ✓ a constraint violation in trajectory geometry
+//   ✓ a mismatch between observed and admissible jet structure
+//   ✓ a breakdown of manifold invariance under evolution
+//
+// ----------------------------------------------------------------------------
+// INVARIANT FORMULATION
+// ----------------------------------------------------------------------------
+//
+// A system is Goodhart-stable in DVSM iff:
+//
+//     ∀ t:  (x_t, v_t, a_t, j_t) ∈ 𝓜
+//
+// and:
+//
+//     Π_𝓜 ∘ F  =  F ∘ Π_𝓜   (closure consistency up to projection)
+//
+// ----------------------------------------------------------------------------
+// PRACTICAL CONSEQUENCE
+// ----------------------------------------------------------------------------
+//
+// You do NOT fix Goodhart by:
+//
+//     - weighting penalties
+//     - reshaping rewards
+//     - normalizing metrics
+//
+// You fix it by:
+//
+//     removing degrees of freedom that allow metric decoupling
+//
+// i.e. enforcing jet-consistent admissibility.
+//
+// ----------------------------------------------------------------------------
+// SUMMARY STATEMENT
+// ----------------------------------------------------------------------------
+//
+// Goodhart’s Law in DVSM is:
+//
+//     a statement about geometry preservation failure under projection
+//
+// not:
+//
+//     a failure of optimization tuning
+//
+// ============================================================================
+// END GOODHART NOTE BLOCK
+// ============================================================================
