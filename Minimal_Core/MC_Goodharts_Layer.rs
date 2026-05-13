@@ -1280,3 +1280,226 @@ fn main() {
     println!("Entropy field H: {:?}", system.h);
     println!("Responsiveness η: {:?}", system.eta);
 }
+// ============================================================================
+// DVSM — DEV NOTE: GOODHART RESISTANCE AS A FOUNDATION LAYER (POST-DERIVATIVE FIX)
+// ============================================================================
+//
+// CONTEXT (READ FIRST)
+// ----------------------------------------------------------------------------
+// The corrected derivative pipeline (v, a, j as true discrete differences)
+// removes a key structural weakness: inconsistent curvature estimation.
+//
+// This turns DVSM from:
+//
+//   heuristic penalty system
+//
+// into:
+//
+//   trajectory-consistent discrete dynamical constraint system
+//
+// ----------------------------------------------------------------------------
+// WHY THIS MATTERS FOR GOODHART RESISTANCE
+// ----------------------------------------------------------------------------
+// Goodhart failures occur when:
+//
+//   metric ≠ underlying phenomenon
+//
+// In DVSM terms:
+//
+//   Δ/H/a/j become "proxy observables"
+//
+// If those observables are inconsistent or approximated incorrectly,
+// optimization pressure can exploit the mismatch.
+//
+// After fixing derivatives:
+//
+//   1. velocity is a true first-order operator
+//   2. acceleration is a true second-order operator
+//   3. jerk is a true third-order operator
+//
+// This creates a coherent discrete jet structure:
+//
+//   J^3(x_t) = (x_t, v_t, a_t, j_t)
+//
+// ----------------------------------------------------------------------------
+// FUNDAMENTAL SHIFT
+// ----------------------------------------------------------------------------
+//
+// OLD MODEL:
+//
+//   pointwise penalty:
+//
+//       x_{t+1} = F(x_t) - λ * metric(x_t)
+//
+//   → Goodhart risk: metric becomes target, not constraint
+//
+// NEW MODEL:
+//
+//   trajectory-constrained evolution:
+//
+//       x_{t+1} = F(x_t, σ_t)
+//                  subject to bounded jet space:
+//
+//                  ||v_t|| ≤ C1
+//                  ||a_t|| ≤ C2
+//                  ||j_t|| ≤ C3
+//
+// ----------------------------------------------------------------------------
+// WHAT GOODHART LAYER NOW ACTUALLY IS
+// ----------------------------------------------------------------------------
+//
+// It is NOT:
+//
+//   - a scoring function
+//   - a reward penalty system
+//   - a classifier of "bad states"
+//
+// It IS:
+//
+//   a geometric constraint on admissible trajectories
+//
+// Formally:
+//
+//   S_valid ⊂ J^3(M)
+//
+// where M is state space.
+//
+// ----------------------------------------------------------------------------
+// HARDENING IMPROVEMENTS FROM THIS POINT
+// ----------------------------------------------------------------------------
+//
+// 1. CONSTRAINT SHIFT (CRITICAL)
+// ----------------------------------------------------------------------------
+// Replace soft penalties:
+//
+//   -λ * ||a||²
+//
+// with bounded feasibility constraints:
+//
+//   enforce: a_t ∈ A_max
+//
+// This avoids "optimization through compensation"
+//
+// (penalties can be traded off; constraints cannot)
+//
+// ----------------------------------------------------------------------------
+// 2. NORMALIZED DERIVATIVE SPACE
+// ----------------------------------------------------------------------------
+//
+// Instead of raw derivatives:
+//
+//   v, a, j
+//
+// move to normalized operators:
+//
+//   v̂ = v / (|v| + ε)
+//   â = a / (|a| + ε)
+//   ĵ = j / (|j| + ε)
+//
+// This prevents scale inflation attacks:
+//
+//   → Goodhart via magnitude blow-up cancellation
+//
+// ----------------------------------------------------------------------------
+// 3. MULTI-SCALE TEMPORAL FILTERING
+// ----------------------------------------------------------------------------
+//
+// Introduce dual-window derivative estimation:
+//
+//   fast:  (t, t-1, t-2)
+//   slow:  (t, t-5, t-10)
+//
+// Then enforce:
+//
+//   consistency(fast, slow) → low divergence
+//
+// This blocks:
+//
+//   “micro-burst gaming”
+//   “derivative aliasing attacks”
+//
+// ----------------------------------------------------------------------------
+// 4. ENERGY INTERPRETATION LAYER
+// ----------------------------------------------------------------------------
+//
+// Convert penalties into invariant energy functional:
+//
+//   E(t) = v_t² + α a_t² + β j_t² + γ Δ_t + δ H_t
+//
+// HARDENING SHIFT:
+//
+//   enforce: dE/dt ≤ 0
+//
+// This turns DVSM into a discrete Lyapunov-like system.
+//
+// ----------------------------------------------------------------------------
+// 5. ADVERSARIAL STABILITY TESTING LAYER
+// ----------------------------------------------------------------------------
+//
+// Add synthetic adversary σ̃(t):
+//
+//   σ̃(t) = worst-case perturbation under bounded norm
+//
+// Then require:
+//
+//   supσ̃ stability(x_t) < threshold
+//
+// This prevents:
+//
+//   “metric-safe but adversarially unstable” trajectories
+//
+// ----------------------------------------------------------------------------
+// 6. CAUSAL SEPARATION REINFORCEMENT
+// ----------------------------------------------------------------------------
+//
+// Strict invariant:
+//
+//   π(observation) ∉ control loop
+//
+// Even indirect leakage (gradient flow, tuning eta, etc.) must be forbidden.
+//
+// Otherwise:
+//
+//   Goodhart re-enters via control feedback loop.
+//
+// ----------------------------------------------------------------------------
+// RESULTING SYSTEM CLASSIFICATION
+// ----------------------------------------------------------------------------
+//
+// After these hardening steps, DVSM becomes:
+//
+//   discrete-time constrained dynamical system
+//   on a bounded jet manifold with Lyapunov structure
+//
+// NOT:
+//
+//   a penalty-optimized scalar system
+//
+// ----------------------------------------------------------------------------
+// FINAL INTENT REFINEMENT
+// ----------------------------------------------------------------------------
+//
+// Goodhart resistance is NOT achieved by:
+//
+//   "making bad states expensive"
+//
+// It is achieved by:
+//
+//   "removing degrees of freedom that allow metric decoupling"
+//
+// ----------------------------------------------------------------------------
+// CORE TAKEAWAY
+// ----------------------------------------------------------------------------
+//
+// The derivative fix is foundational because it upgrades DVSM from:
+//
+//   approximate trajectory tracking
+//
+// into:
+//
+//   structurally valid jet-space geometry
+//
+// All further hardening (constraints, normalization, energy stability)
+// now operates on a mathematically consistent substrate.
+//
+// ============================================================================
