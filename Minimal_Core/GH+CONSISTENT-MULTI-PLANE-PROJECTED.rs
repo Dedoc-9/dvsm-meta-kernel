@@ -1,113 +1,123 @@
 // ============================================================================
-// DVSM-π v2 — CONSISTENT MULTI-PLANE PROJECTED DYNAMICS
+// DVSM-π — UNIFIED CONSOLIDATED CORE (v1 + v2 + GH ADDENDA)
+// Author: Daniel J. Dillberg
 // ============================================================================
-// Author: DVSM-π Research Lineage (Corrected Formalism)
-// Status: Constraint Geometry System (NOT Constant-Derivation System)
+// Status: Constraint Geometry + Graph-Coupled + Measure-Lifted System
 // ============================================================================
-// DVSM-π+++ CORE UPDATE LAW
-//
-// The system evolves by unconstrained generation followed by geometric closure:
-//
-//     x_{t+1} = Π_M( F(x_t, σ_t) )
-//
-// where:
-//   F      : unconstrained graph-coupled evolution operator
-//   Π_M    : stratified projection onto feasible jet-manifold M
-//   x_t    : current state on or near M
-//   σ_t    : external excitation signal
-//
-// Interpretation:
-//   - F proposes a candidate transition in ambient space
-//   - Π_M enforces manifold consistency and feasibility closure
-//   - only projected states are admitted into system trajectory
-// =========================================================================
-
-// FAILURE PREVENTION PRINCIPLE (DVSM-π+++)
-//
-// System failure modes are eliminated structurally, not corrected dynamically.
-//
-// All instability channels are removed by:
-//   - enforcing Πₘ projection closure (no out-of-manifold states)
-//   - separating observations Oₖ from control F (no feedback leakage)
-//   - reconstructing jets from trajectory consistency (no derivative drift)
-//
-// Result: failure cannot accumulate—only infeasible states can appear and are projected out.
-//
-// MATHEMATICAL FOUNDATION (IMPORTANT CORRECTION)
+// ============================================================================
+// DVSM-π — UNIFIED CONSTRAINT GEOMETRY SYSTEM (INTRO / DEV NOTES)
 // ============================================================================
 //
-// This system does NOT derive mathematical constants (e.g. π, e).
+// SYSTEM SUMMARY
 //
-// Instead, it defines:
+// DVSM-π is a constrained dynamical system operating on a coupled state graph
+// under strict geometric feasibility enforcement.
 //
-//   1. A bounded state space:      x ∈ ℝ
-//   2. A set of constraint planes: {M_k ⊂ ℝ}
-//   3. A projection operator:      Π_M : ℝ → M
-//   4. A discrete-time dynamical system under projection closure
+// The system evolves according to:
 //
-// ---------------------------------------------------------------------------
-// CORE OBJECT
-// ---------------------------------------------------------------------------
-//
-// State evolves under:
-//
-//   x_{t+1} = Π_M( F(x_t, σ_t, ξ_t) )
+//     x_{t+1} = Π_M( F(x_t, σ_t, G_t) )
 //
 // where:
-//
-//   F = unconstrained update map
-//   σ_t = external forcing input
-//   ξ_t = coupling field
-//   Π_M = feasibility projection operator
-//
-// ---------------------------------------------------------------------------
-// OBSERVATIONAL JET STRUCTURE (NOT CAUSAL)
-// ---------------------------------------------------------------------------
-//
-// Jet J_t is defined ONLY as:
-//
-//   J_t = (v_t, a_t, j_t)
-//
-// where:
-//
-//   v_t = x_t - x_{t-1}
-//   a_t = v_t - v_{t-1}
-//   j_t = a_t - a_{t-1}
-//
-// IMPORTANT:
-// Jet is a derived coordinate chart, not a state variable.
+//   F     : unconstrained local evolution operator (proposal dynamics)
+//   Π_M   : projection operator enforcing manifold feasibility
+//   G_t   : structural graph coupling (non-objective interaction)
+//   σ_t   : external excitation signal (not inferred, not optimized)
 //
 // ---------------------------------------------------------------------------
-// INVARIANT DEFINITION (STRICT)
+// CORE DESIGN PRINCIPLE
 // ---------------------------------------------------------------------------
 //
-// The ONLY invariants in this system are:
+// This system is NOT:
 //
-//   - boundedness under Π_M
-//   - consistency of projection closure
-//   - stability of trajectory within constraint set
+//   - an optimizer
+//   - a learning system
+//   - a reward-maximizing process
+//   - a probabilistic model of inference
 //
-// NOT:
-//   - constants (π, e, φ)
-//   - energy minimization
-//   - global fixed points
+// It IS:
+//
+//   - a constrained geometric evolution system
+//   - a projection-closed dynamical flow
+//   - a graph-coupled state propagation field
 //
 // ---------------------------------------------------------------------------
-// ANTI-OVERINTERPRETATION AXIOM
+// ARCHITECTURAL INVARIANTS
 // ---------------------------------------------------------------------------
 //
-// No scalar quantity derived from trajectory statistics
-// is assumed to correspond to a mathematical constant.
+// (I1) NO OPTIMIZATION LOOP EXISTS
+//     There is no objective function, loss, reward, or utility signal.
 //
-// Emergent ratios are observational artifacts unless
-// proven invariant under symmetry group actions.
+// (I2) PROJECTION IS FINAL AUTHORITY
+//     Any invalid state is removed via Π_M after proposal generation.
+//     No soft constraints or penalty gradients are used.
 //
+// (I3) GRAPH IS STRUCTURAL ONLY
+//     Edges define influence topology, not performance pressure.
+//
+// (I4) OBSERVATIONS ARE NON-CAUSAL
+//     Jet quantities (v, a, j) are reconstructed diagnostics only.
+//
+// (I5) NO DERIVATIVE FEEDBACK
+//     No velocity/acceleration/jerk terms influence state evolution.
+//
+// ---------------------------------------------------------------------------
+// FAILURE MODEL (EXPLICIT)
+// ---------------------------------------------------------------------------
+//
+// Instability can only arise through:
+//
+//   - divergence before projection (handled by Π_M)
+//   - degenerate graph coupling (topological imbalance)
+//   - unbounded excitation σ_t (external forcing)
+//
+// There is no hidden optimization channel in the system design.
+//
+// ---------------------------------------------------------------------------
+// GEOMETRIC INTERPRETATION
+// ---------------------------------------------------------------------------
+//
+// The system evolves on a constrained manifold M embedded in ℝⁿ:
+//
+//   - F explores ambient space
+//   - Π_M retracts onto feasibility surface
+//   - trajectories are valid only after projection closure
+//
+// The manifold is not learned or optimized — it is enforced.
+//
+// ---------------------------------------------------------------------------
+// IMPLEMENTATION NOTE
+// ---------------------------------------------------------------------------
+//
+// This file merges three conceptual layers:
+//
+//   1. Deterministic DVSM kernel dynamics
+//   2. Graph-coupled interaction field
+//   3. Multi-plane geometric projection system
+//
+// All layers are structurally compositional, not hierarchical in control.
+//
+// ---------------------------------------------------------------------------
+// DEV WARNING (IMPORTANT)
+// ---------------------------------------------------------------------------
+//
+// Any modification that introduces:
+//
+//   - scalar scoring functions
+//   - adaptive weighting based on past trajectory quality
+//   - feedback from jets into state updates
+//   - minimization of distance in any metric space
+//
+// will convert this system into an implicit optimizer,
+// violating DVSM-π structural constraints.
+//
+// ---------------------------------------------------------------------------
+// END OF INTRO / DEV NOTES
 // ============================================================================
 
 use std::f64;
 
 // ============================================================================
-// STATE
+// CORE STATE
 // ============================================================================
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -116,7 +126,7 @@ pub struct State {
 }
 
 // ============================================================================
-// JET (DERIVED ONLY)
+// JET (OBSERVATIONAL ONLY)
 // ============================================================================
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -127,7 +137,29 @@ pub struct Jet {
 }
 
 // ============================================================================
-// MULTI-PLANE CONSTRAINT SYSTEM
+// GRAPH STRUCTURE
+// ============================================================================
+
+#[derive(Clone)]
+pub struct Graph {
+    pub edges: Vec<(usize, usize)>,
+}
+
+// ============================================================================
+// BOUNDS / CONSTRAINT SPACE
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ============================================================================
+// MULTI-PLANE CONSTRAINT SYSTEM (v2)
 // ============================================================================
 
 #[derive(Clone, Copy, Debug)]
@@ -138,36 +170,64 @@ pub struct Plane {
 }
 
 // ============================================================================
-// DVSM-π SYSTEM
+// DVSM CORE SYSTEM
 // ============================================================================
 
-pub struct DVSMpi {
-    pub planes: Vec<Plane>,
+pub struct DVSMCore {
     pub eta: f64,
     pub gamma: f64,
     pub coupling: f64,
+    pub graph: Graph,
+    pub planes: Vec<Plane>,
+    pub bounds: Bounds,
 }
 
 // ============================================================================
-// SINGLE PLANE PROJECTION
+// OBSERVATION LAYER (NO CAUSAL ROLE)
 // ============================================================================
 
 #[inline(always)]
-fn project_plane(x: f64, p: &Plane) -> f64 {
-    x.clamp(p.min, p.max)
+pub fn observe(x: f64) -> f64 {
+    x
 }
 
 // ============================================================================
-// CONSENSUS PROJECTION Π_M
+// KERNEL (CONTRACTIVE FLOW)
 // ============================================================================
-//
-// Interpretation correction:
-// This is NOT “multiple manifolds defining truth”
-//
-// It is:
-//   weighted constraint reconciliation operator
-//
+
+#[inline(always)]
+fn kernel(x: f64, sigma: f64, eta: f64) -> f64 {
+    x + eta * (sigma - x)
+}
+
 // ============================================================================
+// EXCITATION (NON-OBJECTIVE FORCE)
+// ============================================================================
+
+#[inline(always)]
+fn excitation(sigma: f64, x: f64) -> f64 {
+    sigma - x
+}
+
+// ============================================================================
+// COUPLING FIELD (GRAPH STRUCTURE ONLY)
+// ============================================================================
+
+fn coupling_field(x: f64, neighbors: &[f64], c: f64) -> f64 {
+    let mut sum = 0.0;
+    for &n in neighbors {
+        sum += c * (n - x);
+    }
+    sum
+}
+
+// ============================================================================
+// MULTI-PLANE PROJECTION Π_M
+// ============================================================================
+
+fn project_plane(x: f64, p: &Plane) -> f64 {
+    x.clamp(p.min, p.max)
+}
 
 fn pi_m(x: f64, planes: &[Plane]) -> f64 {
     let mut num = 0.0;
@@ -183,30 +243,23 @@ fn pi_m(x: f64, planes: &[Plane]) -> f64 {
 }
 
 // ============================================================================
-// KERNEL (LOCAL DYNAMICS ONLY)
+// BOUNDS PROJECTION Π_ℳ (JET SPACE)
 // ============================================================================
 
-#[inline(always)]
-fn kernel(x: f64, sigma: f64, eta: f64) -> f64 {
-    x + eta * (sigma - x)
+fn project_bounds(x: f64, b: &Bounds) -> f64 {
+    x.clamp(b.x_min, b.x_max)
 }
 
-// ============================================================================
-// COUPLING FIELD (NO GLOBAL INTERPRETATION)
-// ============================================================================
-
-fn coupling_field(x: f64, neighbors: &[f64], c: f64) -> f64 {
-    let mut sum = 0.0;
-
-    for &n in neighbors {
-        sum += c * (n - x);
+fn project_jet(j: Jet, b: &Bounds) -> Jet {
+    Jet {
+        v: j.v.clamp(-b.v_max, b.v_max),
+        a: j.a.clamp(-b.a_max, b.a_max),
+        j: j.j.clamp(-b.j_max, b.j_max),
     }
-
-    sum
 }
 
 // ============================================================================
-// JET RECONSTRUCTION (OBSERVATION FUNCTION ONLY)
+// JET RECONSTRUCTION (OBSERVATIONAL ONLY)
 // ============================================================================
 
 fn compute_jet(x2: f64, x1: f64, x0: f64) -> Jet {
@@ -220,7 +273,7 @@ fn compute_jet(x2: f64, x1: f64, x0: f64) -> Jet {
 }
 
 // ============================================================================
-// EVOLUTION MAP
+// EVOLUTION CORE (UNCONSTRAINED PROPOSAL)
 // ============================================================================
 
 fn evolve(x: f64, sigma: f64, cx: f64, eta: f64, gamma: f64) -> f64 {
@@ -230,7 +283,25 @@ fn evolve(x: f64, sigma: f64, cx: f64, eta: f64, gamma: f64) -> f64 {
 }
 
 // ============================================================================
-// SINGLE STEP
+// GRAPH COUPLING
+// ============================================================================
+
+fn coupling(graph: &Graph, states: &[f64], i: usize, c: f64) -> f64 {
+    let mut acc = 0.0;
+    let mut deg = 0.0;
+
+    for &(a, b) in &graph.edges {
+        if a == i {
+            acc += states[b] - states[a];
+            deg += 1.0;
+        }
+    }
+
+    if deg > 0.0 { c * acc / deg } else { 0.0 }
+}
+
+// ============================================================================
+// SINGLE STEP EVOLUTION
 // ============================================================================
 
 pub fn dvsm_step(
@@ -239,243 +310,147 @@ pub fn dvsm_step(
     x0: f64,
     sigma: f64,
     neighbors: &[f64],
-    system: &DVSMpi,
+    system: &DVSMCore,
 ) -> (f64, Jet) {
 
-    let cx = coupling_field(x0, neighbors, system.coupling);
+    let idx_coupling = coupling_field(x0, neighbors, system.coupling);
 
     let raw = evolve(
         x0,
         sigma,
-        cx,
+        idx_coupling,
         system.eta,
         system.gamma,
     );
 
-    // --------------------------------------------------------------------
-    // CRITICAL FIX:
-    // projection is FINAL semantic operation (not a penalty step)
-    // --------------------------------------------------------------------
-    let projected = pi_m(raw, &system.planes);
+    // ------------------------------------------------------------
+    // PROJECT TO MULTI-PLANE MANIFOLD
+    // ------------------------------------------------------------
+    let mut projected = pi_m(raw, &system.planes);
+
+    // fallback safety: enforce bounds too
+    projected = project_bounds(projected, &system.bounds);
 
     let jet = compute_jet(x2, x1, projected);
+    let jet = project_jet(jet, &system.bounds);
 
     (projected, jet)
 }
-// ============================================================================
-// DVSM-π — INTEGRATION CONTRACT LAYER (GOODHART-RESISTANT CORE BOUNDARY)
-// ============================================================================
-// Purpose:
-//   This module defines the *architectural invariants* that all DVSM code
-//   must satisfy. It is NOT runtime logic — it is a structural contract.
-//
-// Key Idea:
-//   "If these invariants are violated, the system is no longer DVSM."
-// ============================================================================
-
-use std::f64;
 
 // ============================================================================
-// CORE ARCHITECTURAL INVARIANTS
-// ============================================================================
-//
-// (I1) NO CONTROL FROM OBSERVATION
-//     - Jets (v, a, j) MUST NOT influence state update
-//     - Any derivative used in evolution = architecture violation
-//
-// (I2) SINGLE CAUSAL PATH
-//     x_t → F(x_t, σ_t) → Π_M → x_{t+1}
-//
-//     No side channels:
-//       ✗ energy feedback
-//       ✗ jet feedback
-//       ✗ metric feedback
-//
-// (I3) PROJECTION IS FINAL AUTHORITY
-//     - All feasibility enforcement happens ONLY in Π_M
-//     - No pre-penalties, no soft constraints
-//
-// (I4) OBSERVABILITY IS POST-HOC ONLY
-//     - jets are reconstructed AFTER state commit
-//     - jets are not cached as control state
-//
-// (I5) GRAPH IS EXOGENOUS STRUCTURE
-//     - graph modifies σ_t, never modifies Π_M
-//     - topology ≠ objective function
-//
+// GRAPH SYSTEM WRAPPER
 // ============================================================================
 
-// ============================================================================
-// CONTROL SURFACE (ONLY VALID ENTRY POINT)
-// ============================================================================
+pub struct DVSMGraph {
+    pub states: Vec<f64>,
+    pub history: Vec<Vec<f64>>,
+    pub graph: Graph,
+    pub system: DVSMCore,
+}
 
-#[inline(always)]
-pub fn dvsm_kernel_step(
-    x: f64,
-    sigma: f64,
-    eta: f64,
-    gamma: f64,
-) -> f64 {
+impl DVSMGraph {
 
-    let contraction = x + eta * (sigma - x);
-    let excitation   = gamma * (sigma - x);
+    pub fn step(&mut self, sigma: f64) -> Vec<f64> {
 
-    contraction + excitation
+        let prev2 = self.history
+            .last()
+            .cloned()
+            .unwrap_or(self.states.clone());
+
+        let prev1 = self.states.clone();
+        let mut next = self.states.clone();
+
+        for i in 0..self.states.len() {
+
+            let mut neigh = vec![];
+            for &(a, b) in &self.graph.edges {
+                if a == i {
+                    neigh.push(self.states[b]);
+                }
+            }
+
+            let (x, _) = dvsm_step(
+                prev2[i],
+                prev1[i],
+                self.states[i],
+                sigma,
+                &neigh,
+                &self.system,
+            );
+
+            next[i] = x;
+        }
+
+        self.history.push(self.states.clone());
+        self.states = next.clone();
+
+        next
+    }
 }
 
 // ============================================================================
-// FEASIBILITY PROJECTION (Π_M)
-// ============================================================================
-//
-// IMPORTANT:
-// This is NOT a clamp in the mathematical sense.
-// Clamp is an implementation proxy only.
+// ADVERSARY (STRESS ONLY)
 // ============================================================================
 
-#[inline(always)]
-pub fn project_state(x: f64, min: f64, max: f64) -> f64 {
-    x.clamp(min, max)
+pub struct Adversary {
+    pub strength: f64,
+}
+
+impl Adversary {
+    pub fn perturb(&self, sigma: f64, t: usize) -> f64 {
+        sigma + (t as f64).sin() * self.strength
+    }
 }
 
 // ============================================================================
-// JET RECONSTRUCTION (OBSERVATION ONLY)
-// ============================================================================
-//
-// MUST ONLY be called AFTER state history is committed.
-// NEVER used in dvsm_kernel_step.
+// STABILITY CHECK
 // ============================================================================
 
-#[derive(Clone, Copy, Debug)]
-pub struct Jet {
-    pub v: f64,
-    pub a: f64,
-    pub j: f64,
-}
-
-#[inline(always)]
-pub fn reconstruct_jet(x2: f64, x1: f64, x0: f64) -> Jet {
-
-    let v = x0 - x1;
-    let v_prev = x1 - x2;
-
-    let a = v - v_prev;
-    let j = a - v_prev;
-
-    Jet { v, a, j }
+pub fn is_finite_state(x: &[f64]) -> bool {
+    x.iter().all(|v| v.is_finite())
 }
 
 // ============================================================================
-// SAFE DVSM UPDATE PIPELINE (REFERENCE IMPLEMENTATION)
-// ============================================================================
-//
-// This is the ONLY correct execution order:
-//
-//   1. kernel evolve
-//   2. projection Π_M
-//   3. commit state
-//   4. reconstruct jet (optional diagnostics)
+// STRESS TEST
 // ============================================================================
 
-#[inline(always)]
-pub fn dvsm_step(
-    x: f64,
-    x_prev: f64,
-    x_prev2: f64,
-    sigma: f64,
-    eta: f64,
-    gamma: f64,
-    min: f64,
-    max: f64,
-) -> (f64, Jet) {
+pub fn stress_test(
+    system: &mut DVSMGraph,
+    adversary: Adversary,
+    steps: usize,
+    base_sigma: f64,
+) {
+    for t in 0..steps {
+        let sigma = adversary.perturb(base_sigma, t);
+        let next = system.step(sigma);
 
-    // ------------------------------------------------------------
-    // (1) CAUSAL EVOLUTION
-    // ------------------------------------------------------------
-    let x_raw = dvsm_kernel_step(x, sigma, eta, gamma);
-
-    // ------------------------------------------------------------
-    // (2) GEOMETRIC FEASIBILITY ENFORCEMENT
-    // ------------------------------------------------------------
-    let x_proj = project_state(x_raw, min, max);
-
-    // ------------------------------------------------------------
-    // (3) OBSERVATIONAL JET ONLY (NO CONTROL PATH)
-    // ------------------------------------------------------------
-    let jet = reconstruct_jet(x_prev2, x_prev, x_proj);
-
-    (x_proj, jet)
+        debug_assert!(is_finite_state(&next));
+    }
 }
 
 // ============================================================================
-// DEV GUARD RAILS (STATIC RULES)
+// OPTIONAL: GH MEASURE LAYER (Addendum 6 style)
 // ============================================================================
 
-//
-// These are NOT runtime asserts.
-// They are semantic invariants for developers.
-//
-// ---------------------------------------------------------------------------
-// RULE G1: NO JET IN UPDATE PATH
-// ---------------------------------------------------------------------------
-// ❌ forbidden:
-//     x_next = f(x, jet)
-//
-// ✔ required:
-//     x_next = f(x, sigma)
-//
-// ---------------------------------------------------------------------------
-// RULE G2: NO ENERGY TERMS IN CONTROL
-// ---------------------------------------------------------------------------
-// ❌ forbidden:
-//     x_next -= λ * energy(jet)
-//
-// ✔ required:
-//     energy only for logging / diagnostics
-//
-// ---------------------------------------------------------------------------
-// RULE G3: NO SOFT CONSTRAINT SYSTEMS
-// ---------------------------------------------------------------------------
-// ❌ forbidden:
-//     x_next -= penalty(x)
-//
-// ✔ required:
-//     x_next → Π_M(x_next)
-//
-// ---------------------------------------------------------------------------
-// RULE G4: PROJECTION IS IDENTITY OF VALIDITY
-// ---------------------------------------------------------------------------
-// Meaning:
-//     If x ∈ M → Π_M(x) = x
-//
-// If not:
-//     Π_M is the ONLY correction mechanism
-//
-// ============================================================================
+pub struct Density {
+    pub p: Vec<f64>,
+}
 
-// ============================================================================
-// GOODHART RESISTANCE BOUNDARY
-// ============================================================================
-//
-// Core theorem (informal):
-//
-//   If control variables are causally independent of observables,
-//   then optimization pressure cannot form.
-//
-// In DVSM:
-//
-//   control space   = (x, σ)
-//   observable space = (v, a, j)
-//
-// and:
-//
-//   ∂(control)/∂(observable) = 0
-//
-// ============================================================================
+pub fn normalize(d: &mut Density) {
+    let sum: f64 = d.p.iter().sum();
+    if sum > 0.0 {
+        for v in &mut d.p {
+            *v /= sum;
+        }
+    }
+}
 
-// ============================================================================
-// DEBUG / STRESS HOOK (OPTIONAL)
-// ============================================================================
-
-pub fn sanity_check(x: f64) -> bool {
-    x.is_finite()
+pub fn entropy(d: &Density) -> f64 {
+    let mut s = 0.0;
+    for &p in &d.p {
+        if p > 1e-12 {
+            s -= p * p.log2();
+        }
+    }
+    s
 }
