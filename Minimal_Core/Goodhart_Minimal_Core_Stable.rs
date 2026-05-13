@@ -218,19 +218,12 @@ impl Constraint {
 // This approximates projection onto convex box in jet-space.
 // ============================================================================
 
-fn project_jet_soft(j: Jet, b: &Bounds) -> Jet {
-    fn shrink(val: f64, max: f64) -> f64 {
-        if val.abs() <= max {
-            val
-        } else {
-            val.signum() * max
-        }
-    }
-
+#[inline(always)]
+fn project_jet(j: Jet, b: &Bounds) -> Jet {
     Jet {
-        v: shrink(j.v, b.v_max),
-        a: shrink(j.a, b.a_max),
-        j: shrink(j.j, b.j_max),
+        v: j.v.clamp(-b.v_max, b.v_max),
+        a: j.a.clamp(-b.a_max, b.a_max),
+        j: j.j.clamp(-b.j_max, b.j_max),
     }
 }
 
@@ -260,7 +253,7 @@ fn lyapunov_valid(e_prev: f64, e_next: f64) -> bool {
 }
 
 // ============================================================================
-// SINGLE-NODE DVSM-π STEP
+// SINGLE-NODE DVSM-π STEP (CONSTRAINED FEASIBILITY FORM)
 // ============================================================================
 
 pub fn dvsm_pi_step(
@@ -270,41 +263,48 @@ pub fn dvsm_pi_step(
     sigma: f64,
     p: Params,
     b: Bounds,
-) -> (f64, Jet, f64) {
+) -> (f64, Jet) {
 
     // ------------------------------------------------------------
-    // 1. KERNEL
+    // 1. CAUSAL KERNEL EVOLUTION (F_A)
     // ------------------------------------------------------------
     let k = kernel(x0, sigma, p.eta);
 
     // ------------------------------------------------------------
-    // 2. EXCITATION
+    // 2. EXCITATION (NO MANIFOLD BIAS)
     // ------------------------------------------------------------
-    let u = p.gamma * excitation(sigma, x0);
+    let u = p.gamma * (sigma - x0);
 
     let x_raw = k + u;
 
     // ------------------------------------------------------------
-    // 3. STATE PROJECTION
+    // 3. STATE SPACE PROJECTION (Π_M)
     // ------------------------------------------------------------
     let x_proj = x_raw.clamp(b.x_min, b.x_max);
 
     // ------------------------------------------------------------
-    // 4. JET COMPUTATION
+    // 4. JET COMPUTATION (OBSERVATION ONLY)
     // ------------------------------------------------------------
-    let j_raw = jet(x2, x1, x_proj);
+   jet(x2, x1, x0)
+
+    // OR:
+
+    J_raw   = jet(x2, x1, x0)
+    J_proj  = jet(x2', x1', x0')
 
     // ------------------------------------------------------------
-    // 5. JET PROJECTION (SOFT FEASIBILITY)
+    // 5. JET FEASIBILITY PROJECTION (Π_M IN JET SPACE)
     // ------------------------------------------------------------
-    let j_proj = project_jet_soft(j_raw, &b);
+    let j_proj = Jet {
+        v: j_raw.v.clamp(-b.v_max, b.v_max),
+        a: j_raw.a.clamp(-b.a_max, b.a_max),
+        j: j_raw.j.clamp(-b.j_max, b.j_max),
+    };
 
     // ------------------------------------------------------------
-    // 6. LYAPUNOV ENERGY
+    // 6. RETURN (NO SCALAR OBJECTIVE)
     // ------------------------------------------------------------
-    let e = lyapunov_energy(x_proj, &j_proj, &b);
-
-    (x_proj, j_proj, e)
+    (x_proj, j_proj)
 }
 
 // ============================================================================
@@ -519,15 +519,12 @@ fn project_jet(j: Jet, b: &Bounds) -> Jet {
 // ============================================================================
 
 #[inline(always)]
-fn lyapunov_energy(x: f64, j: &Jet, b: &Bounds) -> f64 {
-    let state = x * x;
-
-    let jet =
-        (j.v / b.v_max).powi(2)
-        + (j.a / b.a_max).powi(2)
-        + (j.j / b.j_max).powi(2);
-
-    state + jet
+fn feasibility_check(x: f64, j: &Jet, b: &Bounds) -> bool {
+    x >= b.x_min
+        && x <= b.x_max
+        && j.v.abs() <= b.v_max
+        && j.a.abs() <= b.a_max
+        && j.j.abs() <= b.j_max
 }
 
 // ============================================================================
