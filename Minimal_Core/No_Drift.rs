@@ -342,3 +342,198 @@ pub fn stress_test(sys: &mut DVSMGraph, adv: Adversary, steps: usize, base: f64)
         let _ = sys.step(sigma);
     }
 }
+// ============================================================================
+// DVSM-π — ADDENDUM: MATHEMATICAL FUNDAMENTALS & DEV NOTES
+// ============================================================================
+// Purpose:
+//   This block formalizes the underlying mathematical structure of the system
+//   in standard hybrid-dynamical-systems terms.
+//
+//   It removes interpretive ambiguity by mapping all components to known
+//   constructs in:
+//     - projected dynamical systems
+//     - hybrid systems theory
+//     - symbolic dynamics
+//     - graph-coupled nonlinear maps
+// ============================================================================
+//
+// ============================================================================
+// 1. STATE SPACE DEFINITION
+// ============================================================================
+//
+// Let:
+//     x_t ∈ ℝ^n
+//
+// For DVSM-π:
+//     x_t = (x_1(t), ..., x_N(t))   node-wise scalar field
+//
+// The feasible set (constraint manifold):
+//
+//     𝓜 = { x ∈ ℝ^n | x_min ≤ x_i ≤ x_max ∀ i }
+//
+// This is a convex, closed, positively invariant set under projection.
+//
+// ============================================================================
+// 2. CORE DYNAMICAL SYSTEM (UNPROJECTED MAP)
+// ============================================================================
+//
+// The unconstrained evolution map is:
+//
+//     F(x_t, σ_t) = x_t + η(σ_t - x_t) + γ(σ_t - P(x_t)) + L(x_t)
+//
+// where:
+//
+//     η ∈ (0,1)         contraction parameter
+//     γ ≥ 0             excitation gain
+//     P(x_t)            non-controlling expectation model
+//     L(x_t)            graph Laplacian coupling term
+//
+// This defines a nonlinear affine control system.
+//
+// ============================================================================
+// 3. PROJECTION OPERATOR (FEASIBILITY ENFORCEMENT)
+// ============================================================================
+//
+// The constraint operator:
+//
+//     Π_𝓜 : ℝ^n → 𝓜
+//
+// defined component-wise:
+//
+//     (Π_𝓜(x))_i = clamp(x_i, x_min, x_max)
+//
+// Properties:
+//     - non-expansive (‖Π(x) - Π(y)‖ ≤ ‖x - y‖)
+//     - idempotent (Π(Π(x)) = Π(x))
+//     - set-valued boundary activation (hybrid switching source)
+//
+// This is NOT an energy function.
+// This is a geometric retraction.
+//
+// ============================================================================
+// 4. HYBRID SYSTEM INTERPRETATION
+// ============================================================================
+//
+// The full system is:
+//
+//     x_{t+1} = Π_𝓜(F(x_t, σ_t))
+//
+// This induces a hybrid dynamical system:
+//
+//     (continuous flow inside 𝓜)
+//     + (discrete switching at ∂𝓜)
+//
+// Boundary events define a switching surface:
+//
+//     Σ = ∂𝓜
+//
+// Crossing Σ induces nonsmooth dynamics.
+//
+// ============================================================================
+// 5. SYMBOLIC OBSERVATION LIFT
+// ============================================================================
+//
+// Define observation map:
+//
+//     Φ(x_t) → s_t ∈ {∅, Σ⁺, Σ⁻}
+//
+// where:
+//
+//     ∅   : x_t ∈ interior(𝓜)
+//     Σ⁺  : x_t ≈ x_max boundary active
+//     Σ⁻  : x_t ≈ x_min boundary active
+//
+// This generates a symbolic sequence:
+//
+//     S = {s_0, s_1, ..., s_T}
+//
+// which defines a shift space over hybrid trajectories.
+//
+// ============================================================================
+// 6. INFORMATION-THEORETIC METRICS
+// ============================================================================
+//
+// Switching entropy:
+//
+//     H(S) = - Σ p(s) log₂ p(s)
+//
+// Saturation mass:
+//
+//     μ = (1/T) Σ 𝟙[x_t ∈ ∂𝓜]
+//
+// LZ complexity:
+//
+//     C_LZ(S) = compression complexity of symbolic sequence
+//
+// These are NOT control variables.
+// They are observables of the hybrid switching process.
+//
+// ============================================================================
+// 7. DWELL-TIME STRUCTURE
+// ============================================================================
+//
+// Define switching times:
+//
+//     τ_i = t_{i+1} - t_i
+//
+// Dwell-time stability condition (discrete analogue):
+//
+//     E[τ] >> 1  ⇒ weak switching regime
+//     E[τ] ≈ 1   ⇒ chatter regime
+//
+// This corresponds to known hybrid stability results
+// (Liberzon switching systems theory).
+//
+// ============================================================================
+// 8. GOODHART-STYLE INTERPRETATION WARNING (IMPORTANT)
+// ============================================================================
+//
+// This system contains NO optimization objective.
+//
+// Therefore:
+//
+//     - no loss function is minimized
+//     - no reward signal is maximized
+//     - no metric enters the control loop
+//
+// All metrics (H, μ, LZ) are:
+//
+//     post-hoc observables only
+//
+// They cannot influence state evolution unless explicitly wired.
+//
+// This prevents:
+//     "metric-to-control feedback collapse"
+//
+// ============================================================================
+// 9. COMPUTATIONAL INTERPRETATION
+// ============================================================================
+//
+// The system is best understood as:
+//
+//     projected nonlinear map + event-driven symbolic extraction
+//
+// NOT as:
+//
+//     optimizer
+//     learner
+//     or reward-driven agent
+//
+// ============================================================================
+// 10. DEV NOTES (IMPLEMENTATION REALITY)
+// ============================================================================
+//
+// - Π_𝓜 is the only stability-enforcing mechanism
+// - numerical stability depends on step size + η
+// - γ increases boundary interaction frequency
+// - graph coupling acts as Laplacian diffusion (consensus tendency)
+//
+// Performance constraints:
+//
+// - O(E) per step (E = edges)
+// - O(N) projection cost
+// - O(N) symbolic lift cost
+//
+// ============================================================================
+// END ADDENDUM
+// ============================================================================
