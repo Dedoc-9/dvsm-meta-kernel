@@ -4,6 +4,30 @@
 // Design goal:
 //   Geometric feasibility control with NO metric-driven optimization loop
 //   Observables are non-controlling projections
+// -----------------------------------------------------------------------------
+// BEST SOFTWARE STACK TO STUDY THIS SYSTEM
+
+// CORE SIMULATION:
+// Rust (as you are using) → best for deterministic kernel integrity
+// Python (NumPy / JAX) → prototyping vector fields
+// Julia (DifferentialEquations.jl) → continuous-time analog validation
+
+// GEOMETRY / MANIFOLD TOOLS
+//     GeoRust / nalgebra (Rust linear algebra)
+//     GiNaC / SymPy (symbolic jet derivation checks)
+    
+// STOCHASTIC + MEASURE FLOW
+//     PyTorch (particle simulation at scale)
+//     JAX (Wasserstein gradient experiments — carefully, only for analysis)
+    
+// GRAPH STRUCTURE ANALYSIS
+//     NetworkX (baseline)
+//     igraph (spectral decomposition)
+//     graph-tool (high-performance spectral geometry)
+    
+// OT / WASSERSTEIN ANALYSIS
+//     POT (Python Optimal Transport library)
+//     geomloss (Sinkhorn flows for diagnostics only)
 // ============================================================================
 
 use std::f64;
@@ -1680,3 +1704,251 @@ pub fn entropy(d: &Density) -> f64 {
 //           with geometric support restriction
 //
 // ============================================================================
+
+// ============================================================================
+// Addendum 7 — GH-Consistent Optimal Transport Formulation
+// DVSM-π as Constrained Wasserstein Flow on Jet Manifold ℳ ⊂ J³
+// ============================================================================
+// Layer: Measure Transport / Geometric Flow Extension
+// Status: Non-optimizing, constraint-preserving transport geometry
+// ============================================================================
+// MATHEMATICAL INTUITION (CORE SHIFT)
+
+// We reinterpret DVSM-π not as a dynamical system alone, but as a:
+
+// probability measure evolving on a constrained jet manifold
+
+// Let:
+
+// ℳ ⊂ J³ be the stratified jet manifold
+// μₜ be a probability measure over ℳ
+// Π_ℳ be geometric projection (feasibility retraction)
+// F be the DVSM kernel flow operator
+
+// Then:
+
+// Classical DVSM (pointwise form)
+
+// xₜ₊₁ = Π_ℳ(F(xₜ, σₜ))
+
+// Addendum 7 lift (measure form)
+
+// μₜ₊₁ = (Π_ℳ ∘ F)_# μₜ
+
+// (where “#” is pushforward of measures)
+
+// WASSERSTEIN STRUCTURE (GEOMETRIC INTERPRETATION)
+
+// We endow ℳ with a metric induced by jet coordinates:
+
+// ‖x − y‖²_ℳ =
+// α‖Δx‖² +
+// β‖Δv‖² +
+// γ‖Δa‖² +
+// δ‖Δj‖²
+
+// This induces Wasserstein geometry:
+
+// W₂(μₜ, μₜ₊₁)
+
+// but importantly:
+
+// W₂ is NOT minimized by control
+// it is a diagnostic invariant of flow coherence
+
+// CONSTRAINED TRANSPORT DYNAMICS
+
+// Define velocity field:
+
+// v(x, t) = F_A(x, σₜ) − x + γ(σₜ − P(x))
+
+// Then measure evolution:
+
+// ∂μ/∂t + ∇·(μ v) = 0
+
+// subject to constraint:
+
+// x ∈ ℳ enforced by Π_ℳ
+
+// CRITICAL DVSM PROPERTY (NO GOODHART REINTRODUCTION)
+
+// Even though “transport” is used:
+
+// there is NO cost functional J(μ)
+// there is NO minimization of Wasserstein distance
+// there is NO global objective
+
+// Instead:
+
+// ✔ flow is constrained
+// ✔ geometry is closed under projection
+// ✔ metrics are passive invariants only
+
+// GH RESISTANCE IN THIS LAYER
+
+// Goodhart failures require:
+
+// a scalar that is optimized through feedback
+
+// Here:
+
+// Wasserstein distance is NOT optimized
+// entropy is NOT maximized
+// likelihood is NOT fitted
+
+// So:
+
+// GOODHART PATHWAY IS STRUCTURALLY BLOCKED BECAUSE:
+// No scalar target exists in control loop
+// Measure evolution is pushforward-only
+// Projection breaks adversarial metric alignment
+// Jet constraints remove hidden degrees of freedom
+// Observables remain epiphenomenal projections
+
+// KEY RESULT
+// DVSM-π becomes:
+
+// a constrained continuity equation on a stratified jet manifold
+
+// NOT:
+
+// a generative model
+// an optimizer
+// a reward system
+
+// ============================================================================
+// DVSM-π ADDENDUM 7: WASSERSTEIN FLOW (CONSTRAINED MEASURE EVOLUTION)
+// ============================================================================
+
+use std::f64;
+
+// ----------------------------
+// STATE + JET SPACE
+// ----------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub x: f64,
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+// ----------------------------
+// PROBABILITY PARTICLE
+// (Monte Carlo representation of μ_t)
+// ----------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct Particle {
+    pub state: Jet,
+}
+
+// ----------------------------
+// MANIFOLD CONSTRAINTS ℳ
+// ----------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ----------------------------
+// Π_ℳ (GEOMETRIC PROJECTION)
+// ----------------------------
+
+#[inline(always)]
+fn project(j: Jet, b: &Bounds) -> Jet {
+    Jet {
+        x: j.x.clamp(b.x_min, b.x_max),
+        v: j.v.clamp(-b.v_max, b.v_max),
+        a: j.a.clamp(-b.a_max, b.a_max),
+        j: j.j.clamp(-b.j_max, b.j_max),
+    }
+}
+
+// ----------------------------
+// DVSM VECTOR FIELD (NO OPTIMIZATION)
+// ----------------------------
+
+#[inline(always)]
+fn vector_field(x: f64, sigma: f64, eta: f64, gamma: f64, px: f64) -> f64 {
+    let contraction = eta * (sigma - x);
+    let excitation = gamma * (sigma - px);
+    x + contraction + excitation
+}
+
+// ----------------------------
+// PARTICLE UPDATE (PUSHFORWARD STEP)
+// ----------------------------
+
+pub fn step_particles(
+    particles: &mut Vec<Particle>,
+    sigma: f64,
+    eta: f64,
+    gamma: f64,
+    bounds: Bounds,
+) {
+    let px_mean = particles.iter().map(|p| p.state.x).sum::<f64>()
+        / particles.len().max(1) as f64;
+
+    for p in particles.iter_mut() {
+        let x = p.state.x;
+
+        let x_next = vector_field(x, sigma, eta, gamma, px_mean);
+
+        let mut updated = Jet {
+            x: x_next,
+            v: x_next - x,
+            a: 0.0,
+            j: 0.0,
+        };
+
+        updated = project(updated, &bounds);
+
+        p.state = updated;
+    }
+}
+// ============================================================================
+// DEV NOTES — “GH + MULTI-LAYER GHOST MODEL” (IMPORTANT)
+// ============================================================================
+// 1. WHAT “GHOSTS” ARE IN THIS SYSTEM
+
+// “Ghosts” = unintended control channels that reintroduce optimization pressure:
+
+// GH Ghost Types:
+
+// (A) Metric Ghosts
+
+// hidden scalar scoring (energy, loss, reward)
+// re-enters optimization loop indirectly
+
+// (B) Projection Ghosts
+
+// repeated clamping behaving like implicit cost minimization
+
+// (C) Jet Reconstruction Ghosts
+
+// derivative estimates leaking control signals back into state update
+
+// (D) Coupling Ghosts
+
+// graph edges creating unintended global objective alignment
+
+// 2. HOW ADDENDUM 7 PREVENTS THEM
+
+// ✔ Eliminations:
+//     No scalar loss or energy functional
+//     No gradient-based correction
+//     No minimization of Wasserstein distance
+//     No feedback from jet observables into control law
+
+// ✔ Structural protections:
+//     Pushforward-only measure evolution
+//     Projection is idempotent (no repeated “pull to optimum”)
+//     Jet is observational, not causal
+//     Coupling is linear, not reward-shaped
