@@ -10,7 +10,7 @@
 // SYSTEM EVOLUTION (REFINED SEMANTIC HISTORY)
 // ============================================================================
 //
-// The system evolves through three conceptual regimes:
+// The system evolved through three conceptual regimes:
 //
 // ---------------------------------------------------------------------------
 // (1) POINTWISE OPTIMIZATION REGIME
