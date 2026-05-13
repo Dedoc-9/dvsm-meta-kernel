@@ -6,25 +6,75 @@
 // Status: Mathematical Endpoint Form (Minimal, Constraint-Complete Kernel)
 // ============================================================================
 //
-// EVOLUTION SUMMARY
-// ----------------------------------------------------------------------------
-// This system evolved through three phases:
+// ============================================================================
+// SYSTEM EVOLUTION (REFINED SEMANTIC HISTORY)
+// ============================================================================
 //
-// (1) POINTWISE OPTIMIZATION ERA
-//     x_{t+1} = F(x_t) - λ·penalties
-//     → vulnerable to Goodhart collapse and metric gaming
+// The system evolves through three conceptual regimes:
 //
-// (2) TRAJECTORY PENALTY ERA
-//     added: acceleration, jerk, drift, entropy penalties
-//     → improved stability but introduced over-damping and rigidity
+// ---------------------------------------------------------------------------
+// (1) POINTWISE OPTIMIZATION REGIME
+// ---------------------------------------------------------------------------
+// x_{t+1} = F(x_t) - λ · S(x_t)
 //
-// (3) CONSTRAINED CONTROL GEOMETRY ERA (CURRENT)
-//     x_{t+1} = Proj_M( F_A(x_t, σ_t) + γ·δσ_t )
+// Interpretation:
+//   - Stability enforced via scalar penalties
+//   - System optimizes a pointwise objective
 //
-//     → replaces penalty shaping with:
-//         • bounded excitation preservation
-//         • geometric feasibility projection
-//         • state-relative input alignment
+// Failure mode:
+//   - Goodhart collapse (metric becomes target)
+//   - Exploitability via boundary saturation
+//
+// ---------------------------------------------------------------------------
+// (2) TRAJECTORY REGULARIZATION REGIME
+// ---------------------------------------------------------------------------
+// x_{t+1} = F(x_t) - λ₁‖a_t‖² - λ₂‖j_t‖² - λ₃Δ_t - λ₄H_t
+//
+// Interpretation:
+//   - Adds derivative-aware smoothing (velocity/accel/jerk)
+//   - Introduces drift memory (H_t)
+//
+// Failure mode:
+//   - Over-damping under sustained input
+//   - Loss of expressive dynamics ("trajectory freezing")
+//   - Implicit return to scalar optimization pressure
+//
+// Key issue:
+//   Still fundamentally a PENALTY system (not constraint system)
+//
+// ---------------------------------------------------------------------------
+// (3) CONSTRAINED CONTROL GEOMETRY REGIME (CURRENT FORM)
+// ---------------------------------------------------------------------------
+// x̃_{t+1} = F_A(x_t, σ_t) + γ · (σ_t − P(x_t))
+//
+// x_{t+1}  = Π_M( x̃_{t+1} )
+//
+// Interpretation:
+//   - Dynamics are NOT optimized
+//   - Dynamics are GENERATED freely (x̃)
+//   - Validity is enforced via projection Π_M
+//
+// Core shift:
+//   FROM: penalized evolution
+//   TO:   feasibility-constrained evolution
+//
+// Properties:
+//   • excitation is preserved (γ term)
+//   • stability is enforced geometrically (Π_M)
+//   • no scalar "objective pressure" exists in dynamics
+//
+// ============================================================================
+// KEY PRINCIPLE
+// ============================================================================
+//
+// Stability is NOT achieved by minimizing energy.
+//
+// Stability is achieved by:
+//
+//   restricting evolution to a feasible trajectory manifold
+//   while preserving bounded excitation degrees of freedom
+//
+// ============================================================================
 //
 // ============================================================================
 //
