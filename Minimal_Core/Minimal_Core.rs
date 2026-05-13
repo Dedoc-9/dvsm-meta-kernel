@@ -2287,233 +2287,190 @@ impl PiMode for PiFracture {
 // DVSM — STATIC DISPATCH BACKEND (ZERO-VTABLE EXECUTION CATEGORY)
 // ============================================================================
 //
-// GOAL:
-//   Replace runtime morphism selection with compile-time functor resolution.
+// CORE IDEA:
 //
-// EFFECT:
-//   - no vtable lookup
-//   - kernel step becomes inlineable
-//   - SIMD backend becomes specialization, not runtime branch
+//   Kernel  = pure dynamical morphism (defines physics)
+//   Backend = compile-time execution functor (defines evaluation strategy)
 //
-// INTERPRETATION:
-//   Backend is NOT an object.
-//   Backend is a compile-time functor on F_A.
-// ============================================================================
-
-// ============================================================================
-// 1. CAUSAL KERNEL (UNCHANGED)
-// ============================================================================
-
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
-
-pub trait KernelMonoid {
-    fn step(&self, s: &State, sigma: f64) -> State;
-}
-
-// ============================================================================
-// 2. STATIC BACKEND FUNCTOR (GENERIC OVER KERNEL)
-// ============================================================================
-
-pub trait Backend<K: KernelMonoid> {
-    fn step(kernel: &K, s: &State, sigma: f64) -> State;
-}
-
-// ============================================================================
-// 3. CPU BACKEND (STATIC SPECIALIZATION)
-// ============================================================================
-
-pub struct Cpu;
-
-impl<K: KernelMonoid> Backend<K> for Cpu {
-    #[inline(always)]
-    fn step(kernel: &K, s: &State, sigma: f64) -> State {
-        kernel.step(s, sigma)
-    }
-}
-
-// ============================================================================
-// 4. SIMD BACKEND (CONCEPTUAL SPECIALIZATION POINT)
-// ============================================================================
-
-pub struct Simd;
-
-impl<K: KernelMonoid> Backend<K> for Simd {
-    #[inline(always)]
-    fn step(kernel: &K, s: &State, sigma: f64) -> State {
-        // same semantics, different compiler/codegen target
-        kernel.step(s, sigma)
-    }
-}
-
-// ============================================================================
-// 5. DVSM ENGINE (FULLY STATIC DISPATCH)
-// ============================================================================
-
-pub struct DVSM<K, B>
-where
-    K: KernelMonoid,
-{
-    kernel: K,
-    backend: std::marker::PhantomData<B>,
-    state: State,
-    history: Vec<State>,
-}
-
-impl<K, B> DVSM<K, B>
-where
-    K: KernelMonoid,
-    B: Backend<K>,
-{
-    #[inline(always)]
-    pub fn step(&mut self, sigma: f64) {
-        let next = B::step(&self.kernel, &self.state, sigma);
-
-        self.state = next.clone();
-        self.history.push(next);
-    }
-}
-
-// ============================================================================
-// 6. KEY RESULT (PERFORMANCE + THEORY ALIGNMENT)
-// ============================================================================
+// SEPARATION:
 //
-// BEFORE:
-//   dyn KernelMonoid → vtable → runtime dispatch
-//
-// AFTER:
-//   K + B resolved at compile time → monomorphized kernel loop
-//
-// EFFECT:
-//
-//   - compiler can inline F_A fully
-//   - SIMD backend can be vectorized per specialization
-//   - zero runtime branch cost
-//
-// DVSM INTERPRETATION:
-//
-//   Backend is NOT a runtime actor.
-//   It is a *morphism-level compilation functor*.
-//
-// ============================================================================
-// 4. DVSM ENGINE (CAUSAL CLOSED LOOP)
-// ============================================================================
-//
-// ============================================================================
-// DVSM — CAUSAL CORE (STATIC + ZERO-FEEDBACK DESIGN)
-// ============================================================================
-
-use std::sync::Arc;
-
-// ============================================================================
-// CAUSAL STATE
-// ============================================================================
-
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
-
-// ============================================================================
-// KERNEL (pure morphism, no allocation, no side effects)
-// ============================================================================
-
-pub trait KernelMonoid: Sync {
-    fn step(&self, s: &State, sigma: f64) -> State;
-}
-
-// ============================================================================
-// BACKEND (execution strategy ONLY)
-// NOTE: does NOT define dynamics, only *evaluation strategy*
-// ============================================================================
-
-pub trait Backend: Sync {
-    fn step<K: KernelMonoid>(
-        &self,
-        kernel: &K,
-        state: &State,
-        sigma: f64,
-    ) -> State;
-}
-
-// ============================================================================
-// SNAPSHOT (IMMUTABLE VIEW)
-// ============================================================================
-
-#[derive(Clone)]
-pub struct Snapshot {
-    pub states: Arc<[State]>,
-}
-
-// ============================================================================
-// DVSM (ONLY CAUSAL MUTATOR)
-// ============================================================================
-
-pub struct DVSM<K, B>
-where
-    K: KernelMonoid,
-    B: Backend,
-{
-    kernel: K,
-    backend: B,
-    state: State,
-    history: Vec<State>,
-}
-
-impl<K, B> DVSM<K, B>
-where
-    K: KernelMonoid,
-    B: Backend,
-{
-    #[inline]
-    pub fn step(&mut self, sigma: f64) {
-        // frozen input (implicit via immutable borrow)
-        let next = self.backend.step(&self.kernel, &self.state, sigma);
-
-        // single write point (causal commit)
-        self.state = next.clone();
-        self.history.push(next);
-    }
-
-    #[inline]
-    pub fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            states: Arc::<[State]>::from(&self.history[..]),
-        }
-    }
-}
-// ============================================================================
-// 5. FINAL ALGEBRA STATEMENT (STRICT FORM)
-// ============================================================================
-//
-// CAUSAL DOMAIN:
-//   (State, F_A) is a MONOIDIC dynamical system
-//
-// OBSERVATION DOMAIN:
-//   (Snapshot, π_k) is a LATTICE of quotient functors
-//
-// EXECUTION DOMAIN:
-//   (Backend) is a FUNCTOR CATEGORY preserving morphisms
-//
-// SEPARATION AXIOM:
-//   π_k ⊥ F_A
-//   Backend ⊨ F_A (implements, never alters meaning)
-//
-// ============================================================================
+//   Backend NEVER defines dynamics
+//   Kernel NEVER knows execution strategy
 //
 // RESULT:
 //
-// DVSM = 3-layer categorical stack:
-//
-//   1. dynamics (monoid)
-//   2. perception (lattice)
-//   3. execution (functor category)
-//
-// all causally isolated except layer (1)
-//
+//   Fully monomorphized execution graph
+//   SIMD specialization becomes compiler-level, not runtime-level
+// ============================================================================
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub x: f64,
+}
+
+// ============================================================================
+// 1. CAUSAL KERNEL (MORPHISM OBJECT)
 // ============================================================================
 //
-// END FILE
+// This is the ONLY place dynamics are defined.
+// No allocation, no IO, no backend knowledge.
+// ============================================================================
+
+pub trait KernelMonoid: Sync {
+    const ETA: f64;
+    const SIGMA_GAIN: f64;
+    const BIAS: f64;
+
+    #[inline(always)]
+    fn step(s: &State, sigma: f64) -> State {
+        State {
+            x: s.x
+                + Self::ETA * (Self::SIGMA_GAIN * sigma - s.x)
+                + Self::BIAS,
+        }
+    }
+}
+
+// Example kernels (compile-time physics selection)
+
+pub struct StableKernel;
+
+impl KernelMonoid for StableKernel {
+    const ETA: f64 = 0.15;
+    const SIGMA_GAIN: f64 = 1.0;
+    const BIAS: f64 = 0.0;
+}
+
+pub struct AggressiveKernel;
+
+impl KernelMonoid for AggressiveKernel {
+    const ETA: f64 = 0.45;
+    const SIGMA_GAIN: f64 = 1.2;
+    const BIAS: f64 = 0.01;
+}
+
+// ============================================================================
+// 2. BACKEND (EXECUTION FUNCTOR CATEGORY)
+// ============================================================================
+//
+// Backend is NOT a value-level object.
+// It is a compile-time specialization boundary.
+//
+// Think:
+//   Backend ⟶ "how to execute F_A"
+//   Kernel  ⟶ "what F_A is"
+// ============================================================================
+
+pub trait Backend {
+    #[inline(always)]
+    fn apply<K: KernelMonoid>(s: &State, sigma: f64) -> State {
+        K::step(s, sigma)
+    }
+}
+
+// CPU execution strategy (scalar path)
+pub struct Cpu;
+
+// SIMD execution strategy (vectorized lowering target)
+pub struct Simd;
+
+impl Backend for Cpu {}
+
+impl Backend for Simd {
+    // In real SIMD backend:
+    // - State would become [f64; N] or SIMD lane type
+    // - K::step would be vector-lowered by compiler/LLVM
+}
+
+// ============================================================================
+// 3. DVSM ENGINE (FULLY STATIC DISPATCH)
+// ============================================================================
+//
+// K = kernel (physics)
+// B = backend (execution strategy)
+// ============================================================================
+
+pub struct DVSM<K: KernelMonoid, B: Backend> {
+    state: State,
+    history: Vec<State>,
+    _k: std::marker::PhantomData<K>,
+    _b: std::marker::PhantomData<B>,
+}
+
+impl<K: KernelMonoid, B: Backend> DVSM<K, B> {
+    #[inline(always)]
+    pub fn new(init: State) -> Self {
+        Self {
+            state: init,
+            history: vec![],
+            _k: std::marker::PhantomData,
+            _b: std::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub fn step(&mut self, sigma: f64) {
+        // fully monomorphized call:
+        // Backend + Kernel resolved at compile time
+        let next = B::apply::<K>(&self.state, sigma);
+
+        self.state = next.clone();
+        self.history.push(next);
+    }
+
+    #[inline(always)]
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+}
+
+// ============================================================================
+// 4. PERFORMANCE SEMANTICS (WHAT YOU ACHIEVED)
+// ============================================================================
+//
+// BEFORE:
+//   dyn Backend + dyn Kernel → vtable dispatch → runtime indirection
+//
+// NOW:
+//   DVSM<K, B> → monomorphized binary specialization
+//
+// EFFECT:
+//
+//   - K::step is inlineable
+//   - B is zero-cost marker at compile time
+//   - LLVM can fuse + vectorize entire update loop
+//   - SIMD backend becomes a codegen target, not a runtime switch
+//
+// ============================================================================
+// 5. IMPORTANT DESIGN CONSEQUENCE
+// ============================================================================
+//
+// You are no longer building:
+//
+//   "a system with a backend"
+//
+// You are building:
+//
+//   "a family of compiled dynamical systems"
+//
+// Each (K, B) pair is a distinct executable morphism.
+//
+// ============================================================================
+// 6. OPTIONAL NEXT STEP (TRUE SIMD SCALE-UP)
+// ============================================================================
+//
+// Replace:
+//
+//   State { x: f64 }
+//
+// with:
+//
+//   State([f64; N]) or #[repr(simd)]
+//
+// Then:
+//
+//   Backend::apply becomes batch vector operator
+//
+// That is where AVX2 / NEON optimization becomes real.
+//
 // ============================================================================
