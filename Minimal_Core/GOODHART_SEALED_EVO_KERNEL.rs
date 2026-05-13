@@ -969,3 +969,714 @@ pub fn dvsm_gh_step(
 //   a heuristic stability system
 //
 // ============================================================================
+// ============================================================================
+// DVSM-π ADDENDUM 4.5 — GH OPERATOR DIAGONALIZATION LAYER
+// ============================================================================
+// Purpose:
+//   Convert GH dynamics into spectral operator analysis on graph-jet space
+//
+// Key shift:
+//   FROM: ghost detection / scalar spectrum
+//   TO:   eigenstructure of linearized GH projection dynamics
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// CORE TYPES
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct State {
+    pub x: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Graph {
+    pub edges: Vec<(usize, usize)>,
+}
+
+// ============================================================================
+// BOUNDS (MANIFOLD M)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ============================================================================
+// GH LINEARIZED STATE VECTOR
+// ============================================================================
+//
+// We embed each node into a local tangent vector:
+//
+//   y_i = [x_i, v_i, a_i, j_i]
+//
+// Global system state:
+//
+//   Y ∈ R^(4N)
+// ============================================================================
+
+#[derive(Clone)]
+pub struct JetGraphState {
+    pub x: Vec<f64>,
+    pub v: Vec<f64>,
+    pub a: Vec<f64>,
+    pub j: Vec<f64>,
+}
+
+// ============================================================================
+// GRAPH LAPLACIAN (COUPLING OPERATOR BASE)
+// ============================================================================
+
+fn graph_laplacian(n: usize, edges: &[(usize, usize)]) -> Vec<Vec<f64>> {
+    let mut L = vec![vec![0.0; n]; n];
+
+    for &(i, j) in edges {
+        L[i][i] += 1.0;
+        L[j][j] += 1.0;
+        L[i][j] -= 1.0;
+        L[j][i] -= 1.0;
+    }
+
+    L
+}
+
+// ============================================================================
+// GH LINEARIZED OPERATOR
+// ============================================================================
+//
+// This is the key object:
+//
+//   G = Π_M ∘ DF ∘ L
+//
+// where:
+//   L   = graph coupling (diffusion structure)
+//   DF  = local DVSM linearization
+//   Π_M = projection (constraint closure)
+// ============================================================================
+
+#[derive(Clone)]
+pub struct GHOperator {
+    pub eta: f64,
+    pub gamma: f64,
+}
+
+// ============================================================================
+// LOCAL LINEARIZATION OF DVSM KERNEL
+// ============================================================================
+
+#[inline(always)]
+fn local_df(eta: f64, gamma: f64, sigma_grad: f64) -> f64 {
+    // linearized contraction + excitation sensitivity
+    eta - gamma * sigma_grad
+}
+
+// ============================================================================
+// APPLY GH OPERATOR (ONE STEP LINEAR MAP)
+// ============================================================================
+
+pub fn apply_gh_operator(
+    op: &GHOperator,
+    state: &JetGraphState,
+    graph: &Graph,
+    bounds: &Bounds,
+    sigma_grad: f64,
+) -> JetGraphState {
+
+    let n = state.x.len();
+    let L = graph_laplacian(n, &graph.edges);
+
+    let df = local_df(op.eta, op.gamma, sigma_grad);
+
+    let mut out = state.clone();
+
+    // ------------------------------------------------------------
+    // LINEARIZED EVOLUTION IN JET SPACE
+    // ------------------------------------------------------------
+    for i in 0..n {
+
+        let mut coupling_x = 0.0;
+        let mut coupling_v = 0.0;
+
+        for j in 0..n {
+            coupling_x += L[i][j] * state.x[j];
+            coupling_v += L[i][j] * state.v[j];
+        }
+
+        // core GH-linear map
+        let x = df * state.x[i] + coupling_x;
+        let v = df * state.v[i] + coupling_v;
+        let a = df * state.a[i];
+        let j = df * state.j[i];
+
+        // projection (manifold closure)
+        out.x[i] = x.clamp(bounds.x_min, bounds.x_max);
+        out.v[i] = v.clamp(-bounds.v_max, bounds.v_max);
+        out.a[i] = a.clamp(-bounds.a_max, bounds.a_max);
+        out.j[i] = j.clamp(-bounds.j_max, bounds.j_max);
+    }
+
+    out
+}
+
+// ============================================================================
+// GH EIGEN ANALYSIS (CORE RESULT)
+// ============================================================================
+//
+// We define:
+//
+//   λ ∈ spectrum(G)
+//
+// Stability condition:
+//
+//   |λ| ≤ 1  ⇒ GH-closed dynamics
+//   |λ| > 1  ⇒ GH-mode explosion (ghost resonance)
+//
+// ============================================================================
+
+pub fn gh_mode_energy(state: &JetGraphState) -> f64 {
+    let mut e = 0.0;
+
+    for i in 0..state.x.len() {
+        e += state.x[i].powi(2)
+            + state.v[i].powi(2)
+            + state.a[i].powi(2)
+            + state.j[i].powi(2);
+    }
+
+    e
+}
+
+// ============================================================================
+// INTERPRETATION: WHAT THIS ACTUALLY ESTABLISHES
+// ============================================================================
+//
+// 1. DVSM-π is now a LINEARIZED OPERATOR SYSTEM
+//
+//      G = Π_M ∘ (η I + γ∇σ) ∘ L
+//
+// 2. "Ghosts" are not events
+//    They are eigenmodes where:
+//
+//      |λ_i| > 1
+//
+// 3. Stability is spectral containment:
+//
+//      spectrum(G) ⊂ unit disk
+//
+// 4. Graph structure matters:
+//    instability is a function of topology + jet coupling
+//
+// ============================================================================
+// IMPORTANT CORRECTION (MATHEMATICAL HONESTY)
+// ============================================================================
+//
+// This does NOT guarantee global stability.
+//
+// It defines:
+//
+//   local linear stability of constrained DVSM flow
+//
+// Nonlinear projection effects may still induce:
+//   - bifurcation
+//   - limit cycles
+//   - saturation attractors
+//
+// ============================================================================
+// FINAL RESULT
+// ============================================================================
+//
+// DVSM-π is now:
+//
+//   a constrained graph-coupled nonlinear system
+//   with analyzable linearized GH spectral operator
+//
+// ============================================================================
+// ============================================================================
+// DVSM-π ADDENDUM 5 — GH RENORMALIZATION GROUP (RG) LAYER
+// ============================================================================
+// Purpose:
+//   Upgrade GH spectral operator from static linear analysis
+//   → nonlinear scale-dependent renormalization flow
+//
+// Key shift:
+//   FROM: spectrum(G) analysis
+//   TO:   RG flow of GH operator under coarse-graining + projection
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// CORE TYPES
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Graph {
+    pub edges: Vec<(usize, usize)>,
+}
+
+// ============================================================================
+// BOUNDS (MANIFOLD M)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ============================================================================
+// GH COUPLING SCALE PARAMETER
+// ============================================================================
+//
+// This is the key RG variable:
+//
+//   s ∈ ℝ⁺  (coarse-graining scale)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct GHScale {
+    pub s: f64,
+}
+
+// ============================================================================
+// JET GRAPH STATE
+// ============================================================================
+
+#[derive(Clone)]
+pub struct JetGraphState {
+    pub x: Vec<f64>,
+    pub v: Vec<f64>,
+    pub a: Vec<f64>,
+    pub j: Vec<f64>,
+}
+
+// ============================================================================
+// COARSE-GRAINING OPERATOR (BLOCK RENORMALIZATION)
+// ============================================================================
+//
+// Groups nodes into blocks of size k(s)
+// and averages jet contributions.
+//
+// This is NOT optimization.
+// This is scale reduction of state manifold.
+// ============================================================================
+
+fn coarse_grain(state: &JetGraphState, block: usize) -> JetGraphState {
+    let n = state.x.len();
+    let mut out = JetGraphState {
+        x: vec![],
+        v: vec![],
+        a: vec![],
+        j: vec![],
+    };
+
+    let mut i = 0;
+    while i < n {
+        let mut cx = 0.0;
+        let mut cv = 0.0;
+        let mut ca = 0.0;
+        let mut cj = 0.0;
+        let mut count = 0.0;
+
+        for j in i..(i + block).min(n) {
+            cx += state.x[j];
+            cv += state.v[j];
+            ca += state.a[j];
+            cj += state.j[j];
+            count += 1.0;
+        }
+
+        out.x.push(cx / count);
+        out.v.push(cv / count);
+        out.a.push(ca / count);
+        out.j.push(cj / count);
+
+        i += block;
+    }
+
+    out
+}
+
+// ============================================================================
+// GH OPERATOR (LOCAL NONLINEAR FORM)
+// ============================================================================
+
+fn gh_local_operator(x: f64, v: f64, gamma: f64) -> f64 {
+    x + gamma * v * x.abs()
+}
+
+// ============================================================================
+// GH RG FLOW STEP
+// ============================================================================
+//
+// This defines:
+//
+//   G(s+1) = R(G(s))
+//
+// where R = renormalization operator
+// ============================================================================
+
+pub fn gh_rg_step(
+    state: &JetGraphState,
+    scale: GHScale,
+    gamma: f64,
+    bounds: &Bounds,
+) -> (JetGraphState, f64) {
+
+    // ------------------------------------------------------------
+    // 1. DETERMINE BLOCK SIZE FROM SCALE
+    // ------------------------------------------------------------
+    let block = (scale.s.max(1.0).sqrt() as usize).max(1);
+
+    // ------------------------------------------------------------
+    // 2. COARSE GRAIN STATE
+    // ------------------------------------------------------------
+    let coarse = coarse_grain(state, block);
+
+    let mut next = coarse.clone();
+
+    // ------------------------------------------------------------
+    // 3. APPLY NONLINEAR GH OPERATOR (LOCAL FLOW)
+    // ------------------------------------------------------------
+    for i in 0..coarse.x.len() {
+
+        let x = gh_local_operator(coarse.x[i], coarse.v[i], gamma);
+        let v = gh_local_operator(coarse.v[i], coarse.a[i], gamma);
+        let a = gh_local_operator(coarse.a[i], coarse.j[i], gamma);
+        let j = gh_local_operator(coarse.j[i], coarse.j[i], gamma);
+
+        next.x[i] = x.clamp(bounds.x_min, bounds.x_max);
+        next.v[i] = v.clamp(-bounds.v_max, bounds.v_max);
+        next.a[i] = a.clamp(-bounds.a_max, bounds.a_max);
+        next.j[i] = j.clamp(-bounds.j_max, bounds.j_max);
+    }
+
+    // ------------------------------------------------------------
+    // 4. GH ENERGY (SCALE DEPENDENT)
+    // ------------------------------------------------------------
+    let mut energy = 0.0;
+
+    for i in 0..next.x.len() {
+        energy += next.x[i].powi(2)
+            + next.v[i].powi(2)
+            + next.a[i].powi(2)
+            + next.j[i].powi(2);
+    }
+
+    (next, energy)
+}
+
+// ============================================================================
+// RG FLOW INTERPRETATION
+// ============================================================================
+//
+// We now define GH behavior as:
+//
+//   trajectory in function space of operators G(s)
+//
+// NOT:
+//   static eigenanalysis
+//
+// ============================================================================
+// FIXED POINTS OF GH FLOW
+// ============================================================================
+//
+// A DVSM-π system is stable if:
+//
+//   G(s+1) ≈ G(s)
+//
+// i.e. renormalization fixed point.
+//
+// This replaces:
+//
+//   |λ| ≤ 1
+//
+// with:
+//
+//   dG/ds → 0
+//
+// ============================================================================
+// GHOSTS IN RG FORMULATION
+// ============================================================================
+//
+// Ghosts are now:
+//
+//   runaway trajectories in operator space under scaling
+//
+// Types:
+//
+//   - UV ghost: divergence at small scale (s → 0)
+//   - IR ghost: divergence under coarse-graining (s → ∞)
+//   - scale resonance: oscillatory RG flow
+//
+// ============================================================================
+// CORE RESULT
+// ============================================================================
+//
+// DVSM-π is now:
+//
+//   a nonlinear renormalization group flow
+//   over a constrained graph-jet manifold
+//
+// NOT:
+//
+//   a fixed linear operator system
+//
+// ============================================================================
+// ============================================================================
+// DVSM-π ADDENDUM 6 — GH INVARIANT MEASURE & PROBABILITY FLOW LAYER
+// ============================================================================
+// Purpose:
+//   Extend DVSM-π from deterministic RG flow
+//   → stochastic measure evolution on constrained jet manifold
+//
+// Key shift:
+//   FROM: deterministic operator RG flow
+//   TO:   probability density evolution under projection-constrained dynamics
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// STATE SPACE (CONTINUOUS DISTRIBUTION REPRESENTATION)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+// ============================================================================
+// CONSTRAINED MANIFOLD BOUNDS
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ============================================================================
+// PROBABILITY DENSITY (DISCRETIZED REPRESENTATION)
+// ============================================================================
+//
+// ρ(x, v, a, j, t)
+// represented as a grid over jet space.
+// ============================================================================
+
+#[derive(Clone)]
+pub struct Density {
+    pub p: Vec<f64>, // flattened probability field
+    pub n: usize,
+}
+
+// ============================================================================
+// NORMALIZATION (ENSURES INVARIANT MEASURE CANDIDATE)
+// ============================================================================
+
+#[inline(always)]
+fn normalize(d: &mut Density) {
+    let sum: f64 = d.p.iter().sum();
+    if sum > 0.0 {
+        for v in &mut d.p {
+            *v /= sum;
+        }
+    }
+}
+
+// ============================================================================
+// GH DRIFT FIELD (DETERMINISTIC COMPONENT)
+// ============================================================================
+//
+// This encodes DVSM kernel + excitation drift.
+// ============================================================================
+
+#[inline(always)]
+fn drift(x: f64, sigma: f64, eta: f64, gamma: f64) -> f64 {
+    let contraction = x + eta * (sigma - x);
+    contraction + gamma * (sigma - x)
+}
+
+// ============================================================================
+// DIFFUSION OPERATOR (UNCERTAINTY PROPAGATION)
+// ============================================================================
+//
+// Represents unresolved jet-level perturbations.
+// ============================================================================
+
+#[inline(always)]
+fn diffusion(p: f64, noise: f64) -> f64 {
+    p + noise
+}
+
+// ============================================================================
+// GH PROJECTION (CONSTRAINT ENFORCEMENT ON MEASURE)
+// ============================================================================
+//
+// Measures outside manifold are reallocated inward.
+// This is NOT renormalization of value—it is support restriction.
+// ============================================================================
+
+#[inline(always)]
+fn project_support(x: f64, b: &Bounds) -> f64 {
+    x.clamp(b.x_min, b.x_max)
+}
+
+// ============================================================================
+// FOKKER–PLANCK STEP (DVSM-π FORM)
+// ============================================================================
+//
+// ∂ρ/∂t = -∇·(Fρ) + D∇²ρ projected onto constrained manifold
+//
+// Implemented discretely as:
+//   drift + diffusion + projection + renormalization
+// ============================================================================
+
+pub fn fp_step(
+    mut density: Density,
+    sigma: f64,
+    eta: f64,
+    gamma: f64,
+    bounds: &Bounds,
+    noise: f64,
+) -> Density {
+
+    // ------------------------------------------------------------
+    // 1. LOCAL UPDATE (DRIFT + DIFFUSION)
+    // ------------------------------------------------------------
+    for i in 0..density.p.len() {
+
+        let x = density.p[i];
+
+        let f = drift(x, sigma, eta, gamma);
+        let d = diffusion(f, noise);
+
+        density.p[i] = project_support(d, bounds);
+    }
+
+    // ------------------------------------------------------------
+    // 2. SUPPORT CONSISTENCY (GH PROJECTION)
+    // ------------------------------------------------------------
+    normalize(&mut density);
+
+    density
+}
+
+// ============================================================================
+// GH INVARIANT MEASURE CONDITION
+// ============================================================================
+//
+// A density ρ* is GH-invariant if:
+//
+//   FP(ρ*) = ρ*
+//
+// meaning:
+//
+//   probability flow is stationary under constrained DVSM dynamics
+//
+// ============================================================================
+
+// ============================================================================
+// GH ENTROPY FUNCTIONAL (DIAGNOSTIC ONLY)
+// ============================================================================
+//
+// NOT USED FOR CONTROL.
+//
+// Measures spread of probability mass in jet space.
+// ============================================================================
+
+pub fn entropy(d: &Density) -> f64 {
+    let mut s = 0.0;
+
+    for &p in &d.p {
+        if p > 1e-12 {
+            s -= p * p.log2();
+        }
+    }
+
+    s
+}
+
+// ============================================================================
+// GH STABILITY INTERPRETATION (PROBABILISTIC FORM)
+// ============================================================================
+//
+// Stability is now:
+//
+//   invariance or bounded evolution of measure ρ under FP operator
+//
+// NOT:
+//
+//   trajectory boundedness alone
+//
+// ============================================================================
+//
+// FAILURE MODES (GH PROBABILISTIC FORM)
+// ============================================================================
+//
+// 1. measure collapse
+//    → ρ concentrates to delta outside manifold consistency
+//
+// 2. measure explosion
+//    → entropy → ∞ under diffusion dominance
+//
+// 3. support leakage
+//    → probability mass repeatedly projected (non-convergent FP flow)
+//
+// ============================================================================
+//
+// CORE RESULT
+// ============================================================================
+//
+// DVSM-π now defines:
+//
+//   a constrained stochastic process on a jet manifold
+//
+// with:
+//
+//   - deterministic drift (kernel + excitation)
+//   - stochastic diffusion (uncertainty propagation)
+//   - geometric projection (manifold closure)
+//   - invariant measure analysis (GH stability)
+//
+// ============================================================================
+// FINAL INTERPRETATION SHIFT
+// ============================================================================
+//
+// Before:
+//   DVSM = constrained dynamical system
+//
+// Now:
+//   DVSM = constrained probability flow system
+//           with geometric support restriction
+//
+// ============================================================================
