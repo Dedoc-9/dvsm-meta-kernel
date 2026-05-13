@@ -872,3 +872,155 @@ fn main() {
         }
     }
 }
+/*!
+DVSM CORE 3-IN-1 SYSTEM
+
+LAYER 1: Node algebra (state update)
+LAYER 2: Network coupling (neighbor interaction)
+LAYER 3: Execution harness (multi-step simulation)
+
+No category theory, no stacks, no abstract topology —
+only measurable state + interaction + drift.
+*/
+
+use std::f32;
+
+const N: usize = 8;
+const MAX_NODES: usize = 8;
+
+/* ============================================================
+   LAYER 1 — CORE NODE ALGEBRA
+   ============================================================ */
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Status {
+    Stable,
+    Fractured,
+}
+
+#[derive(Clone)]
+pub struct Node {
+    pub state: [f32; N],
+    pub eta: f32,
+    pub drift: f32,
+    pub drift_budget: f32,
+    pub epsilon: f32,
+}
+
+impl Node {
+    pub fn new(state: [f32; N], eta: f32, eps: f32, budget: f32) -> Self {
+        Self {
+            state,
+            eta,
+            drift: 0.0,
+            drift_budget: budget,
+            epsilon: eps,
+        }
+    }
+
+    /// Fundamental equation:
+    /// S' = (1 - η)S + η(σ + S_neighbor)
+    pub fn step(&mut self, sigma: &[f32; N], neighbor: &[f32; N]) -> Status {
+        let mut next = [0.0; N];
+
+        for i in 0..N {
+            let excitation = sigma[i] + neighbor[i];
+            next[i] = (1.0 - self.eta) * self.state[i] + self.eta * excitation;
+        }
+
+        let defect = Self::l2(&next, neighbor);
+
+        if defect > self.epsilon {
+            self.drift += defect;
+            self.eta *= 1.0 - self.eta;
+        }
+
+        self.state = next;
+
+        if self.drift > self.drift_budget {
+            Status::Fractured
+        } else {
+            Status::Stable
+        }
+    }
+
+    fn l2(a: &[f32; N], b: &[f32; N]) -> f32 {
+        let mut s = 0.0;
+        for i in 0..N {
+            let d = a[i] - b[i];
+            s += d * d;
+        }
+        s.sqrt()
+    }
+}
+
+/* ============================================================
+   LAYER 2 — NETWORK TOPOLOGY (NEIGHBOR COUPLING)
+   ============================================================ */
+
+pub struct Network {
+    pub nodes: Vec<Node>,
+}
+
+impl Network {
+    pub fn new(nodes: Vec<Node>) -> Self {
+        Self { nodes }
+    }
+
+    /// Simple ring topology:
+    /// each node interacts with next node
+    fn neighbor_index(i: usize) -> usize {
+        (i + 1) % MAX_NODES
+    }
+
+    pub fn step_all(&mut self, sigma: &[f32; N]) -> bool {
+        let snapshots: Vec<[f32; N]> =
+            self.nodes.iter().map(|n| n.state).collect();
+
+        let mut all_stable = true;
+
+        for i in 0..self.nodes.len() {
+            let j = Self::neighbor_index(i);
+
+            let status = self.nodes[i].step(sigma, &snapshots[j]);
+
+            if status == Status::Fractured {
+                all_stable = false;
+            }
+        }
+
+        all_stable
+    }
+}
+
+/* ============================================================
+   LAYER 3 — EXECUTION HARNESS
+   ============================================================ */
+
+fn main() {
+    let mut net = Network::new(vec![
+        Node::new([1.0; N], 0.25, 0.01, 10.0),
+        Node::new([0.8; N], 0.30, 0.01, 10.0),
+        Node::new([0.6; N], 0.28, 0.01, 10.0),
+    ]);
+
+    let signals = [
+        [0.2; N],
+        [0.4; N],
+        [0.6; N],
+        [5.0; N], // instability injection
+    ];
+
+    println!("DVSM 3-IN-1 CORE RUNNING");
+
+    for (t, sigma) in signals.iter().enumerate() {
+        let stable = net.step_all(sigma);
+
+        println!("t={} | stable={}", t, stable);
+
+        if !stable {
+            println!("SYSTEM FRACTURE — HALT");
+            break;
+        }
+    }
+}
