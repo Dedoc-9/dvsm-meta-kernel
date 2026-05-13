@@ -28,6 +28,78 @@
 //   all updates computed from frozen frame state
 //
 // ============================================================================
+// ============================================================================
+// DVSM — CLARIFICATION (ARITHMETIC MODEL SPLIT + MUTATION SEMANTICS)
+// ============================================================================
+//
+// SYSTEM CORRECTION:
+//
+// The runtime implicitly contains TWO arithmetic layers:
+//
+// ---------------------------------------------------------------------------
+// (A) ARITHMETIC MODEL A — METRIC / GEOMETRIC LAYER
+// ---------------------------------------------------------------------------
+// PURPOSE:
+//   - ε-thresholding
+//   - L2 distance (Δ, norm2)
+//   - equality / divergence detection
+//
+// STRUCTURE:
+//   ArithmeticModel { epsilon }
+//
+// ROLE IN DVSM:
+//   - defines observable geometry of state space
+//   - does NOT control dynamics directly
+//   - used for defect measurement Δ_ij
+//
+// ---------------------------------------------------------------------------
+// (B) ARITHMETIC MODEL B — CONTROL / STABILITY FIELD (IMPLICIT → NOW FORMAL)
+// ---------------------------------------------------------------------------
+// PURPOSE:
+//   - nonlinear stability shaping of η
+//   - bounded feedback control
+//   - contraction modulation via φ(Δ)
+//
+// FORMALIZATION:
+//   φ(Δ) = Δ / (1 + Δ)
+//   control = λ * φ(Δ) - β
+//   η(t+1) = clamp( η(t) * (1 - control), [0.01, 0.95] )
+//
+// ROLE IN DVSM:
+//   - governs adaptive damping (η evolution)
+//   - does NOT define geometry
+//   - acts as post-geometry control field
+//
+// RECOMMENDATION:
+//   -> should be extracted into ArithmeticModelB for modularity
+//
+// ---------------------------------------------------------------------------
+// MUTATION VS OBSERVATION (CORE EXECUTION RULE)
+// ---------------------------------------------------------------------------
+//
+// MUTATION (causal writes):
+//   - modifying S, η, H
+//   - committing next_frame
+//   - any in-place memory change
+//
+// OBSERVATION (read-only):
+//   - computing Δ_ij
+//   - snapshot.clone()
+//   - π-mode projections
+//
+// STRICT RULE:
+//   Only DVSMRuntime::step_frame may mutate state.
+//   All π_* and metrics are observation-layer only.
+//
+// ---------------------------------------------------------------------------
+// RESULTING ARCHITECTURE:
+//
+//   Kernel (F_A)        → state evolution
+//   ArithmeticModel A   → geometry (Δ)
+//   ArithmeticModel B   → stability control (η)
+//   π_modes             → interpretation layer (read-only)
+//
+// ============================================================================ 
 
 use std::fmt;
 
