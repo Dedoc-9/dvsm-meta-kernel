@@ -10,6 +10,9 @@
 //   4. Switching entropy + saturation metrics
 //   5. Dwell-time + complexity analysis
 //   6. Regime classifier
+
+// xt+1​=ΠM​(F(xt​,σt​))
+
 // ============================================================================
 
 use std::collections::HashMap;
