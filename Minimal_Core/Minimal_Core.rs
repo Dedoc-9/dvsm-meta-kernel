@@ -1,10 +1,4 @@
 // ============================================================================
-// DVSM — DISTRIBUTED GRAPH-COUPLED CONTRACTION SYSTEM
-// + CURRENT STATE: frozen-frame kernel + SIMD-ready + GPU-mappable
-// + OBSERVATION LAYERS: π_classical / π_fracture / π_modes (read-only projections)
-// + EXTENSIONS: rollback buffers, spatial partitioning, async telemetry, GPU dispatch model
-// + GUARANTEE: deterministic execution, snapshot-isolated mutation, no observer feedback into kernel
-// Hardened Minimal Runtime
 // Author: Daniel J. Dillberg
 // ============================================================================
 // DVSM-π+++ CORE UPDATE LAW
@@ -23,196 +17,990 @@
 //   - F proposes a candidate transition in ambient space
 //   - Π_M enforces manifold consistency and feasibility closure
 //   - only projected states are admitted into system trajectory
-// ===========================================================================
+// ============================================================================
+// ============================================================================
+// DVSM-π — DISTRIBUTED GRAPH-COUPLED CONSTRACTION SYSTEM
+// ============================================================================
+//
+// STATUS
+// -----------------------------------------------------------------------------
+// • Snapshot-synchronous deterministic dynamics kernel
+// • SIMD-ready / GPU-mappable execution model
+// • Projection-closed constrained state evolution
+// • Observer-separated π-layer architecture
+// • Hybrid smooth / nonsmooth manifold dynamics
+//
+// EXECUTION MODEL
+// -----------------------------------------------------------------------------
+// The system evolves through a frozen-frame update operator:
+//
+//     x̃_i(t+1) = F_A(S_i(t), N_i(t), σ(t), θ)
+//
+//     S_i(t+1) = Π_M(x̃_i(t+1))
+//
+// where:
+//
+//     S_i ∈ ℳ                 constrained manifold state
+//     F_A                     causal evolution kernel
+//     Π_M                     feasibility projection operator
+//     N_i                     graph-neighborhood coupling field
+//     σ(t)                    external forcing / excitation field
+//     θ                       parameter field
+//
+// All updates are computed from a frozen snapshot:
+//
+//     S(t+1) ← Φ(S(t))
+//
+// No in-place mutation is permitted during evaluation.
+//
+// ============================================================================
+// CORE ARCHITECTURAL GUARANTEES
+// ============================================================================
+//
+// 1. SNAPSHOT ISOLATION
+// -----------------------------------------------------------------------------
+// All node updates are evaluated from immutable frame state:
+//
+//     ∀i:
+//         S_i(t+1) depends only on S(t)
+//
+// Guarantees:
+//
+// • deterministic replay
+// • race-free parallel execution
+// • order-independent evaluation
+// • stable distributed scheduling
+// • reproducible GPU dispatch
+//
+// -----------------------------------------------------------------------------
+//
+// 2. KERNEL / OBSERVER SEPARATION
+// -----------------------------------------------------------------------------
+// The causal kernel is the ONLY mutating subsystem.
+//
+//     kernel → state evolution
+//
+// π-modes are strictly observational:
+//
+//     π_k : Traj(ℳ) → ℝⁿ
+//
+// Examples:
+//
+// • π_classical      → trajectory observables
+// • π_fracture       → defect geometry
+// • π_switching      → active-set transitions
+// • π_entropy        → symbolic complexity
+// • π_transport      → Wasserstein flow geometry
+//
+// Observers:
+//
+// • never mutate state
+// • never alter control flow
+// • never inject optimization pressure
+// • may execute asynchronously or GPU-side
+//
+// -----------------------------------------------------------------------------
+//
+// 3. PROJECTION-CLOSED FEASIBILITY
+// -----------------------------------------------------------------------------
+// Stability is enforced geometrically:
+//
+//     S(t+1) = Π_M(x̃)
+//
+// not via scalar optimization.
+//
+// This guarantees:
+//
+// • bounded admissible evolution
+// • constraint-preserving trajectories
+// • stable manifold confinement
+// • explicit boundary activation detection
+//
+// Projection events produce hybrid dynamics:
+//
+// • crossing
+// • sliding
+// • grazing
+// • chatter / Zeno-like regimes
+//
+// -----------------------------------------------------------------------------
+//
+// 4. DISTRIBUTED GRAPH COUPLING
+// -----------------------------------------------------------------------------
+// The kernel operates on graph-local neighborhoods:
+//
+//     G_t = (V_t, E_t)
+//
+// Coupling field:
+//
+//     C_i(t) = Σ_j κ_ij (S_j - S_i)
+//
+// Enables:
+//
+// • diffusion dynamics
+// • consensus formation
+// • coherence/fracture analysis
+// • scalable sparse execution
+//
+// Complexity:
+//
+// • sparse local mode: O(E)
+// • dense diagnostic mode: O(N²)
+//
+// -----------------------------------------------------------------------------
+//
+// 5. GPU / SIMD EXECUTION READINESS
+// -----------------------------------------------------------------------------
+// The runtime is intentionally structured for:
+//
+// • ECS schedulers
+// • SIMD vectorization
+// • compute shader kernels
+// • CUDA / Metal / Vulkan dispatch
+// • distributed graph partitioning
+//
+// Snapshot semantics eliminate:
+//
+// • race hazards
+// • write conflicts
+// • nondeterministic ordering
+//
+// making the system naturally parallelizable.
+//
+// -----------------------------------------------------------------------------
+//
+// 6. EXTENSION LAYERS
+// -----------------------------------------------------------------------------
+// Compatible higher-order layers include:
+//
+// • rollback buffers
+// • event tapes
+// • symbolic switching entropy
+// • spectral graph operators
+// • Fokker–Planck flow
+// • Wasserstein transport geometry
+// • adaptive manifold fields
+// • probabilistic jet observables
+// • multiscale graph partitions
+// • asynchronous telemetry streams
+//
+// These layers remain:
+//
+// • observational
+// • manifold-compatible
+// • projection-closed
+//
+// and MUST NOT directly mutate the kernel outside Φ.
+//
+// ============================================================================
+// HARD INVARIANT
+// ============================================================================
+//
+// The kernel is causal.
+// Projection defines admissibility.
+// Observers define interpretation.
+//
+// Only the kernel evolves state.
+//
+// ============================================================================
+// DVSM-π — CONSOLIDATED GEOMETRIC DYNAMICS FORMULATION
+// ============================================================================
+// OVERVIEW
+// ----------------------------------------------------------------------------
+//
+// DVSM-π is a deterministic, snapshot-synchronous,
+// graph-coupled constrained dynamical system.
+//
+// The system evolves on a stratified jet manifold:
+//
+//     M ⊂ J^k
+//
+// where:
+//
+//     J^k = discrete k-order jet bundle
+//
+// and each node state is:
+//
+//     S_i(t) ∈ J^k
+//
+// Example:
+//
+//     S_i(t) = (x_i, v_i, a_i, j_i)
+//
+// Stability is NOT achieved through:
+//
+//     reward optimization
+//     scalar minimization
+//     gradient descent
+//
+// Stability is achieved through:
+//
+//     projection-constrained feasible evolution
+//
+// ============================================================================
+//
+// FUNDAMENTAL EVOLUTION LAW
+// ----------------------------------------------------------------------------
+//
+// Let:
+//
+//     G_t = (V_t, E_t)
+//
+// be the graph at time t.
+//
+// Define frozen-frame evolution:
+//
+//     S̃_i(t+1)
+//         = F_A(
+//               S_i(t),
+//               N_i(t),
+//               σ_i(t),
+//               η_i(t)
+//           )
+//
+// Projection closure:
+//
+//     S_i(t+1)
+//         = Π_M(S̃_i(t+1))
+//
+// where:
+//
+//     Π_M : J^k → M
+//
+// is the stratified feasibility projection operator.
+//
+// ============================================================================
+//
+// COUPLED GRAPH DYNAMICS
+// ----------------------------------------------------------------------------
+//
+// Neighbor coupling:
+//
+//     C_i(t)
+//         = Σ_j w_ij (x_j(t) - x_i(t))
+//
+// Kernel evolution:
+//
+//     x̃_i(t+1)
+//         = x_i(t)
+//         + η_i(t) · (σ_i(t) + C_i(t) - x_i(t))
+//         + γ_i(t) · E_i(t)
+//
+// Excitation:
+//
+//     E_i(t)
+//         = σ_i(t) - P_i(x_i(t))
+//
+// where:
+//
+//     P_i(x_i)
+//         = non-controlling expectation field
+//
+// IMPORTANT:
+//
+// excitation preserves responsiveness,
+// preventing collapse into over-contractive fixed points.
+//
+// ============================================================================
+//
+// JET RECONSTRUCTION GEOMETRY
+// ----------------------------------------------------------------------------
+//
+// Jets are NOT independently evolved.
+//
+// Jets are reconstructed from trajectory sections:
+//
+//     v_i(t) = x_i(t)   - x_i(t-1)
+//
+//     a_i(t) = v_i(t)   - v_i(t-1)
+//
+//     j_i(t) = a_i(t)   - a_i(t-1)
+//
+// Therefore:
+//
+//     jets are geometric observables
+//     reconstructed from feasible trajectories.
+//
+// ============================================================================
+//
+// PROJECTION-FIRST GEOMETRY
+// ----------------------------------------------------------------------------
+//
+// Previous incorrect interpretation:
+//
+//     x_{t+1} = Π_M(F(x_t))
+//
+// Correct interpretation:
+//
+//     S̃(t+1) = F(S(t))
+//
+//     S(t+1) = Π_M(S̃(t+1))
+//
+// because:
+//
+//     feasibility applies to FULL trajectory geometry,
+//     not scalar position alone.
+//
+// ============================================================================
+//
+// STRATIFIED MANIFOLD STRUCTURE
+// ----------------------------------------------------------------------------
+//
+// The feasible manifold:
+//
+//     M = ⋃ M_k
+//
+// Each stratum:
+//
+//     M_k ⊂ J^k
+//
+// defines locally admissible trajectory geometry:
+//
+//     |v| ≤ v_max
+//     |a| ≤ a_max
+//     |j| ≤ j_max
+//
+// together with:
+//
+//     x ∈ [x_min, x_max]
+//
+// Projection enforces:
+//
+//     nearest feasible jet geometry.
+//
+// ============================================================================
+//
+// SNAPSHOT INVARIANT (HARD RUNTIME RULE)
+// ----------------------------------------------------------------------------
+//
+// ALL updates are computed from:
+//
+//     frozen S(t)
+//
+// and committed simultaneously.
+//
+// Meaning:
+//
+//     S(t) is immutable during compute phase
+//
+// Therefore:
+//
+//     no in-place causal contamination exists.
+//
+// This guarantees:
+//
+//   • deterministic replay
+//   • race-free parallelism
+//   • GPU-safe execution
+//   • order-independent updates
+//   • observer isolation
+//
+// ============================================================================
+//
+// DUAL GEOMETRY STRUCTURE
+// ----------------------------------------------------------------------------
+//
+// DVSM-π contains TWO coupled but distinct geometries:
+//
+// ---------------------------------------------------------------------------
+// (1) STATE GEOMETRY
+// ---------------------------------------------------------------------------
+//
+// Evolves under:
+//
+//     F_A + Π_M
+//
+// Governs:
+//
+//     causal trajectory evolution
+//
+// ---------------------------------------------------------------------------
+// (2) STABILITY GEOMETRY
+// ---------------------------------------------------------------------------
+//
+// Defined through:
+//
+//     Δ_ij(t)
+//     H_i(t)
+//     η_i(t)
+//
+// Governs:
+//
+//     defect accumulation
+//     adaptive contraction
+//     stress observability
+//
+// ============================================================================
+//
+// GEOMETRIC DEFECT FIELD
+// ----------------------------------------------------------------------------
+//
+// Pairwise geometric deviation:
+//
+//     Δ_ij(t)
+//         = ||S_i(t) - S_j(t)||
+//
+// where norm is defined on jet space.
+//
+// Δ defines:
+//
+//   • coherence
+//   • fracture
+//   • synchronization loss
+//   • boundary instability structure
+//
+// IMPORTANT:
+//
+// Δ is observational geometry,
+// NOT a reward signal.
+//
+// ============================================================================
+//
+// CUMULATIVE STRESS FIELD
+// ----------------------------------------------------------------------------
+//
+// Stress accumulation:
+//
+//     H_i(t+1)
+//         = H_i(t)
+//         + φ(Δ_i(t))
+//
+// where:
+//
+//     φ(Δ)
+//         = bounded stress transform
+//
+// Example:
+//
+//     φ(Δ)
+//         = Δ / (1 + Δ)
+//
+// H represents:
+//
+//     cumulative instability memory
+//
+// IMPORTANT:
+//
+// H does NOT directly mutate state
+// during the same frame.
+//
+// ============================================================================
+//
+// ADAPTIVE CONTRACTION FIELD
+// ----------------------------------------------------------------------------
+//
+// Contraction evolution:
+//
+//     η_i(t+1)
+//         = Ψ(
+//               η_i(t),
+//               Δ_i(t),
+//               H_i(t)
+//           )
+//
+// Example bounded update:
+//
+//     control
+//         = λφ(Δ_i) - β
+//
+//     η_i(t+1)
+//         = clamp(
+//               η_i(t)(1 - control),
+//               η_min,
+//               η_max
+//           )
+//
+// η defines:
+//
+//   • contraction strength
+//   • damping response
+//   • stability adaptation
+//
+// ============================================================================
+//
+// ARITHMETIC MODEL SPLIT
+// ----------------------------------------------------------------------------
+//
+// DVSM-π contains TWO arithmetic layers.
+//
+// ---------------------------------------------------------------------------
+// ARITHMETIC MODEL A — GEOMETRIC
+// ---------------------------------------------------------------------------
+//
+// PURPOSE:
+//
+//   • norm geometry
+//   • ε-thresholding
+//   • defect measurement
+//
+// Examples:
+//
+//     ||S_i - S_j||
+//     ε comparisons
+//
+// ROLE:
+//
+//     observational geometry only
+//
+// ---------------------------------------------------------------------------
+// ARITHMETIC MODEL B — CONTROL FIELD
+// ---------------------------------------------------------------------------
+//
+// PURPOSE:
+//
+//   • η adaptation
+//   • bounded stability shaping
+//   • contraction regulation
+//
+// ROLE:
+//
+//     post-geometric control modulation
+//
+// IMPORTANT:
+//
+// Model B must NEVER become:
+//
+//     reward optimization
+//     objective descent
+//     metric maximization
+//
+// ============================================================================
+//
+// OBSERVER LAYER (π-MODES)
+// ----------------------------------------------------------------------------
+//
+// Observers are pure projections:
+//
+//     π_k : Traj(S) → ℝ^m
+//
+// Examples:
+//
+//     π_classical
+//     π_fracture
+//     π_entropy
+//     π_switching
+//     π_spectral
+//
+// IMPORTANT:
+//
+// π-modes:
+//
+//   • NEVER mutate state
+//   • NEVER affect F_A
+//   • NEVER affect Π_M
+//
+// They are:
+//
+//     interpretation layers only.
+//
+// ============================================================================
+//
+// GOODHART-RESISTANT STRUCTURE
+// ----------------------------------------------------------------------------
+//
+// DVSM-π avoids direct metric optimization because:
+//
+//     observables are downstream projections
+//
+// and:
+//
+//     control does not optimize observables.
+//
+// Therefore:
+//
+//     metric ≠ objective
+//
+// instead:
+//
+//     metric = observation artifact
+//
+// IMPORTANT:
+//
+// This does NOT imply:
+//
+//     universal ungameability
+//
+// because:
+//
+//     manifold definitions
+//     projection geometry
+//     coupling structure
+//     adversarial assumptions
+//
+// may still be poorly modeled.
+//
+// ============================================================================
+//
+// NONSMOOTH HYBRID DYNAMICS
+// ----------------------------------------------------------------------------
+//
+// Projection introduces switching surfaces:
+//
+//     Σ_k = ∂M_k
+//
+// Therefore the system is:
+//
+//     hybrid
+//     nonsmooth
+//     boundary-active
+//
+// Possible regimes:
+//
+//   • interior flow
+//   • sliding modes
+//   • grazing contact
+//   • chatter
+//   • boundary-lock
+//
+// Projection events are:
+//
+//     discontinuous geometric events
+//
+// not soft penalties.
+//
+// ============================================================================
+//
+// ACTIVE-SET SYMBOLIC GEOMETRY
+// ----------------------------------------------------------------------------
+//
+// Constraint contact generates symbolic sequences:
+//
+//     A_t ∈ {∅, Σ+, Σ−, ...}
+//
+// allowing:
+//
+//   • entropy analysis
+//   • dwell-time analysis
+//   • switching complexity
+//   • symbolic dynamics
+//   • LZ complexity estimation
+//
+// ============================================================================
+//
+// SYSTEM CLASSIFICATION
+// ----------------------------------------------------------------------------
+//
+// DVSM-π IS:
+//
+//   • deterministic graph dynamical system
+//   • constrained projection system
+//   • hybrid nonsmooth dynamical system
+//   • feasibility-preserving evolution engine
+//   • graph-coupled contraction field
+//   • observable-rich simulation kernel
+//
+// DVSM-π IS NOT:
+//
+//   • neural network
+//   • reinforcement learner
+//   • probabilistic inference engine
+//   • reward optimizer
+//   • cryptographic protocol
+//   • guaranteed security architecture
+//
+// ============================================================================
+//
+// CORE EXECUTION SEMANTICS
+// ----------------------------------------------------------------------------
+//
+// MUTATION:
+//
+//   • state commit
+//   • η update
+//   • H accumulation
+//   • frame advancement
+//
+// OBSERVATION:
+//
+//   • Δ computation
+//   • π projections
+//   • spectral analysis
+//   • entropy estimation
+//   • switching diagnostics
+//
+// STRICT RULE:
+//
+//     only runtime kernel may mutate state.
+//
+// ============================================================================
+//
+// FINAL COMPRESSED FORM
+// ----------------------------------------------------------------------------
+//
+// DVSM-π
+//
+//     = graph-coupled constrained evolution
+//     + stratified manifold projection
+//     + adaptive contraction geometry
+//     + cumulative stress field
+//     + jet-consistent trajectory reconstruction
+//     + observer-only diagnostic projections
+//
+// ============================================================================
+//
+// CORE INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// kernel
+//     = causality
+//
+// Π_M
+//     = feasibility enforcement
+//
+// jets
+//     = reconstructed trajectory geometry
+//
+// Δ
+//     = defect geometry
+//
+// H
+//     = instability memory
+//
+// η
+//     = adaptive contraction field
+//
+// π-modes
+//     = interpretation only
+//
+// ============================================================================
+//
+// ENDPOINT PRINCIPLE
+// ----------------------------------------------------------------------------
+//
+// Stability is NOT:
+//
+//     minimization of energy
+//
+// Stability IS:
+//
+//     invariance of feasible trajectory geometry
+//     under projection-constrained evolution.
+//
+// ============================================================================
 
-// Mathematical Form:
+// ============================================================================
+// DVSM-π — STRATIFIED SNAPSHOT-CONSTRAINED GRAPH DYNAMICS
+// ============================================================================
 //
-//   G_t = (V_t, E_t)
+// CURRENT CONSOLIDATED FORM
+// ----------------------------------------------------------------------------
+// This file reflects the modernized DVSM-π semantics:
 //
-//   S_i(t+1)
-//      = F_A(S_i(t), S_j(t), σ(t), η_i)
+//   • snapshot-synchronous evolution
+//   • graph-coupled contraction dynamics
+//   • explicit separation of:
+//
+//         kernel dynamics
+//         constraint geometry
+//         adaptive stability field
+//         observability layers
+//
+//   • jet-consistent state evolution
+//   • pre-commit diagnostic geometry
+//   • deterministic replayable execution
+//   • SIMD / GPU compatible frozen-frame architecture
+//
+// ----------------------------------------------------------------------------
+// MATHEMATICAL FOUNDATION
+// ----------------------------------------------------------------------------
+//
+// STATE SPACE
+//
+//   S_i(t) ∈ J^k
+//
+// where:
+//
+//   S_i(t) = (x, v, a, j, ...)
+//
+// is a jet-consistent local trajectory state.
+//
+// ----------------------------------------------------------------------------
+// GRAPH DYNAMICS
+// ----------------------------------------------------------------------------
+//
+//   G_t = (V, E)
+//
+// Nodes evolve synchronously over a fixed frozen frame:
+//
+//   S_i*(t+1)
+//      = F_A(
+//            S_i(t),
+//            N_i(t),
+//            σ(t),
+//            η_i(t)
+//        )
+//
+// where:
+//
+//   S_i*(t+1)  = candidate (uncommitted) state
+//   N_i(t)     = graph-coupled neighbor field
+//   σ(t)       = exogenous forcing signal
+//   η_i(t)     = adaptive contraction coefficient
+//
+// ----------------------------------------------------------------------------
+// SNAPSHOT INVARIANT
+// ----------------------------------------------------------------------------
+//
+// ALL updates are computed from the SAME frozen frame:
+//
+//   ∀i:
+//      reads  ← Frame(t)
+//      writes → Frame*(t+1)
+//
+// NO in-place causal mutation is permitted during evaluation.
+//
+// This guarantees:
+//
+//   • deterministic replay
+//   • race-free parallel execution
+//   • GPU dispatch compatibility
+//   • SIMD vectorization safety
+//   • observer/kernel separation
+//
+// ----------------------------------------------------------------------------
+// PROJECTION-CLOSED EVOLUTION
+// ----------------------------------------------------------------------------
+//
+// Raw dynamics evolve freely:
+//
+//   S_raw = F_A(...)
+//
+// Validity is enforced geometrically:
+//
+//   S_next = Π_M(S_raw)
+//
+// where:
+//
+//   Π_M : J^k → M
+//
+// projects candidate states onto a feasible constrained manifold.
+//
+// ----------------------------------------------------------------------------
+// DEFECT GEOMETRY (OBSERVATIONAL ONLY)
+// ----------------------------------------------------------------------------
+//
+// Cross-temporal defect functional:
 //
 //   Δ_ij(t)
-//      = ||S_i(t+1) - S_j(t)||
+//      = || S_i*(t+1) - S_j(t) ||
+//
+// IMPORTANT:
+//
+//   Δ is NOT causal control.
+//
+// It is:
+//
+//   • geometric diagnostic structure
+//   • post-kernel observability
+//   • stability telemetry
+//
+// ----------------------------------------------------------------------------
+// STABILITY FIELD
+// ----------------------------------------------------------------------------
+//
+// Drift accumulation:
 //
 //   H_i(t+1)
-//      = H_i(t) + φ(Δ_ij(t))
+//      = H_i(t) + φ(Δ_ij)
+//
+// Adaptive contraction:
 //
 //   η_i(t+1)
 //      = Ψ(η_i(t), Δ_ij(t))
 //
-// Snapshot invariant:
+// where:
 //
-//   all updates computed from frozen frame state
-//
-// ============================================================================
-//
-// DVSM — CORE CLARIFICATION (SINGLE CONSOLIDATED VIEW)
-
-// At its core, DVSM is a deterministic, snapshot-synchronous dynamical system on a graph:
-
-// 1. Kernel dynamics (causal engine)
-//    S_i(t+1) = S_i(t) + η_i · (coupled_signal - S_i(t))
-
-//   → This is a contractive nonlinear update rule on a graph
-//   → Equivalent to discrete-time contraction mapping with external forcing σ
-//   → Includes neighbor diffusion (local or global coupling variants)
-
-// 2. Snapshot isolation (hard invariant)
-//   All S(t+1) are computed from frozen S(t)
-
-//   → No in-place reads of evolving state
-//   → Guarantees determinism, replayability, and race-free parallelism
-//   → Separates compute phase (F_A) from commit phase
-
-// 3. Stability + drift layer (secondary dynamics)
-//   Δ_ij = ||S_i - S_j||            (geometry / deviation field)
-//   H_i(t+1) = H_i(t) + φ(Δ_ij)     (cumulative instability)
-//   η_i(t+1) = Ψ(η_i, Δ_ij)         (adaptive contraction strength)
-
-//   → Δ defines geometry of divergence
-//   → H accumulates irreversible “stress”
-//   → η modulates contraction speed (stability feedback control)
-
-// 4. Dual interaction regimes
-//   - Graph-local: neighbor coupling (O(E·D)) → scalable diffusion dynamics
-//   - Global: pairwise Δ_ij (O(N²·D)) → diagnostic fracture / coherence field
-
-// 5. Observer layer (π-modes)
-//   π_classical, π_fracture, etc. are pure projections:
-
-//   π_k : Traj(S) → ℝ^m
-
-//   → Read-only transformations of frozen trajectories
-//   → No causal influence on kernel
-//   → Can run in parallel / asynchronously / GPU-side
-
-// 6. System identity (compressed form)
-
-//   DVSM = deterministic graph-coupled contraction system
-//          + adaptive stability field (η)
-//          + cumulative drift memory (H)
-//          + geometric defect metric (Δ)
-//          + pure observational functor layer (π)
-
-// 7. Key structural invariant
-
-//   kernel = causality
-//   π-modes = interpretation
-//   drift = memory of instability
-//   η = self-regulating contraction strength
-
-//   → Observers never influence dynamics
-//   → Only kernel evolves state
-
-// 8. Practical classification
-
-//   DVSM behaves like:
-//   - a synchronous physics simulation kernel
-//   - with contraction dynamics on a graph
-//  - augmented by stability-aware step-size control
-//   - plus post-hoc geometric diagnostics
-
-//   Not a learning system in the ML sense,
-//   but a deterministic dynamical system with measurable instability feedback.
-
-// DVSM is best categorized as:
-
-// ❖ Not:
-// a neural network (no loss minimization)
-// a probabilistic model (no inference)
-// a reinforcement learning system (no reward loop)
-
-// ❖ But rather:
-// deterministic dynamical system
-// graph-coupled contraction field
-// stability-aware iterative map
-// observable-rich simulation kernel
-
-// DVSM core insight (dual-geometry model):
-// 1) State geometry: S evolves via contractive dynamics (F_A)
-// 2) Stability geometry: Δ, H, η form a separate “stress manifold”
-// 3) No feedback from stress → state within same frame (snapshot rule)
-// 4) System = (S-space evolution) + (diagnostic geometry overlay)
-
-//
-// ============================================================================
-// DVSM — CLARIFICATION (ARITHMETIC MODEL SPLIT + MUTATION SEMANTICS)
-// ============================================================================
-//
-// SYSTEM CORRECTION:
-//
-// The runtime implicitly contains TWO arithmetic layers:
-//
-// ---------------------------------------------------------------------------
-// (A) ARITHMETIC MODEL A — METRIC / GEOMETRIC LAYER
-// ---------------------------------------------------------------------------
-// PURPOSE:
-//   - ε-thresholding
-//   - L2 distance (Δ, norm2)
-//   - equality / divergence detection
-//
-// STRUCTURE:
-//   ArithmeticModel { epsilon }
-//
-// ROLE IN DVSM:
-//   - defines observable geometry of state space
-//   - does NOT control dynamics directly
-//   - used for defect measurement Δ_ij
-//
-// ---------------------------------------------------------------------------
-// (B) ARITHMETIC MODEL B — CONTROL / STABILITY FIELD (IMPLICIT → NOW FORMAL)
-// ---------------------------------------------------------------------------
-// PURPOSE:
-//   - nonlinear stability shaping of η
-//   - bounded feedback control
-//   - contraction modulation via φ(Δ)
-//
-// FORMALIZATION:
 //   φ(Δ) = Δ / (1 + Δ)
-//   control = λ * φ(Δ) - β
-//   η(t+1) = clamp( η(t) * (1 - control), [0.01, 0.95] )
 //
-// ROLE IN DVSM:
-//   - governs adaptive damping (η evolution)
-//   - does NOT define geometry
-//   - acts as post-geometry control field
+// ----------------------------------------------------------------------------
+// CORE EXECUTION STRATIFICATION
+// ----------------------------------------------------------------------------
 //
-// RECOMMENDATION:
-//   -> should be extracted into ArithmeticModelB for modularity
+// Layer 1:
+//   Kernel dynamics (causal evolution)
 //
-// ---------------------------------------------------------------------------
-// MUTATION VS OBSERVATION (CORE EXECUTION RULE)
-// ---------------------------------------------------------------------------
+// Layer 2:
+//   Constraint projection Π_M
 //
-// MUTATION (causal writes):
-//   - modifying S, η, H
-//   - committing next_frame
-//   - any in-place memory change
+// Layer 3:
+//   Defect geometry Δ
 //
-// OBSERVATION (read-only):
-//   - computing Δ_ij
-//   - snapshot.clone()
-//   - π-mode projections
+// Layer 4:
+//   Stability memory H
 //
-// STRICT RULE:
-//   Only DVSMRuntime::step_frame may mutate state.
-//   All π_* and metrics are observation-layer only.
+// Layer 5:
+//   Adaptive contraction η
 //
-// ---------------------------------------------------------------------------
-// RESULTING ARCHITECTURE:
+// Layer 6:
+//   π-observer projections
 //
-//   Kernel (F_A)        → state evolution
-//   ArithmeticModel A   → geometry (Δ)
-//   ArithmeticModel B   → stability control (η)
-//   π_modes             → interpretation layer (read-only)
+// ----------------------------------------------------------------------------
+// IMPORTANT SEMANTIC GUARANTEE
+// ----------------------------------------------------------------------------
 //
-// ============================================================================ 
+// Observers NEVER influence kernel evolution.
+//
+// π-modes are:
+//
+//   π_k : Traj(S) → ℝ^m
+//
+// read-only projections of frozen trajectories.
+//
+// ----------------------------------------------------------------------------
+// PERFORMANCE SEMANTICS
+// ----------------------------------------------------------------------------
+//
+// DVSM<K, B>
+//
+// is:
+//
+//   NOT "a runtime with interchangeable backends"
+//
+// but:
+//
+//   a FAMILY OF SPECIALIZED COMPILED DYNAMICAL SYSTEMS
+//
+// Consequences:
+//
+//   • monomorphized kernel specialization
+//   • inlineable evolution maps
+//   • zero-cost backend abstraction
+//   • SIMD-friendly structure
+//   • GPU dispatch compatible snapshot semantics
+//   • compile-time optimized execution graphs
+//
+// Each (Kernel, Backend) pair becomes:
+//
+//   a distinct executable dynamical morphism.
+//
+// ----------------------------------------------------------------------------
+// CURRENT SYSTEM CLASSIFICATION
+// ----------------------------------------------------------------------------
+//
+// DVSM-π is:
+//
+//   • deterministic graph-coupled dynamical system
+//   • projection-constrained evolution engine
+//   • hybrid nonsmooth dynamical system
+//   • snapshot-synchronous simulation kernel
+//   • observable-rich stability geometry framework
+//
+// DVSM-π is NOT:
+//
+//   • reward optimization system
+//   • neural network
+//   • reinforcement learning loop
+//   • probabilistic inference engine
+//
+// ============================================================================
 
 use std::fmt;
 
 // ============================================================================
-// 1. ARITHMETIC MODEL A
+// ARITHMETIC MODEL A
+// ----------------------------------------------------------------------------
+// Geometric / metric semantics only.
+// NEVER participates directly in kernel causality.
 // ============================================================================
 
 #[derive(Clone, Copy, Debug)]
@@ -221,6 +1009,7 @@ pub struct ArithmeticModel {
 }
 
 impl ArithmeticModel {
+
     #[inline(always)]
     pub fn eq(&self, a: f64, b: f64) -> bool {
         (a - b).abs() <= self.epsilon
@@ -228,6 +1017,7 @@ impl ArithmeticModel {
 
     #[inline(always)]
     pub fn norm2(&self, a: &[f64], b: &[f64]) -> f64 {
+
         let mut acc = 0.0;
 
         for (x, y) in a.iter().zip(b.iter()) {
@@ -240,7 +1030,7 @@ impl ArithmeticModel {
 }
 
 // ============================================================================
-// 2. VECTOR STATE
+// VECTOR STATE
 // ============================================================================
 
 pub type Scalar = f64;
@@ -251,6 +1041,7 @@ pub struct State {
 }
 
 impl State {
+
     pub fn zeros(n: usize) -> Self {
         Self {
             lanes: vec![0.0; n],
@@ -264,27 +1055,61 @@ impl State {
 }
 
 // ============================================================================
-// 3. GENERATIVE Σ
+// JET OBSERVABLE
+// ----------------------------------------------------------------------------
+// Derived ONLY from trajectory differences.
+// NEVER directly optimized.
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+#[inline(always)]
+pub fn compute_jet(
+    x2: f64,
+    x1: f64,
+    x0: f64,
+) -> Jet {
+
+    let v = x0 - x1;
+    let v_prev = x1 - x2;
+
+    let a = v - v_prev;
+    let j = a - v_prev;
+
+    Jet { v, a, j }
+}
+
+// ============================================================================
+// GENERATIVE Σ
 // ============================================================================
 
 pub trait SigmaGen {
     fn next_signal(&mut self, dim: usize) -> State;
 }
 
-// deterministic iterative signal generator
+// ============================================================================
+// DETERMINISTIC SIGNAL GENERATOR
+// ============================================================================
+
 pub struct IterSigma {
     state: u64,
 }
 
 impl IterSigma {
+
     pub fn new(seed: u64) -> Self {
         Self { state: seed }
     }
 
     #[inline(always)]
     fn next_u64(&mut self) -> u64 {
-        self.state = self
-            .state
+
+        self.state = self.state
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1);
 
@@ -293,11 +1118,15 @@ impl IterSigma {
 }
 
 impl SigmaGen for IterSigma {
+
     fn next_signal(&mut self, dim: usize) -> State {
+
         let mut out = vec![0.0; dim];
 
         for x in out.iter_mut() {
+
             let v = self.next_u64();
+
             *x = (v % 10_000) as f64 / 10_000.0;
         }
 
@@ -306,27 +1135,34 @@ impl SigmaGen for IterSigma {
 }
 
 // ============================================================================
-// 4. NODE
+// NODE
 // ============================================================================
 
 #[derive(Clone)]
 pub struct Node {
+
     pub id: usize,
 
     // S_i(t)
     pub state: State,
 
-    // η_i
+    // η_i(t)
     pub eta: Scalar,
 
-    // H_i
+    // H_i(t)
     pub drift: Scalar,
 
+    // fracture state
     pub fractured: bool,
 }
 
 impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+
         f.debug_struct("Node")
             .field("id", &self.id)
             .field("eta", &self.eta)
@@ -337,17 +1173,16 @@ impl fmt::Debug for Node {
 }
 
 // ============================================================================
-// 5. GRAPH TOPOLOGY
+// GRAPH TOPOLOGY
 // ============================================================================
 
 #[derive(Clone)]
 pub struct Graph {
-    // deterministic cyclic topology:
-    // i -> (i + 1) mod N
     pub nodes: Vec<Node>,
 }
 
 impl Graph {
+
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -360,12 +1195,61 @@ impl Graph {
 }
 
 // ============================================================================
-// 6. CONSTRACTION OPERATOR F_A
+// FEASIBILITY MANIFOLD
 // ============================================================================
 
-pub struct ContractionOperator;
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
 
-impl ContractionOperator {
+    pub x_min: f64,
+    pub x_max: f64,
+
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
+}
+
+// ============================================================================
+// Π_M PROJECTION OPERATOR
+// ============================================================================
+
+pub struct Projection;
+
+impl Projection {
+
+    #[inline(always)]
+    pub fn project_state(
+        x: f64,
+        b: &Bounds,
+    ) -> f64 {
+
+        x.clamp(b.x_min, b.x_max)
+    }
+
+    #[inline(always)]
+    pub fn project_jet(
+        j: Jet,
+        b: &Bounds,
+    ) -> Jet {
+
+        Jet {
+            v: j.v.clamp(-b.v_max, b.v_max),
+            a: j.a.clamp(-b.a_max, b.a_max),
+            j: j.j.clamp(-b.j_max, b.j_max),
+        }
+    }
+}
+
+// ============================================================================
+// CONTRACTION KERNEL F_A
+// ----------------------------------------------------------------------------
+// Pure causal evolution map.
+// ============================================================================
+
+pub struct ContractionKernel;
+
+impl ContractionKernel {
+
     #[inline(always)]
     pub fn step(
         current: &State,
@@ -373,16 +1257,18 @@ impl ContractionOperator {
         sigma: &State,
         eta: Scalar,
     ) -> State {
+
         let mut next = vec![0.0; current.len()];
 
         for k in 0..current.len() {
-            // S_i(t+1)
-            // = S_i(t) + η((σ + S_j) - S_i)
 
-            next[k] = current.lanes[k]
+            next[k] =
+                current.lanes[k]
                 + eta
-                    * ((sigma.lanes[k] + neighbor.lanes[k])
-                        - current.lanes[k]);
+                * (
+                    (sigma.lanes[k] + neighbor.lanes[k])
+                    - current.lanes[k]
+                );
         }
 
         State { lanes: next }
@@ -390,29 +1276,37 @@ impl ContractionOperator {
 }
 
 // ============================================================================
-// 7. DVSM RUNTIME
+// DVSM RUNTIME
 // ============================================================================
 
 pub struct DVSMRuntime<S: SigmaGen> {
+
     pub graph: Graph,
+
     pub sigma: S,
+
     pub arith: ArithmeticModel,
 
-    // fracture threshold
+    pub bounds: Bounds,
+
     pub h_max: Scalar,
 }
 
 impl<S: SigmaGen> DVSMRuntime<S> {
+
     pub fn new(
         graph: Graph,
         sigma: S,
         arith: ArithmeticModel,
+        bounds: Bounds,
         h_max: Scalar,
     ) -> Self {
+
         Self {
             graph,
             sigma,
             arith,
+            bounds,
             h_max,
         }
     }
@@ -422,13 +1316,25 @@ impl<S: SigmaGen> DVSMRuntime<S> {
     // =========================================================================
 
     pub fn step_frame(&mut self) {
+
+        // ------------------------------------------------------------
+        // (1) FROZEN FRAME SNAPSHOT
+        // ------------------------------------------------------------
+
         let snapshot = self.graph.nodes.clone();
 
         let dim = snapshot[0].state.len();
 
         let sigma_t = self.sigma.next_signal(dim);
 
+        // ------------------------------------------------------------
+        // (2) PRE-COMMIT EVALUATION
+        // ------------------------------------------------------------
+
+        let mut next_nodes = snapshot.clone();
+
         for i in 0..snapshot.len() {
+
             if snapshot[i].fractured {
                 continue;
             }
@@ -438,102 +1344,103 @@ impl<S: SigmaGen> DVSMRuntime<S> {
             let node_i = &snapshot[i];
             let node_j = &snapshot[j];
 
-            // ------------------------------------------------------------
-            // CAUSAL UPDATE
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
+            // KERNEL EVOLUTION
+            // --------------------------------------------------------
 
-            let next_state = ContractionOperator::step(
+            let raw_state = ContractionKernel::step(
                 &node_i.state,
                 &node_j.state,
                 &sigma_t,
                 node_i.eta,
             );
 
-            // ------------------------------------------------------------
-            // OBSERVABLE DEFECT
-            // Δ_ij = ||S_i(t+1) - S_j(t)||
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
+            // Π_M PROJECTION
+            // --------------------------------------------------------
+
+            let mut projected = raw_state.clone();
+
+            for lane in projected.lanes.iter_mut() {
+                *lane = Projection::project_state(
+                    *lane,
+                    &self.bounds,
+                );
+            }
+
+            // --------------------------------------------------------
+            // Δ GEOMETRY
+            // --------------------------------------------------------
 
             let defect = self.arith.norm2(
-                &next_state.lanes,
+                &projected.lanes,
                 &node_j.state.lanes,
             );
 
-            // ------------------------------------------------------------
-            // DRIFT ACCUMULATION
-            // H_i(t+1) = H_i(t) + φ(Δ_ij)
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
+            // STABILITY MEMORY
+            // --------------------------------------------------------
 
-            let mut next_drift = node_i.drift;
+            let phi =
+                defect / (1.0 + defect);
 
-            if defect > self.arith.epsilon {
-                next_drift += defect;
-            }
+            let next_drift =
+                node_i.drift + phi;
 
-            // ------------------------------------------------------------
-            // ADAPTIVE DAMPING
-            // η <- η(1 - η)
-            // ------------------------------------------------------------
-            
-// η update = function(defect, current state, recovery pressure)
-// ============================================================
-// ADAPTIVE GAIN FIELD (STABILITY-COUPLED, NORMALIZED)
-// ============================================================
+            // --------------------------------------------------------
+            // ADAPTIVE η FIELD
+            // --------------------------------------------------------
 
-// sensitivity of instability response
-let lambda: f64 = 0.6;
+            let lambda = 0.6;
+            let beta = 0.05;
 
-// recovery pressure
-let beta: f64 = 0.05;
+            let control =
+                lambda * phi - beta;
 
-// bounded defect response φ(Δ)
-let phi: f64 = defect / (1.0 + defect);
+            let mut next_eta =
+                node_i.eta * (1.0 - control);
 
-// normalize control influence so system is scale-stable
-let control = lambda * phi - beta;
+            next_eta =
+                next_eta.clamp(0.01, 0.95);
 
-// η update (single normalized feedback channel)
-let mut next_eta: f64 =
-    node_i.eta * (1.0 - control);
-
-// enforce bounded DVSM invariants
-if next_eta < 0.01 {
-    next_eta = 0.01;
-}
-if next_eta > 0.95 {
-    next_eta = 0.95;
-}           
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
             // FRACTURE CONDITION
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
 
-            let fractured = next_drift > self.h_max;
+            let fractured =
+                next_drift > self.h_max;
 
-            // ------------------------------------------------------------
-            // COMMIT
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
+            // COMMIT BUFFER
+            // --------------------------------------------------------
 
-            let target = &mut self.graph.nodes[i];
-
-            target.state = next_state;
-            target.drift = next_drift;
-            target.eta = next_eta;
-            target.fractured = fractured;
+            next_nodes[i].state = projected;
+            next_nodes[i].eta = next_eta;
+            next_nodes[i].drift = next_drift;
+            next_nodes[i].fractured = fractured;
         }
+
+        // ------------------------------------------------------------
+        // (3) ATOMIC FRAME COMMIT
+        // ------------------------------------------------------------
+
+        self.graph.nodes = next_nodes;
     }
 
     // =========================================================================
-    // RUN
+    // EXECUTION LOOP
     // =========================================================================
 
     pub fn run(&mut self, frames: usize) {
+
         for frame in 0..frames {
+
             self.step_frame();
 
             println!("FRAME {}", frame);
 
-            for n in &self.graph.nodes {
-                println!("{:?}", n);
+            for node in &self.graph.nodes {
+                println!("{:?}", node);
             }
 
             println!("--------------------------------");
@@ -542,17 +1449,24 @@ if next_eta > 0.95 {
 }
 
 // ============================================================================
-// 8. EXAMPLE INITIALIZATION
+// GRAPH INITIALIZATION
 // ============================================================================
 
-fn build_graph(node_count: usize, dim: usize) -> Graph {
-    let mut nodes = Vec::with_capacity(node_count);
+fn build_graph(
+    node_count: usize,
+    dim: usize,
+) -> Graph {
+
+    let mut nodes =
+        Vec::with_capacity(node_count);
 
     for i in 0..node_count {
+
         let mut s = State::zeros(dim);
 
         for k in 0..dim {
-            s.lanes[k] = (i * (k + 1)) as f64 * 0.1;
+            s.lanes[k] =
+                (i * (k + 1)) as f64 * 0.1;
         }
 
         nodes.push(Node {
@@ -568,1191 +1482,982 @@ fn build_graph(node_count: usize, dim: usize) -> Graph {
 }
 
 // ============================================================================
-// 9. MAIN
+// MAIN
 // ============================================================================
 
 fn main() {
-    let graph = build_graph(8, 4);
 
-    let sigma = IterSigma::new(42);
+    let graph =
+        build_graph(8, 4);
 
-    let arith = ArithmeticModel {
-        epsilon: 1e-6,
+    let sigma =
+        IterSigma::new(42);
+
+    let arith =
+        ArithmeticModel {
+            epsilon: 1e-6,
+        };
+
+    let bounds = Bounds {
+
+        x_min: -2.0,
+        x_max:  2.0,
+
+        v_max: 1.0,
+        a_max: 1.0,
+        j_max: 1.0,
     };
 
-    let mut runtime = DVSMRuntime::new(
-        graph,
-        sigma,
-        arith,
-        25.0,
-    );
+    let mut runtime =
+        DVSMRuntime::new(
+            graph,
+            sigma,
+            arith,
+            bounds,
+            25.0,
+        );
 
     runtime.run(10);
 }
 
 // ============================================================================
-// END DVSM RUNTIME
+// END DVSM-π RUNTIME
+// ============================================================================
+// ============================================================================
+// DVSM-π — STRATIFIED SNAPSHOT-CONSTRAINED GRAPH DYNAMICS
+// ============================================================================
+//
+// CURRENT CONSOLIDATED FORM
+// ----------------------------------------------------------------------------
+// This file reflects the modernized DVSM-π semantics:
+//
+//   • snapshot-synchronous evolution
+//   • graph-coupled contraction dynamics
+//   • explicit separation of:
+//
+//         kernel dynamics
+//         constraint geometry
+//         adaptive stability field
+//         observability layers
+//
+//   • jet-consistent state evolution
+//   • pre-commit diagnostic geometry
+//   • deterministic replayable execution
+//   • SIMD / GPU compatible frozen-frame architecture
+//
+// ----------------------------------------------------------------------------
+// MATHEMATICAL FOUNDATION
+// ----------------------------------------------------------------------------
+//
+// STATE SPACE
+//
+//   S_i(t) ∈ J^k
+//
+// where:
+//
+//   S_i(t) = (x, v, a, j, ...)
+//
+// is a jet-consistent local trajectory state.
+//
+// ----------------------------------------------------------------------------
+// GRAPH DYNAMICS
+// ----------------------------------------------------------------------------
+//
+//   G_t = (V, E)
+//
+// Nodes evolve synchronously over a fixed frozen frame:
+//
+//   S_i*(t+1)
+//      = F_A(
+//            S_i(t),
+//            N_i(t),
+//            σ(t),
+//            η_i(t)
+//        )
+//
+// where:
+//
+//   S_i*(t+1)  = candidate (uncommitted) state
+//   N_i(t)     = graph-coupled neighbor field
+//   σ(t)       = exogenous forcing signal
+//   η_i(t)     = adaptive contraction coefficient
+//
+// ----------------------------------------------------------------------------
+// SNAPSHOT INVARIANT
+// ----------------------------------------------------------------------------
+//
+// ALL updates are computed from the SAME frozen frame:
+//
+//   ∀i:
+//      reads  ← Frame(t)
+//      writes → Frame*(t+1)
+//
+// NO in-place causal mutation is permitted during evaluation.
+//
+// This guarantees:
+//
+//   • deterministic replay
+//   • race-free parallel execution
+//   • GPU dispatch compatibility
+//   • SIMD vectorization safety
+//   • observer/kernel separation
+//
+// ----------------------------------------------------------------------------
+// PROJECTION-CLOSED EVOLUTION
+// ----------------------------------------------------------------------------
+//
+// Raw dynamics evolve freely:
+//
+//   S_raw = F_A(...)
+//
+// Validity is enforced geometrically:
+//
+//   S_next = Π_M(S_raw)
+//
+// where:
+//
+//   Π_M : J^k → M
+//
+// projects candidate states onto a feasible constrained manifold.
+//
+// ----------------------------------------------------------------------------
+// DEFECT GEOMETRY (OBSERVATIONAL ONLY)
+// ----------------------------------------------------------------------------
+//
+// Cross-temporal defect functional:
+//
+//   Δ_ij(t)
+//      = || S_i*(t+1) - S_j(t) ||
+//
+// IMPORTANT:
+//
+//   Δ is NOT causal control.
+//
+// It is:
+//
+//   • geometric diagnostic structure
+//   • post-kernel observability
+//   • stability telemetry
+//
+// ----------------------------------------------------------------------------
+// STABILITY FIELD
+// ----------------------------------------------------------------------------
+//
+// Drift accumulation:
+//
+//   H_i(t+1)
+//      = H_i(t) + φ(Δ_ij)
+//
+// Adaptive contraction:
+//
+//   η_i(t+1)
+//      = Ψ(η_i(t), Δ_ij(t))
+//
+// where:
+//
+//   φ(Δ) = Δ / (1 + Δ)
+//
+// ----------------------------------------------------------------------------
+// CORE EXECUTION STRATIFICATION
+// ----------------------------------------------------------------------------
+//
+// Layer 1:
+//   Kernel dynamics (causal evolution)
+//
+// Layer 2:
+//   Constraint projection Π_M
+//
+// Layer 3:
+//   Defect geometry Δ
+//
+// Layer 4:
+//   Stability memory H
+//
+// Layer 5:
+//   Adaptive contraction η
+//
+// Layer 6:
+//   π-observer projections
+//
+// ----------------------------------------------------------------------------
+// IMPORTANT SEMANTIC GUARANTEE
+// ----------------------------------------------------------------------------
+//
+// Observers NEVER influence kernel evolution.
+//
+// π-modes are:
+//
+//   π_k : Traj(S) → ℝ^m
+//
+// read-only projections of frozen trajectories.
+//
+// ----------------------------------------------------------------------------
+// PERFORMANCE SEMANTICS
+// ----------------------------------------------------------------------------
+//
+// DVSM<K, B>
+//
+// is:
+//
+//   NOT "a runtime with interchangeable backends"
+//
+// but:
+//
+//   a FAMILY OF SPECIALIZED COMPILED DYNAMICAL SYSTEMS
+//
+// Consequences:
+//
+//   • monomorphized kernel specialization
+//   • inlineable evolution maps
+//   • zero-cost backend abstraction
+//   • SIMD-friendly structure
+//   • GPU dispatch compatible snapshot semantics
+//   • compile-time optimized execution graphs
+//
+// Each (Kernel, Backend) pair becomes:
+//
+//   a distinct executable dynamical morphism.
+//
+// ----------------------------------------------------------------------------
+// CURRENT SYSTEM CLASSIFICATION
+// ----------------------------------------------------------------------------
+//
+// DVSM-π is:
+//
+//   • deterministic graph-coupled dynamical system
+//   • projection-constrained evolution engine
+//   • hybrid nonsmooth dynamical system
+//   • snapshot-synchronous simulation kernel
+//   • observable-rich stability geometry framework
+//
+// DVSM-π is NOT:
+//
+//   • reward optimization system
+//   • neural network
+//   • reinforcement learning loop
+//   • probabilistic inference engine
+//
 // ============================================================================
 
-    Operational Invariant Analysis
+use std::fmt;
 
-──────────────────────────────────────────────────────────
-[ Frame t: FROZEN STATE DOMAIN ]
-──────────────────────────────────────────────────────────
+// ============================================================================
+// ARITHMETIC MODEL A
+// ----------------------------------------------------------------------------
+// Geometric / metric semantics only.
+// NEVER participates directly in kernel causality.
+// ============================================================================
 
-    S(t) is frozen snapshot of all nodes
-
-──────────────────────────────────────────────────────────
-[ Forward Evaluation Domain ]
-──────────────────────────────────────────────────────────
-
-    S_i*(t+1) = F_A(S_i(t), σ(t), η_i(t))
-
-    (candidate state, not committed)
-
-──────────────────────────────────────────────────────────
-[ Defect Functional (Cross-Temporal Observable) ]
-──────────────────────────────────────────────────────────
-
-    Δ_ij(t) = || S_i*(t+1) - S_j(t) ||
-
-    NOTE:
-      - S_i*(t+1) is UNCOMMITTED
-      - S_j(t) is frozen reference
-      - Δ is epistemic diagnostic functional
-
-──────────────────────────────────────────────────────────
-[ Commit Phase ]
-──────────────────────────────────────────────────────────
-
-    S(t+1) ← S*(t+1)
-
-    η(t+1), H(t+1) updated concurrently
-
-──────────────────────────────────────────────────────────
-
-// ============================================================
-// DVSM FRAME SEMANTICS (STRICT SNAPSHOT + PRE-COMMIT METRIC)
-// ============================================================
-
-use std::marker::PhantomData;
-
-// ------------------------------------------------------------
-// ARITHMETIC MODEL A (epsilon semantics)
-// ------------------------------------------------------------
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ArithmeticModel {
     pub epsilon: f64,
 }
 
 impl ArithmeticModel {
-    #[inline]
-    pub fn norm(&self, a: f64, b: f64) -> f64 {
-        (a - b).abs()
+
+    #[inline(always)]
+    pub fn eq(&self, a: f64, b: f64) -> bool {
+        (a - b).abs() <= self.epsilon
     }
 
-    #[inline]
-    pub fn gt_eps(&self, d: f64) -> bool {
-        d > self.epsilon
+    #[inline(always)]
+    pub fn norm2(&self, a: &[f64], b: &[f64]) -> f64 {
+
+        let mut acc = 0.0;
+
+        for (x, y) in a.iter().zip(b.iter()) {
+            let d = x - y;
+            acc += d * d;
+        }
+
+        acc.sqrt()
     }
 }
 
-// ------------------------------------------------------------
-// STATE
-// ------------------------------------------------------------
+// ============================================================================
+// VECTOR STATE
+// ============================================================================
 
-#[derive(Clone, Copy, Debug)]
+pub type Scalar = f64;
+
+#[derive(Clone, Debug)]
 pub struct State {
-    pub x: f64,
+    pub lanes: Vec<Scalar>,
 }
 
-// ------------------------------------------------------------
-// SIGMA (exogenous driver)
-// ------------------------------------------------------------
+impl State {
 
-pub trait Sigma {
-    fn next(&mut self) -> Option<f64>;
-}
-
-// ------------------------------------------------------------
-// DVSM KERNEL
-// ------------------------------------------------------------
-
-pub struct Kernel {
-    pub eta: f64,
-    pub drift: f64,
-}
-
-impl Kernel {
-    #[inline]
-    pub fn step(&self, s: State, sigma: f64) -> State {
-        State {
-            x: s.x + self.eta * (sigma - s.x),
+    pub fn zeros(n: usize) -> Self {
+        Self {
+            lanes: vec![0.0; n],
         }
     }
+
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.lanes.len()
+    }
 }
 
-// ------------------------------------------------------------
-// FRAME SNAPSHOT (IMPORTANT: IMMUTABLE VIEW)
-// ------------------------------------------------------------
+// ============================================================================
+// JET OBSERVABLE
+// ----------------------------------------------------------------------------
+// Derived ONLY from trajectory differences.
+// NEVER directly optimized.
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+#[inline(always)]
+pub fn compute_jet(
+    x2: f64,
+    x1: f64,
+    x0: f64,
+) -> Jet {
+
+    let v = x0 - x1;
+    let v_prev = x1 - x2;
+
+    let a = v - v_prev;
+    let j = a - v_prev;
+
+    Jet { v, a, j }
+}
+
+// ============================================================================
+// GENERATIVE Σ
+// ============================================================================
+
+pub trait SigmaGen {
+    fn next_signal(&mut self, dim: usize) -> State;
+}
+
+// ============================================================================
+// DETERMINISTIC SIGNAL GENERATOR
+// ============================================================================
+
+pub struct IterSigma {
+    state: u64,
+}
+
+impl IterSigma {
+
+    pub fn new(seed: u64) -> Self {
+        Self { state: seed }
+    }
+
+    #[inline(always)]
+    fn next_u64(&mut self) -> u64 {
+
+        self.state = self.state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1);
+
+        self.state
+    }
+}
+
+impl SigmaGen for IterSigma {
+
+    fn next_signal(&mut self, dim: usize) -> State {
+
+        let mut out = vec![0.0; dim];
+
+        for x in out.iter_mut() {
+
+            let v = self.next_u64();
+
+            *x = (v % 10_000) as f64 / 10_000.0;
+        }
+
+        State { lanes: out }
+    }
+}
+
+// ============================================================================
+// NODE
+// ============================================================================
 
 #[derive(Clone)]
-pub struct Frame<S> {
-    pub states: Vec<S>,
+pub struct Node {
+
+    pub id: usize,
+
+    // S_i(t)
+    pub state: State,
+
+    // η_i(t)
+    pub eta: Scalar,
+
+    // H_i(t)
+    pub drift: Scalar,
+
+    // fracture state
+    pub fractured: bool,
 }
 
-// ------------------------------------------------------------
-// CORE RUNTIME
-// ------------------------------------------------------------
+impl fmt::Debug for Node {
 
-pub struct Runtime<SIG: Sigma> {
-    sigma: SIG,
-    kernel: Kernel,
-    arith: ArithmeticModel,
-    _p: PhantomData<SIG>,
-}
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
 
-impl<SIG: Sigma> Runtime<SIG> {
-    pub fn new(sigma: SIG, kernel: Kernel, arith: ArithmeticModel) -> Self {
-        Self {
-            sigma,
-            kernel,
-            arith,
-            _p: PhantomData,
-        }
-    }
-
-    // =========================================================
-    // FRAME STEP (STRICT SEMANTIC ORDERING)
-    // =========================================================
-    pub fn step(
-        &mut self,
-        prev_frame: &Frame<State>,
-    ) -> (Frame<State>, Vec<f64>) {
-
-        // --------------------------------------------------------
-        // (1) FROZEN READ OF FRAME t
-        // --------------------------------------------------------
-        let frozen = prev_frame.states.clone();
-
-        let mut next_states = Vec::with_capacity(frozen.len());
-        let mut deltas = Vec::with_capacity(frozen.len());
-
-        // --------------------------------------------------------
-        // (2) PRE-COMMIT COMPUTATION (NO STATE MUTATION YET)
-        // --------------------------------------------------------
-        for (i, s_i) in frozen.iter().enumerate() {
-
-            let sigma_t = self.sigma.next().unwrap_or(0.0);
-
-            // F_A application (candidate state)
-            let s_next_i = self.kernel.step(*s_i, sigma_t);
-
-            // neighbor snapshot (same frozen frame)
-            let s_j = frozen[(i + 1) % frozen.len()];
-
-            // ----------------------------------------------------
-            // Δ IS PURE FUNCTIONAL ARTIFACT (NOT CAUSAL INPUT)
-            // Δ_ij(t) = ||F_A(S_i(t), σ) - S_j(t)||
-            // ----------------------------------------------------
-            let delta = self.arith.norm(s_next_i.x, s_j.x);
-
-            deltas.push(delta);
-
-            next_states.push(s_next_i);
-        }
-
-        // --------------------------------------------------------
-        // (3) COMMIT TO FRAME t+1 (ATOMIC BARRIER)
-        // --------------------------------------------------------
-        (
-            Frame { states: next_states },
-            deltas,
-        )
+        f.debug_struct("Node")
+            .field("id", &self.id)
+            .field("eta", &self.eta)
+            .field("drift", &self.drift)
+            .field("fractured", &self.fractured)
+            .finish()
     }
 }
 
-Frame Semantics: Frozen-State Execution with Pre-Commit Transition Functionals (DVSM Snapshot–Commit Architecture)
-
-import numpy as np
-
-class AdaptiveAgentNetwork:
-    def __init__(self, num_nodes, state_dim):
-        self.S = np.random.rand(num_nodes, state_dim)
-        self.H = np.zeros(num_nodes)
-        self.eta = np.random.rand(num_nodes)
-        self.num_nodes = num_nodes
-
-    def step(self, adj_matrix, sigma, F_A, phi, Psi):
-
-        # ========================================================
-        # FRAME t SNAPSHOT (IMMUTABLE VIEW)
-        # ========================================================
-        S_frozen = np.copy(self.S)
-        eta_frozen = np.copy(self.eta)
-        H_frozen = np.copy(self.H)
-
-        S_next = np.zeros_like(self.S)
-        H_next = np.zeros_like(self.H)
-        eta_next = np.zeros_like(self.eta)
-
-        # ========================================================
-        # PHASE 1 — STATE TRANSITION (F_A ONLY)
-        # ========================================================
-        for i in range(self.num_nodes):
-
-            neighbors = np.where(adj_matrix[i] > 0)[0]
-
-            if len(neighbors) > 0:
-                S_j = S_frozen[neighbors]
-            else:
-                S_j = S_frozen[i]
-
-            S_next[i] = F_A(
-                S_frozen[i],
-                S_j,
-                sigma,
-                eta_frozen[i]
-            )
-
-        # ========================================================
-        # PHASE 2 — PRE-COMMIT METRICS (PURE FUNCTIONAL SPACE)
-        # ========================================================
-        for i in range(self.num_nodes):
-
-            neighbors = np.where(adj_matrix[i] > 0)[0]
-
-            delta_i = 0.0
-
-            for j in neighbors:
-                # IMPORTANT FIX:
-                # Δ uses ONLY frozen neighbor state + candidate transition
-                delta_ij = np.linalg.norm(S_next[i] - S_frozen[j])
-                delta_i += delta_ij
-
-            # ====================================================
-            # STATELESS UPDATE FUNCTIONS (NO IN-PLACE MUTATION)
-            # ====================================================
-
-            H_next[i] = H_frozen[i] + phi(delta_i)
-            eta_next[i] = Psi(eta_frozen[i], delta_i)
-
-        # ========================================================
-        # ATOMIC COMMIT BARRIER (FRAME t+1)
-        # ========================================================
-        self.S = S_next
-        self.H = H_next
-        self.eta = eta_next
-// ----------------------------------------------------------------------------
-// ✅ Clean High-Performance DVSM / CML Vectorized Runtime
-
-                import numpy as np
-from typing import Callable
-
-class HighPerformanceCML:
-    """
-    Vectorized implementation of a frozen-frame,
-    graph-coupled contraction system.
-
-    Core properties:
-    - Snapshot isolation per tick
-    - Fully vectorized state evolution
-    - O(N^2) implicit interaction via broadcasting
-    - No Python-level iteration in update path
-    """
-
-    def __init__(self, num_agents: int, state_dim: int):
-        self.N = num_agents
-        self.D = state_dim
-
-        # Contiguous memory banks
-        self.S = np.zeros((self.N, self.D), dtype=np.float64)   # state
-        self.H = np.zeros(self.N, dtype=np.float64)             # drift
-        self.eta = np.full(self.N, 0.25, dtype=np.float64)      # contraction rate
-
-    def dispatch_cycle(
-        self,
-        adj_matrix: np.ndarray,
-        sigma: float,
-        F_A_vec: Callable[[np.ndarray, np.ndarray, float, np.ndarray], np.ndarray],
-        phi_vec: Callable[[np.ndarray], np.ndarray],
-        Psi_vec: Callable[[np.ndarray, np.ndarray], np.ndarray]
-    ) -> None:
-        """
-        Executes one synchronous frozen-frame update cycle.
-        """
-
-        # ============================================================
-        # 1. SNAPSHOT INVARIANT (FROZEN FRAME)
-        # ============================================================
-        S_frozen = self.S.copy()
-        eta_frozen = self.eta.copy()
-        H_frozen = self.H.copy()
-
-        # ============================================================
-        # 2. GRAPH NEIGHBOR AGGREGATION (ROW-NORMALIZED)
-        # ============================================================
-        row_sums = adj_matrix.sum(axis=1, keepdims=True)
-
-        norm_adj = np.divide(
-            adj_matrix,
-            row_sums,
-            out=np.zeros_like(adj_matrix),
-            where=row_sums != 0
-        )
-
-        S_neighbors = norm_adj @ S_frozen  # (N, D)
-
-        # ============================================================
-        # 3. CONTRACTIVE STATE UPDATE
-        # ============================================================
-        S_next = F_A_vec(S_frozen, S_neighbors, sigma, eta_frozen)
-
-        # ============================================================
-        # 4. PAIRWISE DEFECT FIELD (BROADCASTED EUCLIDEAN METRIC)
-        # ============================================================
-        delta_space = np.linalg.norm(
-            S_next[:, None, :] - S_frozen[None, :, :],
-            axis=2
-        )  # shape: (N, N)
-
-        # Mask by adjacency structure
-        masked = delta_space * (adj_matrix > 0)
-
-        # Node-level aggregated defect
-        delta_i = masked.sum(axis=1)
-
-        # ============================================================
-        # 5. DRIFT ACCUMULATION (IRREVERSIBLE MEMORY)
-        # ============================================================
-        self.H = H_frozen + phi_vec(delta_i)
-
-        # ============================================================
-        # 6. ADAPTIVE CONTRACTION UPDATE
-        # ============================================================
-        self.eta = Psi_vec(eta_frozen, delta_i)
-
-        # ============================================================
-        # 7. COMMIT STATE
-        # ============================================================
-        self.S = S_next
 // ============================================================================
-// DVSM — GRAPH-LOCAL vs GLOBAL COUPLING STRATEGY (DEV NOTE)
+// GRAPH TOPOLOGY
 // ============================================================================
-//
-// 1. GRAPH-LOCAL MODE
-// -------------------
-// S̄_i = Σ_j A_ij S_j
-// Cost: O(E·D)
-// Meaning: local diffusion, scalable, physically grounded on sparse graphs
-//
-// 2. GLOBAL MODE
-// ---------------
-// Δ_ij = ||S_i - S_j||₂
-// Cost: O(N²·D)
-// Meaning: full pairwise interaction field, captures global instability waves
-//
-// 3. HYBRID MODE
-// --------------
-// State evolution uses GRAPH-LOCAL coupling:
-//     S_i' = F(S_i, S̄_i, σ, η_i)
-//
-// While diagnostics / drift use GLOBAL field:
-//     Δ_ij = ||S_i' - S_j||₂
-//
-// 4. DESIGN TRADEOFF
-// ------------------
-// GRAPH-LOCAL → scalable, stable, sparse, physically interpretable
-// GLOBAL       → expressive, expensive, captures long-range coherence
-//
-// 5. SYSTEM POLICY
-// -----------------
-// Choose based on regime:
-// - MMO / large N  → GRAPH-LOCAL
-// - research / analysis → HYBRID
-// - small N / physics probing → GLOBAL
-// ============================================================================ 
-// ============================================================================
-// DVSM — INTELLECTUAL PROPERTY & MATHEMATICAL OWNERSHIP NOTICE
-// ============================================================================
-//
-// This file contains a proprietary dynamical system specification:
-//
-//     DVSM Core Contraction Equation
-//
-//     S_i(t+1)
-//         =
-//     S_i(t)
-//         +
-//     η_i * ((σ(t) + S_j(t)) - S_i(t))
-//
-//     Δ_ij(t)
-//         = ||S_i(t+1) - S_j(t)||₂
-//
-//     H_i(t+1)
-//         = H_i(t) + φ(Δ_ij(t))
-//
-//     η_i(t+1)
-//         = η_i(t)(1 - η_i(t))   [conditional or adaptive form]
-//
-// ---------------------------------------------------------------------------
-// INTELLECTUAL PROPERTY DECLARATION
-// ---------------------------------------------------------------------------
-//
-// The DVSM model, including but not limited to:
-//
-// - The contraction-based state evolution equation
-// - The drift accumulation mechanism (H_i)
-// - The adaptive damping rule (η_i update law)
-// - The snapshot-synchronous execution model
-// - The graph-coupled defect metric (Δ_ij)
-// - The interpretation of instability as bounded measurable drift
-//
-// is considered ORIGINAL WORK of the author of this file unless explicitly
-// stated otherwise in external licensing terms.
-//
-// ---------------------------------------------------------------------------
-// SCOPE OF PROTECTION
-// ---------------------------------------------------------------------------
-//
-// Protected elements include:
-//
-// 1. Mathematical formulation (system of equations)
-// 2. Computational interpretation of contraction dynamics
-// 3. Discrete-time graph-coupled update structure
-// 4. Drift-based irreversible failure mechanism
-// 5. Snapshot-synchronous deterministic execution model
-//
-// This includes all equivalent reformulations that preserve:
-// - affine contraction structure
-// - Euclidean defect coupling
-// - monotonic drift accumulation semantics
-//
-// ---------------------------------------------------------------------------
-// PERMITTED USE (DEFAULT RESEARCH INTENT)
-// ---------------------------------------------------------------------------
-//
-// Unless otherwise licensed:
-//
-// - Reading and academic analysis is permitted
-// - Personal experimentation is permitted
-// - Non-commercial research usage is permitted
-//
-// ---------------------------------------------------------------------------
-// RESTRICTED USE
-// ---------------------------------------------------------------------------
-//
-// Without explicit written permission:
-//
-// - Commercial deployment of the DVSM system
-// - Redistribution of modified DVSM-equivalent equations
-// - Rebranding of the contraction + drift model as a new system
-// - Derivative systems preserving identical update semantics
-//
-// ---------------------------------------------------------------------------
-// IMPORTANT NOTE
-// ---------------------------------------------------------------------------
-//
-// This notice asserts authorship over the *system design and formulation*,
-// not over general mathematical concepts such as:
-//
-// - vector spaces ℝⁿ
-// - Euclidean norms
-// - graph theory
-// - contraction mappings (in general form)
-//
-// Only the specific coupling structure and dynamical interpretation defined
-// here as “DVSM” are covered.
-//
-// ============================================================================
-// END IP NOTICE
-// ============================================================================
-// ============================================================================
-// DVSM GRAPH RUNTIME — ADDENDUM (HARDENED FRAME + MORPHISM CORRECTIONS)
-// ============================================================================
-//
-// PURPOSE:
-// ---------------------------------------------------------------------------
-// This addendum enforces strict frozen-frame semantics, eliminates
-// partial-state coupling, and upgrades Δ and η into continuous morphism fields.
-//
-// NO NEW SYSTEM COMPONENTS ARE INTRODUCED.
-// ONLY SEMANTIC AND STRUCTURAL CORRECTIONS.
-//
-// ============================================================================
+
+#[derive(Clone)]
+pub struct Graph {
+    pub nodes: Vec<Node>,
+}
 
 impl Graph {
 
-    // ============================================================
-    // SAFE NEIGHBOR ACCESS (NO PANIC INVARIANT)
-    // ============================================================
-
-    #[inline]
-    fn neighbors<'a>(&'a self, i: usize) -> &'a [usize] {
-        self.edges.get(&i).map(|v| v.as_slice()).unwrap_or(&[])
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.nodes.len()
     }
 
-    // ============================================================
-    // METRIC MORPHISM (Δ AS TRANSITION GEOMETRY OPERATOR)
-    // ============================================================
-
-    #[inline]
-    fn metric(&self, a: f64, b: f64) -> f64 {
-        (a - b).abs()
-    }
-
-    // ============================================================
-    // FRAME STEP (FULL SNAPSHOT + ATOMIC COMMIT)
-    // ============================================================
-
-    pub fn synchronous_tick(&mut self, sigma_t: f64) {
-
-        // --------------------------------------------------------
-        // FRAME t SNAPSHOT (IMMUTABLE CAUSAL BASELINE)
-        // --------------------------------------------------------
-        let frozen_frame = self.nodes.clone();
-
-        let mut next_frame: HashMap<usize, Node> = HashMap::new();
-
-        // ========================================================
-        // PHASE 1 — CAUSAL MORPHISM F_A
-        // ========================================================
-        for (&i, node_t) in &frozen_frame {
-
-            let neighbors = self.neighbors(i);
-
-            let mut coupling = 0.0;
-
-            for &j in neighbors {
-                if let Some(nj) = frozen_frame.get(&j) {
-                    let diff = node_t.causal.value - nj.causal.value;
-
-                    coupling += node_t.epistemic.eta * (sigma_t - diff);
-                }
-            }
-
-            let s_next = node_t.causal.value + coupling;
-
-            // provisional node (epistemic filled later)
-            next_frame.insert(i, Node {
-                causal: CausalState { value: s_next },
-                epistemic: node_t.epistemic.clone(), // carry forward baseline
-            });
-        }
-
-        // ========================================================
-        // PHASE 2 — EPISTEMIC MORPHISMS (STATE-LATE PROJECTION)
-        // ========================================================
-        for (&i, node_t) in &frozen_frame {
-
-            let neighbors = self.neighbors(i);
-
-            let s_i_t1 = next_frame.get(&i).unwrap().causal.value;
-
-            let mut delta_sum = 0.0;
-            let mut deltas = HashMap::new();
-
-            for &j in neighbors {
-                if let Some(nj) = frozen_frame.get(&j) {
-
-                    // Δ AS MORPHISM (transition geometry projection)
-                    let d = self.metric(s_i_t1, nj.causal.value);
-
-                    deltas.insert(j, d);
-                    delta_sum += d;
-                }
-            }
-
-            // ----------------------------------------------------
-            // ENTROPY FIELD (continuous accumulation functional)
-            // H_i(t+1) = H_i(t) + φ(Δ)
-            // ----------------------------------------------------
-            let next_entropy =
-                node_t.epistemic.entropy + (0.05 * delta_sum);
-
-            // ----------------------------------------------------
-            // η AS CONTINUOUS STABILITY FIELD (NO HARD THRESHOLDS)
-            // ----------------------------------------------------
-            let decay = delta_sum / (1.0 + delta_sum);
-
-            let next_eta =
-                node_t.epistemic.eta * (1.0 - 0.1 * decay)
-                + 0.01 * (1.0 - decay);
-
-            // ----------------------------------------------------
-            // WRITE BACK EPISTEMIC STATE (STAGED ONLY)
-            // ----------------------------------------------------
-            if let Some(n) = next_frame.get_mut(&i) {
-                n.epistemic = EpistemicState {
-                    delta: deltas,
-                    entropy: next_entropy,
-                    eta: next_eta.clamp(0.01, 0.95),
-                };
-            }
-        }
-
-        // ========================================================
-        // ATOMIC FRAME COMMIT (NO PARTIAL VISIBILITY)
-        // ========================================================
-        self.nodes = next_frame;
+    #[inline(always)]
+    pub fn neighbor_index(&self, i: usize) -> usize {
+        (i + 1) % self.nodes.len()
     }
 }
 
 // ============================================================================
-// DVSM — GRAPH-LOCAL vs GLOBAL COUPLING STRATEGY (DEV NOTE)
+// FEASIBILITY MANIFOLD
 // ============================================================================
-//
-// 1. GRAPH-LOCAL MODE
-// -------------------
-// S̄_i = Σ_j A_ij S_j
-// Cost: O(E·D)
-// Meaning: local diffusion, scalable, physically grounded on sparse graphs
-//
-// 2. GLOBAL MODE
-// ---------------
-// Δ_ij = ||S_i - S_j||₂
-// Cost: O(N²·D)
-// Meaning: full pairwise interaction field, captures global instability waves
-//
-// 3. HYBRID MODE
-// --------------
-// State evolution uses GRAPH-LOCAL coupling:
-//     S_i' = F(S_i, S̄_i, σ, η_i)
-//
-// While diagnostics / drift use GLOBAL field:
-//     Δ_ij = ||S_i' - S_j||₂
-//
-// 4. DESIGN TRADEOFF
-// ------------------
-// GRAPH-LOCAL → scalable, stable, sparse, physically interpretable
-// GLOBAL       → expressive, expensive, captures long-range coherence
-//
-// 5. SYSTEM POLICY
-// -----------------
-// Choose based on regime:
-// - MMO / large N  → GRAPH-LOCAL
-// - research / analysis → HYBRID
-// - small N / physics probing → GLOBAL
-// ============================================================================ 
-
-// DVSM MODE DISCOVERY ADDENDUM (ENGINE-LOCKED FORMALIZATION)
-// Single-Kernel + Multi-Projection Observation Layer
-// NOTE: π_modes are PURELY OBSERVATIONAL (no causal feedback)
-
-use std::sync::Arc;
-
-// ============================================================
-// CORE STATE KERNEL (CAUSAL REALITY)
-// ============================================================
 
 #[derive(Clone, Copy, Debug)]
-pub struct State<const N: usize> {
-    pub s: [f64; N],
-    pub eta: f64,
+pub struct Bounds {
+
+    pub x_min: f64,
+    pub x_max: f64,
+
+    pub v_max: f64,
+    pub a_max: f64,
+    pub j_max: f64,
 }
-
-// S(t+1) = F_A(S(t), σ(t), η)
-#[inline(always)]
-pub fn f_a<const N: usize>(s: &State<N>, sigma: &[f64; N]) -> State<N> {
-    let mut next = [0.0; N];
-
-    for i in 0..N {
-        next[i] = (1.0 - s.eta) * s.s[i] + s.eta * sigma[i];
-    }
-
-    State { s: next, eta: s.eta }
-}
-
-// ============================================================
-// SNAPSHOT (FROZEN FRAME INVARIANT)
-// ============================================================
-
-#[derive(Clone)]
-pub struct Snapshot<const N: usize> {
-    pub s: Vec<State<N>>,
-}
-
-// ============================================================
-// OBSERVATION FUNCTOR SPACE (π_mode)
-// ============================================================
-
-pub trait PiMode<const N: usize>: Send + Sync {
-    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64>;
-}
-
-// ------------------------------------------------------------
-// π_classical: L2 residual geometry
-// ------------------------------------------------------------
-pub struct PiClassical;
-
-impl<const N: usize> PiMode<N> for PiClassical {
-    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64> {
-        snap.s
-            .windows(2)
-            .map(|w| {
-                let mut acc = 0.0;
-                for i in 0..N {
-                    let d = w[0].s[i] - w[1].s[i];
-                    acc += d * d;
-                }
-                acc.sqrt()
-            })
-            .collect()
-    }
-}
-
-// ------------------------------------------------------------
-// π_fracture: instability field (drift proxy)
-// ------------------------------------------------------------
-pub struct PiFracture;
-
-impl<const N: usize> PiMode<N> for PiFracture {
-    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64> {
-        snap.s
-            .windows(2)
-            .map(|w| {
-                let mut acc = 0.0;
-                for i in 0..N {
-                    let d = w[0].s[i] - w[1].s[i];
-                    acc += d * d;
-                }
-                acc.sqrt().powi(2)
-            })
-            .collect()
-    }
-}
-
-// ============================================================
-// KERNEL ENGINE (CAUSAL ONLY)
-// ============================================================
-
-pub struct DVSM<const N: usize> {
-    pub state: Vec<State<N>>,
-}
-
-impl<const N: usize> DVSM<N> {
-    pub fn step(&mut self, sigma: &[f64; N]) {
-        let snapshot = self.state.clone(); // freeze frame
-
-        let mut next = Vec::with_capacity(snapshot.len());
-
-        for s in &snapshot {
-            next.push(f_a(s, sigma));
-        }
-
-        self.state = next; // atomic commit
-    }
-
-    pub fn snapshot(&self) -> Snapshot<N> {
-        Snapshot {
-            s: self.state.clone(),
-        }
-    }
-}
-
-// ============================================================
-// OBSERVATION ENGINE (ASYNC SAFE, NO MUTATION)
-// ============================================================
-
-pub struct Observer<const N: usize> {
-    pub classical: Arc<dyn PiMode<N>>,
-    pub fracture: Arc<dyn PiMode<N>>,
-}
-
-impl<const N: usize> Observer<N> {
-    pub fn analyze(&self, snap: &Snapshot<N>) -> (Vec<f64>, Vec<f64>) {
-        let a = self.classical.eval(snap);
-        let b = self.fracture.eval(snap);
-        (a, b)
-    }
-}
-
-// ============================================================
-// EXECUTION CONTRACT
-// ============================================================
-//
-// 1. DVSM::step() owns ALL mutation (causal kernel)
-// 2. Observer ONLY reads Snapshot (no feedback path)
-// 3. π_modes are functorial projections π: Traj → E
-// 4. Frame invariance guaranteed via snapshot cloning
-//
-// ============================================================
-//
-// // Benefit in one view:
-
-// 1. deterministic kernel (no observer interference)
-fn step_only(state: &mut State, sigma: &[f64]) {
-    state.s = f_a(&state, sigma).s;
-}
-
-// 2. snapshot = immutable truth
-let snap = state.clone();
-
-// 3. multiple π-modes run in parallel (no mutation)
-let classical = pi_classical(&snap);
-let fracture  = pi_fracture(&snap);
-
-// BENEFITS:
-// - deterministic replay
-// - no debug/telemetry side effects
-// - parallel analysis (CPU/GPU ready)
-// - clean separation: physics vs interpretation
-//
-// ============================================================
-
-// ============================================================
-// DVSM — MUTATION MODEL (BEGINNER CLEAR VERSION)
-// ============================================================
-//
-// CORE IDEA:
-//
-// There are ONLY 2 things in the system:
-//
-//   1. MUTATIONS  → change reality (state S)
-//   2. OBSERVATIONS → read reality (no changes)
-//
-// Everything else is just structure around these two rules.
-//
-// ============================================================
-// WHAT IS A "MUTATION"?
-// ============================================================
-//
-// A mutation is ANY write to system state:
-//
-//   state.s[i] = x          // mutation
-//   state.eta *= 0.99       // mutation
-//   vec.push(value)         // mutation
-//
-// If memory changes → it is a mutation.
-//
-// Think:
-//   "I changed the world"
-//
-// ============================================================
-// WHAT IS AN "OBSERVATION"?
-// ============================================================
-//
-// An observation reads state but does NOT change it:
-//
-//   let x = state.s[i]      // read only
-//   let d = norm(a, b)      // computed value
-//   snapshot.clone()        // copy only, no edits
-//
-// Think:
-//   "I looked at the world"
-//
-// ============================================================
-// DVSM RULE (VERY IMPORTANT)
-// ============================================================
-//
-// ONLY ONE PLACE CAN MUTATE:
-//
-//   → the kernel step function
-//
-// EVERYTHING ELSE IS READ-ONLY.
-//
-// ============================================================
-// EXECUTION FLOW (FROZEN FRAME MODEL)
-// ============================================================
-//
-// 1. FREEZE CURRENT WORLD
-//    snapshot = state.clone()
-//
-// 2. COMPUTE NEXT WORLD (PURE MATH)
-//    next = F_A(snapshot, sigma, eta)
-//
-// 3. COMMIT MUTATION (ONLY HERE)
-//    state = next
-//
-// 4. OBSERVE (NO CHANGES ALLOWED)
-//    π_classical(snapshot)
-//    π_fracture(snapshot)
-//
-// ============================================================
-// WHY THIS MATTERS
-// ============================================================
-//
-// Without this rule:
-//   - bugs depend on update order
-//   - logs can change behavior
-//   - parallel runs become unstable
-//   - debugging affects simulation (BAD)
-//
-// With this rule:
-//   - system is deterministic
-//   - replay is exact
-//   - observers cannot interfere
-//   - GPU/CPU parallelism is safe
-//
-// ============================================================
-// SIMPLE ANALOGY
-// ============================================================
-//
-// Mutation   = rewriting a book
-// Observation = reading a photocopy
-//
-// DVSM rule:
-//   "Only the author (kernel) can write the book."
-//   "Everyone else only reads copies."
-//
-// ============================================================
-// ============================================================================
-// DVSM — ADDENDUM: QUOTIENT FUNCTOR + KERNEL COUPLING (WITH CODE SEMANTICS)
-// ============================================================================
-//
-// CORE RULE:
-//
-//   KERNEL (F_A) is causal and unique
-//   OBSERVATION (π_k) is many-view, read-only
-//
-//   NO π_k EVER MUTATES S(t)
-// ============================================================================
-
-use std::sync::Arc;
 
 // ============================================================================
-// 1. CAUSAL KERNEL (THE ONLY MUTATION SOURCE)
+// Π_M PROJECTION OPERATOR
 // ============================================================================
 
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
+pub struct Projection;
 
-#[derive(Clone)]
-pub struct Kernel {
-    pub eta: f64,
-}
+impl Projection {
 
-// F_A: single contraction dynamic
-impl Kernel {
     #[inline(always)]
-    pub fn step(&self, s: State, sigma: f64) -> State {
-        State {
-            x: s.x + self.eta * (sigma - s.x),
+    pub fn project_state(
+        x: f64,
+        b: &Bounds,
+    ) -> f64 {
+
+        x.clamp(b.x_min, b.x_max)
+    }
+
+    #[inline(always)]
+    pub fn project_jet(
+        j: Jet,
+        b: &Bounds,
+    ) -> Jet {
+
+        Jet {
+            v: j.v.clamp(-b.v_max, b.v_max),
+            a: j.a.clamp(-b.a_max, b.a_max),
+            j: j.j.clamp(-b.j_max, b.j_max),
         }
     }
 }
 
 // ============================================================================
-// 2. TRAJECTORY (FROZEN HISTORY OBJECT)
+// CONTRACTION KERNEL F_A
+// ----------------------------------------------------------------------------
+// Pure causal evolution map.
 // ============================================================================
 
-#[derive(Clone)]
-pub struct Trajectory {
-    pub states: Vec<State>,
-}
+pub struct ContractionKernel;
 
-// ============================================================================
-// 3. SNAPSHOT (IMMUTABLE CUT OF TIME)
-// ============================================================================
+impl ContractionKernel {
 
-#[derive(Clone)]
-pub struct Snapshot {
-    pub traj: Trajectory,
-}
+    #[inline(always)]
+    pub fn step(
+        current: &State,
+        neighbor: &State,
+        sigma: &State,
+        eta: Scalar,
+    ) -> State {
 
-// ============================================================================
-// 4. QUOTIENT FUNCTOR TRAIT (π_k)
-// ============================================================================
-//
-// π_k : Traj → Observation
-// collapses trajectory into equivalence structure
-// ============================================================================
+        let mut next = vec![0.0; current.len()];
 
-pub trait PiMode: Send + Sync {
-    fn project(&self, snap: &Snapshot) -> Vec<f64>;
-}
+        for k in 0..current.len() {
 
-// ============================================================================
-// 5. CLASSICAL MODE (LOCAL DIFFERENCES)
-// ============================================================================
+            next[k] =
+                current.lanes[k]
+                + eta
+                * (
+                    (sigma.lanes[k] + neighbor.lanes[k])
+                    - current.lanes[k]
+                );
+        }
 
-pub struct PiClassical;
-
-impl PiMode for PiClassical {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.traj
-            .states
-            .windows(2)
-            .map(|w| (w[0].x - w[1].x).abs())
-            .collect()
+        State { lanes: next }
     }
 }
 
 // ============================================================================
-// 6. FRACTURE MODE (ENERGY / INSTABILITY VIEW)
+// DVSM RUNTIME
 // ============================================================================
 
-pub struct PiFracture;
+pub struct DVSMRuntime<S: SigmaGen> {
 
-impl PiMode for PiFracture {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.traj
-            .states
-            .windows(2)
-            .map(|w| {
-                let d = (w[0].x - w[1].x).abs();
-                d * d // emphasize divergence energy
-            })
-            .collect()
-    }
+    pub graph: Graph,
+
+    pub sigma: S,
+
+    pub arith: ArithmeticModel,
+
+    pub bounds: Bounds,
+
+    pub h_max: Scalar,
 }
 
-// ============================================================================
-// 7. OBSERVER (READ-ONLY FUNCTOR EXECUTOR)
-// ============================================================================
+impl<S: SigmaGen> DVSMRuntime<S> {
 
-pub struct Observer {
-    pub classical: Arc<dyn PiMode>,
-    pub fracture: Arc<dyn PiMode>,
-}
+    pub fn new(
+        graph: Graph,
+        sigma: S,
+        arith: ArithmeticModel,
+        bounds: Bounds,
+        h_max: Scalar,
+    ) -> Self {
 
-impl Observer {
-    pub fn analyze(&self, snap: &Snapshot) -> (Vec<f64>, Vec<f64>) {
-        (
-            self.classical.project(snap),
-            self.fracture.project(snap),
-        )
-    }
-}
-
-// ============================================================================
-// 8. DVSM ENGINE (CAUSAL SYSTEM ONLY)
-// ============================================================================
-
-pub struct DVSM {
-    pub kernel: Kernel,
-    pub state: State,
-    pub history: Vec<State>,
-}
-
-impl DVSM {
-    pub fn step(&mut self, sigma: f64) {
-        // --------------------------------------------------------
-        // (1) MUTATION: ONLY HERE
-        // --------------------------------------------------------
-        let next = self.kernel.step(self.state.clone(), sigma);
-
-        self.state = next.clone();
-        self.history.push(next);
+        Self {
+            graph,
+            sigma,
+            arith,
+            bounds,
+            h_max,
+        }
     }
 
-    pub fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            traj: Trajectory {
-                states: self.history.clone(),
-            },
+    // =========================================================================
+    // SNAPSHOT-SYNCHRONOUS FRAME UPDATE
+    // =========================================================================
+
+    pub fn step_frame(&mut self) {
+
+        // ------------------------------------------------------------
+        // (1) FROZEN FRAME SNAPSHOT
+        // ------------------------------------------------------------
+
+        let snapshot = self.graph.nodes.clone();
+
+        let dim = snapshot[0].state.len();
+
+        let sigma_t = self.sigma.next_signal(dim);
+
+        // ------------------------------------------------------------
+        // (2) PRE-COMMIT EVALUATION
+        // ------------------------------------------------------------
+
+        let mut next_nodes = snapshot.clone();
+
+        for i in 0..snapshot.len() {
+
+            if snapshot[i].fractured {
+                continue;
+            }
+
+            let j = self.graph.neighbor_index(i);
+
+            let node_i = &snapshot[i];
+            let node_j = &snapshot[j];
+
+            // --------------------------------------------------------
+            // KERNEL EVOLUTION
+            // --------------------------------------------------------
+
+            let raw_state = ContractionKernel::step(
+                &node_i.state,
+                &node_j.state,
+                &sigma_t,
+                node_i.eta,
+            );
+
+            // --------------------------------------------------------
+            // Π_M PROJECTION
+            // --------------------------------------------------------
+
+            let mut projected = raw_state.clone();
+
+            for lane in projected.lanes.iter_mut() {
+                *lane = Projection::project_state(
+                    *lane,
+                    &self.bounds,
+                );
+            }
+
+            // --------------------------------------------------------
+            // Δ GEOMETRY
+            // --------------------------------------------------------
+
+            let defect = self.arith.norm2(
+                &projected.lanes,
+                &node_j.state.lanes,
+            );
+
+            // --------------------------------------------------------
+            // STABILITY MEMORY
+            // --------------------------------------------------------
+
+            let phi =
+                defect / (1.0 + defect);
+
+            let next_drift =
+                node_i.drift + phi;
+
+            // --------------------------------------------------------
+            // ADAPTIVE η FIELD
+            // --------------------------------------------------------
+
+            let lambda = 0.6;
+            let beta = 0.05;
+
+            let control =
+                lambda * phi - beta;
+
+            let mut next_eta =
+                node_i.eta * (1.0 - control);
+
+            next_eta =
+                next_eta.clamp(0.01, 0.95);
+
+            // --------------------------------------------------------
+            // FRACTURE CONDITION
+            // --------------------------------------------------------
+
+            let fractured =
+                next_drift > self.h_max;
+
+            // --------------------------------------------------------
+            // COMMIT BUFFER
+            // --------------------------------------------------------
+
+            next_nodes[i].state = projected;
+            next_nodes[i].eta = next_eta;
+            next_nodes[i].drift = next_drift;
+            next_nodes[i].fractured = fractured;
+        }
+
+        // ------------------------------------------------------------
+        // (3) ATOMIC FRAME COMMIT
+        // ------------------------------------------------------------
+
+        self.graph.nodes = next_nodes;
+    }
+
+    // =========================================================================
+    // EXECUTION LOOP
+    // =========================================================================
+
+    pub fn run(&mut self, frames: usize) {
+
+        for frame in 0..frames {
+
+            self.step_frame();
+
+            println!("FRAME {}", frame);
+
+            for node in &self.graph.nodes {
+                println!("{:?}", node);
+            }
+
+            println!("--------------------------------");
         }
     }
 }
 
 // ============================================================================
-// 9. EXECUTION CONTRACT (CRITICAL INVARIANT)
-// ============================================================================
-//
-// KERNEL PATH:
-//   S(t) → F_A → S(t+1)   [ONLY MUTATION PATH]
-//
-// OBSERVATION PATH:
-//   Snapshot(T) → π_k → metrics   [READ ONLY]
-//
-// NO CROSSING EDGE:
-//
-//   π_k ∉ F_A
-//   Δ, H, η ∉ causal update
-//
+// GRAPH INITIALIZATION
 // ============================================================================
 
+fn build_graph(
+    node_count: usize,
+    dim: usize,
+) -> Graph {
+
+    let mut nodes =
+        Vec::with_capacity(node_count);
+
+    for i in 0..node_count {
+
+        let mut s = State::zeros(dim);
+
+        for k in 0..dim {
+            s.lanes[k] =
+                (i * (k + 1)) as f64 * 0.1;
+        }
+
+        nodes.push(Node {
+            id: i,
+            state: s,
+            eta: 0.15,
+            drift: 0.0,
+            fractured: false,
+        });
+    }
+
+    Graph { nodes }
+}
+
 // ============================================================================
-// 10. MINIMAL RUNTIME EXAMPLE
+// MAIN
 // ============================================================================
 
 fn main() {
-    let mut system = DVSM {
-        kernel: Kernel { eta: 0.2 },
-        state: State { x: 0.0 },
-        history: vec![],
+
+    let graph =
+        build_graph(8, 4);
+
+    let sigma =
+        IterSigma::new(42);
+
+    let arith =
+        ArithmeticModel {
+            epsilon: 1e-6,
+        };
+
+    let bounds = Bounds {
+
+        x_min: -2.0,
+        x_max:  2.0,
+
+        v_max: 1.0,
+        a_max: 1.0,
+        j_max: 1.0,
     };
 
-    // evolve system (causal world line)
-    for s in [1.0, 0.7, 1.2, 0.9, 1.1] {
-        system.step(s);
-    }
+    let mut runtime =
+        DVSMRuntime::new(
+            graph,
+            sigma,
+            arith,
+            bounds,
+            25.0,
+        );
 
-    // freeze reality
-    let snap = system.snapshot();
-
-    // multiple quotient views
-    let observer = Observer {
-        classical: Arc::new(PiClassical),
-        fracture: Arc::new(PiFracture),
-    };
-
-    let (c, f) = observer.analyze(&snap);
-
-    println!("classical π: {:?}", c);
-    println!("fracture π: {:?}", f);
+    runtime.run(10);
 }
 
 // ============================================================================
-// 11. INTUITIVE INTERPRETATION (KERNEL VS QUOTIENT)
+// DVSM-π — QUOTIENT FUNCTOR LATTICE + SNAPSHOT-ISOLATED KERNEL
 // ============================================================================
 //
-// KERNEL (REALITY ENGINE):
-//   writes ONE timeline
-//   deterministic state evolution
+// RESEARCH ADDENDUM
+// ----------------------------------------------------------------------------
+// This addendum formalizes:
 //
-// QUOTIENT (INTERPRETATION ENGINE):
-//   builds MANY “views” of same timeline
-//   changes nothing in reality
+//   • single causal kernel semantics
+//   • immutable trajectory geometry
+//   • quotient observation functors π_k
+//   • lattice-ordered observable hierarchy
+//   • strict mutation isolation
+//   • deterministic snapshot semantics
+//   • observer-safe parallel execution
 //
-// ANALOGY:
+// ----------------------------------------------------------------------------
+// FUNDAMENTAL SEMANTIC SPLIT
+// ----------------------------------------------------------------------------
 //
-//   kernel   = film reel (the actual recorded movie)
-//   π_modes  = different lenses (contrast, blur, edge detection)
+// DVSM-π separates:
 //
-// ============================================================================
+//   (A) CAUSAL EVOLUTION
+//   (B) OBSERVATIONAL PROJECTION
 //
-// 12. KEY RESULT
-// ============================================================================
+// into STRICTLY NON-INTERSECTING DOMAINS.
 //
-// DVSM is NOT multi-world dynamics.
+// ----------------------------------------------------------------------------
+// CAUSAL DOMAIN
+// ----------------------------------------------------------------------------
 //
-// It is:
+// The kernel:
+//
+//   F_A : S → S
+//
+// is the ONLY structure permitted to mutate system state.
+//
+// ----------------------------------------------------------------------------
+// OBSERVATIONAL DOMAIN
+// ----------------------------------------------------------------------------
+//
+// π-modes:
+//
+//   π_k : Traj(S) → ℝ^m
+//
+// are READ-ONLY quotient projections over frozen trajectories.
+//
+// π-modes:
+//
+//   • cannot mutate state
+//   • cannot alter η
+//   • cannot alter H
+//   • cannot alter topology
+//   • cannot feed back into F_A
+//
+// ----------------------------------------------------------------------------
+// SNAPSHOT INVARIANT
+// ----------------------------------------------------------------------------
+//
+// Evolution:
+//
+//   Frame(t)
+//      ↓
+//   F_A evaluation
+//      ↓
+//   Frame*(t+1)
+//      ↓
+//   atomic commit
+//
+// Observation:
+//
+//   Snapshot(Frame(t))
+//      ↓
+//   π_k evaluation
+//
+// NO observer can access mutable state.
+//
+// ----------------------------------------------------------------------------
+// QUOTIENT INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// π_k acts as:
+//
+//   an information-compression functor
+//
+// collapsing trajectory structure into an observable geometry.
+//
+// Examples:
+//
+//   π_classical:
+//      local residual geometry
+//
+//   π_fracture:
+//      instability energy field
+//
+//   π_entropy:
+//      switching complexity statistics
+//
+//   π_transport:
+//      Wasserstein transport geometry
+//
+// ----------------------------------------------------------------------------
+// LATTICE STRUCTURE
+// ----------------------------------------------------------------------------
+//
+// Observable modes form a partial order:
+//
+//   π_a ≤ π_b
+//
+// iff:
+//
+//   π_a preserves GREATER informational resolution.
+//
+// Meaning:
+//
+//   finer observables refine coarser ones.
+//
+// ----------------------------------------------------------------------------
+// IMPORTANT RESULT
+// ----------------------------------------------------------------------------
+//
+// DVSM-π is:
 //
 //   ONE trajectory
 //   MANY quotient projections
-//   STRICT causal isolation between them
 //
-// ============================================================================ 
-
-// ============================================================================
-// DVSM — FINAL HARDENING + QUOTIENT FUNCTOR LATTICE CORE (SEMANTIC COMPLETE)
+// NOT:
+//
+//   multiple realities
+//   competing kernels
+//   observer-driven dynamics
+//
+// ----------------------------------------------------------------------------
+// PERFORMANCE CONSEQUENCES
+// ----------------------------------------------------------------------------
+//
+// Because snapshots are immutable:
+//
+//   • π_modes are embarrassingly parallel
+//   • CPU/GPU execution is safe
+//   • async telemetry is deterministic
+//   • replay is exact
+//   • observers cannot perturb causality
+//
 // ============================================================================
 
 use std::sync::Arc;
 
 // ============================================================================
-// 1. CAUSAL DOMAIN (ONLY MUTABLE REALITY)
+// CAUSAL AUTHORIZATION TOKEN
+// ----------------------------------------------------------------------------
+// Only the kernel runtime owns mutation authority.
 // ============================================================================
 
 pub struct CausalToken(());
+
+// ============================================================================
+// STATE SPACE
+// ============================================================================
 
 #[derive(Clone, Debug)]
 pub struct State {
     pub x: f64,
 }
 
-#[derive(Clone)]
+// ============================================================================
+// KERNEL PARAMETERS
+// ============================================================================
+
+#[derive(Clone, Debug)]
 pub struct Kernel {
     pub eta: f64,
 }
 
+// ============================================================================
+// KERNEL EVOLUTION MAP
+// ----------------------------------------------------------------------------
+// ONLY causal mutation source in the system.
+//
+//     S(t+1) = F_A(S(t), σ(t), η)
+//
+// ============================================================================
+
 impl Kernel {
+
     #[inline(always)]
-    pub fn step(&self, _auth: &CausalToken, s: &State, sigma: f64) -> State {
+    pub fn step(
+        &self,
+        _auth: &CausalToken,
+        s: &State,
+        sigma: f64,
+    ) -> State {
+
         State {
             x: s.x + self.eta * (sigma - s.x),
         }
@@ -1760,7 +2465,9 @@ impl Kernel {
 }
 
 // ============================================================================
-// 2. TRAJECTORY (IMMUTABLE QUOTIENT BASE SPACE)
+// TRAJECTORY SPACE
+// ----------------------------------------------------------------------------
+// Immutable historical world-line.
 // ============================================================================
 
 #[derive(Clone)]
@@ -1768,727 +2475,727 @@ pub struct Trajectory {
     pub states: Arc<[State]>,
 }
 
+// ============================================================================
+// SNAPSHOT
+// ----------------------------------------------------------------------------
+// Frozen observational cut through trajectory space.
+// ============================================================================
+
 #[derive(Clone)]
 pub struct Snapshot {
     pub traj: Trajectory,
 }
 
 // ============================================================================
-// 3. QUOTIENT FUNCTOR (π_k)
+// QUOTIENT FUNCTOR π_k
+// ----------------------------------------------------------------------------
+//
+//     π_k : Traj(S) → ℝ^m
+//
+// Quotient projections:
+//
+//   • read-only
+//   • side-effect free
+//   • causally isolated
+//
 // ============================================================================
 
 pub trait PiMode: Send + Sync {
-    fn project(&self, snap: &Snapshot) -> Vec<f64>;
 
-    /// intrinsic resolution size = complexity of observable
+    fn project(
+        &self,
+        snap: &Snapshot,
+    ) -> Vec<f64>;
+
+    // intrinsic information resolution
     fn resolution(&self) -> usize;
+
+    // symbolic identity
+    fn name(&self) -> &'static str;
 }
 
 // ============================================================================
-// 4. CLASSICAL MODE (FINE-GRAINED)
+// π_classical
+// ----------------------------------------------------------------------------
+// Fine-grained local residual geometry.
 // ============================================================================
 
 pub struct PiClassical;
 
 impl PiMode for PiClassical {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
+
+    fn project(
+        &self,
+        snap: &Snapshot,
+    ) -> Vec<f64> {
+
         snap.traj
             .states
             .windows(2)
-            .map(|w| (w[0].x - w[1].x).abs())
+            .map(|w| {
+                (w[0].x - w[1].x).abs()
+            })
             .collect()
     }
 
     fn resolution(&self) -> usize {
-        usize::MAX // maximal sensitivity baseline
+        usize::MAX
+    }
+
+    fn name(&self) -> &'static str {
+        "π_classical"
     }
 }
 
 // ============================================================================
-// 5. FRACTURE MODE (COARSE ENERGY VIEW)
+// π_fracture
+// ----------------------------------------------------------------------------
+// Coarse instability-energy geometry.
 // ============================================================================
 
 pub struct PiFracture;
 
 impl PiMode for PiFracture {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
+
+    fn project(
+        &self,
+        snap: &Snapshot,
+    ) -> Vec<f64> {
+
         snap.traj
             .states
             .windows(2)
             .map(|w| {
-                let d = (w[0].x - w[1].x).abs();
+
+                let d =
+                    (w[0].x - w[1].x).abs();
+
                 d * d
             })
             .collect()
     }
 
     fn resolution(&self) -> usize {
-        1 // highly compressed observable
+        1
+    }
+
+    fn name(&self) -> &'static str {
+        "π_fracture"
     }
 }
 
 // ============================================================================
-// 6. MODE LATTICE (TRUE STRUCTURAL ORDER)
+// π_entropy
+// ----------------------------------------------------------------------------
+// Symbolic switching entropy observable.
+// ============================================================================
+
+pub struct PiEntropy;
+
+impl PiMode for PiEntropy {
+
+    fn project(
+        &self,
+        snap: &Snapshot,
+    ) -> Vec<f64> {
+
+        let diffs: Vec<f64> =
+            snap.traj
+                .states
+                .windows(2)
+                .map(|w| {
+                    (w[0].x - w[1].x).abs()
+                })
+                .collect();
+
+        if diffs.is_empty() {
+            return vec![0.0];
+        }
+
+        let mean =
+            diffs.iter().sum::<f64>()
+            / diffs.len() as f64;
+
+        let entropy =
+            diffs
+                .iter()
+                .map(|x| {
+                    let p = x / mean.max(1e-9);
+                    -p * p.ln()
+                })
+                .sum::<f64>();
+
+        vec![entropy]
+    }
+
+    fn resolution(&self) -> usize {
+        16
+    }
+
+    fn name(&self) -> &'static str {
+        "π_entropy"
+    }
+}
+
+// ============================================================================
+// MODE LATTICE
+// ----------------------------------------------------------------------------
+//
+//     π_a ≤ π_b
+//
+// iff:
+//
+//     resolution(π_a) ≥ resolution(π_b)
+//
+// meaning:
+//
+//     π_a refines π_b
+//
 // ============================================================================
 
 pub trait ModeLattice {
-    /// π_a ≤ π_b iff π_a has >= resolution (finer observable)
-    fn refines(&self, other: &Self) -> bool;
 
-    /// least upper bound (join)
-    fn join(&self, other: &Self) -> Arc<dyn PiMode>;
+    fn refines(
+        &self,
+        other: &Self,
+    ) -> bool;
 
-    /// greatest lower bound (meet)
-    fn meet(&self, other: &Self) -> Arc<dyn PiMode>;
+    fn join(
+        &self,
+        other: &Self,
+    ) -> Arc<dyn PiMode>;
+
+    fn meet(
+        &self,
+        other: &Self,
+    ) -> Arc<dyn PiMode>;
 }
 
 // ============================================================================
-// 7. OBSERVER (PURE FUNCTOR EXECUTOR)
+// OBSERVER ENGINE
+// ----------------------------------------------------------------------------
+// Executes π_modes over immutable snapshots.
+//
+// NO mutation allowed.
 // ============================================================================
 
 pub struct Observer {
-    pub classical: Arc<dyn PiMode>,
-    pub fracture: Arc<dyn PiMode>,
+
+    pub modes: Vec<Arc<dyn PiMode>>,
 }
 
 impl Observer {
-    pub fn analyze(&self, snap: &Snapshot) -> (Vec<f64>, Vec<f64>) {
-        (
-            self.classical.project(snap),
-            self.fracture.project(snap),
-        )
+
+    pub fn analyze(
+        &self,
+        snap: &Snapshot,
+    ) {
+
+        for mode in &self.modes {
+
+            let out =
+                mode.project(snap);
+
+            println!(
+                "{} → {:?}",
+                mode.name(),
+                out
+            );
+        }
     }
 }
 
 // ============================================================================
-// 8. DVSM ENGINE (CAUSAL ENDOMORPHISM ONLY)
+// DVSM ENGINE
+// ----------------------------------------------------------------------------
+// SINGLE causal runtime.
+//
+// ONLY location where mutation occurs.
 // ============================================================================
 
 pub struct DVSM {
+
     kernel: Kernel,
+
     state: State,
+
     history: Vec<State>,
+
     auth: CausalToken,
 }
 
 impl DVSM {
-    pub fn new(kernel: Kernel, state: State) -> Self {
+
+    pub fn new(
+        kernel: Kernel,
+        state: State,
+    ) -> Self {
+
         Self {
+
             kernel,
+
             state,
+
             history: vec![],
+
             auth: CausalToken(()),
         }
     }
 
-    pub fn step(&mut self, sigma: f64) {
-        let next = self.kernel.step(&self.auth, &self.state, sigma);
-        self.state = next.clone();
+    // ========================================================================
+    // CAUSAL STEP
+    // ----------------------------------------------------------------------------
+    // ONLY mutation path in the entire architecture.
+    // ========================================================================
+
+    pub fn step(
+        &mut self,
+        sigma: f64,
+    ) {
+
+        // ------------------------------------------------------------
+        // FROZEN READ
+        // ------------------------------------------------------------
+
+        let current =
+            self.state.clone();
+
+        // ------------------------------------------------------------
+        // PURE KERNEL EVALUATION
+        // ------------------------------------------------------------
+
+        let next =
+            self.kernel.step(
+                &self.auth,
+                &current,
+                sigma,
+            );
+
+        // ------------------------------------------------------------
+        // ATOMIC COMMIT
+        // ------------------------------------------------------------
+
+        self.state =
+            next.clone();
+
         self.history.push(next);
     }
 
-    pub fn snapshot(&self) -> Snapshot {
+    // ========================================================================
+    // SNAPSHOT EXTRACTION
+    // ----------------------------------------------------------------------------
+    // Produces immutable observational world.
+    // ========================================================================
+
+    pub fn snapshot(
+        &self,
+    ) -> Snapshot {
+
         Snapshot {
+
             traj: Trajectory {
-                states: Arc::from(self.history.clone().into_boxed_slice()),
+
+                states:
+                    Arc::from(
+                        self.history
+                            .clone()
+                            .into_boxed_slice()
+                    ),
             },
         }
     }
 }
 
 // ============================================================================
-// 9. KEY STRUCTURAL GUARANTEE
-// ============================================================================
+// EXECUTION CONTRACT
+// ----------------------------------------------------------------------------
 //
-// CAUSAL:
-//   DVSM → Kernel → State
+// MUTATION PATH:
 //
-// OBSERVATIONAL:
-//   Snapshot → π_k → ℝⁿ
+//     State(t)
+//        ↓
+//       F_A
+//        ↓
+//     State(t+1)
 //
-// LATTICE:
-//   π_a ≤ π_b ⇔ resolution(π_a) ≥ resolution(π_b)
+// OBSERVATION PATH:
 //
-// meaning:
-//   finer observation = higher informational resolution
+//     Snapshot(T)
+//        ↓
+//       π_k
+//        ↓
+//     Observable geometry
 //
-// ============================================================================
+// STRICTLY:
 //
-// 10. FINAL SYSTEM INTERPRETATION
-// ============================================================================
+//     π_k ∉ F_A
 //
-// DVSM = single deterministic endomorphism (F_A : S → S)
-//
-// π_k  = lattice-indexed functor family:
-//
-//        π_k ∈ Fun(Traj(S), ℝⁿ)
-//
-// Mode structure = ordered information compression hierarchy
-//
-// NOT alternative physics
-// NOT alternative dynamics
-// BUT:
-//
-//     structured loss-of-information geometry over one trajectory
+// No observer may causally influence the kernel.
 //
 // ============================================================================
-    // ============================================================================
-// DVSM — DISTRIBUTED GRAPH-COUPLED CONTRACTION SYSTEM (FULL STACK CORE)
-// ============================================================================
-//
-// CURRENT STATE:
-//   - frozen-frame kernel
-//   - SIMD-ready execution model
-//   - GPU-mappable state layout (conceptual)
-//   - snapshot-isolated deterministic updates
-//
-// OBSERVATION LAYERS:
-//   π_classical / π_fracture / π_modes (read-only quotient functors)
-//
-// EXTENSIONS:
-//   - rollback buffers (immutable replay substrate)
-//   - spatial partitioning (execution optimization only)
-//   - async telemetry (observer-side only)
-//   - GPU dispatch model (execution substrate only)
-//
-// GUARANTEE:
-//   - deterministic execution
-//   - snapshot-isolated mutation
-//   - NO observer feedback into kernel
-// ============================================================================
-
-use std::sync::Arc;
 
 // ============================================================================
-// 1. CAUSAL DOMAIN (PURE DYNAMICS ENGINE)
+// MINIMAL EXAMPLE
 // ============================================================================
 
-pub struct CausalToken(());
+fn main() {
 
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
+    let mut system =
+        DVSM::new(
 
-// GPU/SIMD-friendly layout hint (conceptual only)
-#[repr(C)]
-pub struct GpuState {
-    pub x: f64,
-}
-
-#[derive(Clone)]
-pub struct Kernel {
-    pub eta: f64,
-}
-
-impl Kernel {
-    #[inline(always)]
-    pub fn step(&self, _auth: &CausalToken, s: &State, sigma: f64) -> State {
-        State {
-            x: s.x + self.eta * (sigma - s.x),
-        }
-    }
-}
-
-// ============================================================================
-// 2. TOPOLOGY / DISTRIBUTED GRAPH STRUCTURE
-// ============================================================================
-
-pub struct Graph {
-    pub adjacency: Vec<Vec<usize>>,
-}
-
-// Spatial partitioning (execution optimization ONLY)
-pub struct SpatialGrid {
-    pub cell_map: Vec<Vec<usize>>,
-}
-
-// ============================================================================
-// 3. TRAJECTORY (IMMUTABLE SNAPSHOT SPACE)
-// ============================================================================
-
-#[derive(Clone)]
-pub struct Trajectory {
-    pub states: Arc<[State]>,
-}
-
-#[derive(Clone)]
-pub struct Snapshot {
-    pub traj: Trajectory,
-}
-
-// ============================================================================
-// 4. ROLLBACK BUFFER (TEMPORAL REPLAY SUBSTRATE)
-// ============================================================================
-//
-// NOTE:
-// - read-only after commit
-// - cannot affect kernel evolution
-// ============================================================================
-
-pub struct RollbackBuffer {
-    pub frames: Vec<Arc<[State]>>,
-}
-
-// ============================================================================
-// 5. QUOTIENT FUNCTOR INTERFACE (π-LAYERS)
-// ============================================================================
-
-pub trait PiMode: Send + Sync {
-    fn project(&self, snap: &Snapshot) -> Vec<f64>;
-}
-
-// Classical mode (fine-grain residual)
-pub struct PiClassical;
-
-impl PiMode for PiClassical {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.traj
-            .states
-            .windows(2)
-            .map(|w| (w[0].x - w[1].x).abs())
-            .collect()
-    }
-}
-
-// Fracture mode (energy view)
-pub struct PiFracture;
-
-impl PiMode for PiFracture {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.traj
-            .states
-            .windows(2)
-            .map(|w| {
-                let d = (w[0].x - w[1].x).abs();
-                d * d
-            })
-            .collect()
-    }
-}
-
-// ============================================================================
-// 6. OBSERVER LAYER (ASYNC / TELEMETRY SAFE)
-// ============================================================================
-
-pub struct Observer {
-    pub classical: Arc<dyn PiMode>,
-    pub fracture: Arc<dyn PiMode>,
-}
-
-impl Observer {
-    pub fn analyze(&self, snap: &Snapshot) -> (Vec<f64>, Vec<f64>) {
-        (
-            self.classical.project(snap),
-            self.fracture.project(snap),
-        )
-    }
-}
-
-// ============================================================================
-// 7. DVSM ENGINE (CAUSAL CORE ONLY)
-// ============================================================================
-
-pub struct DVSM {
-    kernel: Kernel,
-    state: State,
-    history: Vec<State>,
-    rollback: RollbackBuffer,
-    auth: CausalToken,
-}
-
-impl DVSM {
-    pub fn new(kernel: Kernel, state: State) -> Self {
-        Self {
-            kernel,
-            state,
-            history: vec![],
-            rollback: RollbackBuffer { frames: vec![] },
-            auth: CausalToken(()),
-        }
-    }
-
-    // ========================================================================
-    // FRAME STEP (DETERMINISTIC, SNAPSHOT-ISOLATED)
-    // ========================================================================
-    pub fn step(&mut self, sigma: f64) {
-        let next = self.kernel.step(&self.auth, &self.state, sigma);
-
-        // commit causal state
-        self.state = next.clone();
-        self.history.push(next.clone());
-
-        // store rollback snapshot (immutable)
-        self.rollback.frames.push(Arc::from(self.history.clone().into_boxed_slice()));
-    }
-
-    // ========================================================================
-    // SNAPSHOT (QUOTIENT BASE SPACE)
-    // ========================================================================
-    pub fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            traj: Trajectory {
-                states: Arc::from(self.history.clone().into_boxed_slice()),
+            Kernel {
+                eta: 0.2,
             },
-        }
-    }
-}
 
-// ============================================================================
-// 8. GPU DISPATCH MODEL (SUBSTRATE ABSTRACTION ONLY)
-// ============================================================================
-//
-// NOTE:
-// - no execution semantics here
-// - only layout + mapping contract
-// ============================================================================
+            State {
+                x: 0.0,
+            },
+        );
 
-pub struct GpuDispatch;
+    // ------------------------------------------------------------
+    // EVOLVE CAUSAL TRAJECTORY
+    // ------------------------------------------------------------
 
-impl GpuDispatch {
-    pub fn map_state(_s: &State) -> GpuState {
-        GpuState { x: _s.x }
-    }
-}
+    for sigma in [
+        1.0,
+        0.7,
+        1.2,
+        0.9,
+        1.1,
+    ] {
 
-// ============================================================================
-// 9. DISTRIBUTED EXECUTION MODEL (ASYNC SAFE VIEW)
-// ============================================================================
-
-pub struct DistributedNode {
-    pub local: DVSM,
-    pub partition_id: usize,
-}
-
-// ============================================================================
-// 10. INVARIANTS (HARD GUARANTEE LAYER)
-// ============================================================================
-//
-// CAUSAL INVARIANTS:
-//   - only DVSM::step mutates State
-//   - Kernel has no hidden global state
-//   - updates are frame-atomic
-//
-// DISTRIBUTED INVARIANTS:
-//   - partitions are execution-only
-//   - no cross-node causal leakage within frame
-//
-// OBSERVATION INVARIANTS:
-//   - π_modes are read-only functors
-//   - Snapshot is immutable Arc<[State]>
-//
-// ROLLBACK INVARIANTS:
-//   - rollback buffers are write-once
-//   - cannot be used to influence kernel evolution
-//
-// GPU INVARIANTS:
-//   - mapping is structural only
-//   - no back-propagation into CPU kernel
-//
-// ============================================================================
-//
-// 11. FINAL INTERPRETATION
-// ============================================================================
-//
-// DVSM is now:
-//
-//   a deterministic frozen-frame graph contraction system
-//   with distributed execution substrate
-//   and multiple functorial quotient observation layers
-//
-// FORMALLY:
-//
-//   F_A : (S, σ) → S        (causal endomorphism)
-//
-//   π_k : Traj(S) → E_k     (functor family)
-//
-//   execution := CPU | SIMD | GPU (all equivalent)
-//
-//   distribution := partitioned evaluation of same kernel
-//
-// ============================================================================
-// 
-// // ============================================================================
-// DVSM — CAPABILITY ALGEBRA CLARIFICATION (TYPE BOUNDARY VERSION)
-// ============================================================================
-//
-// This block makes the algebra explicit as *separated domains*:
-//
-//   1. KERNEL ALGEBRA   → operates on State only (causal world)
-//   2. π LATTICE        → operates on Snapshot only (epistemic world)
-//   3. BACKEND CATEGORY → operates on execution of kernel morphisms
-//
-// CRITICAL RULE:
-//
-//   NO TYPE FROM (2) or (3) can appear in (1)
-// ============================================================================
-
-// ============================================================================
-// 1. CAUSAL ALGEBRA (MONOID OBJECT)
-// ============================================================================
-//
-// Object: State
-// Morphism: Kernel step : State → State
-//
-// This is the ONLY lawful state transformation space
-// ============================================================================
-
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
-
-pub trait KernelMonoid {
-    fn step(&self, s: &State, sigma: f64) -> State;
-}
-
-// identity element
-pub struct IdKernel;
-
-impl KernelMonoid for IdKernel {
-    fn step(&self, s: &State, _sigma: f64) -> State {
-        s.clone()
-    }
-}
-
-// ============================================================================
-// 2. EPISTEMIC SPACE (π LATTICE OBJECT)
-// ============================================================================
-//
-// Object: Snapshot (immutable Trajectory)
-// Morphism: π_k : Snapshot → Observation
-//
-// IMPORTANT:
-//   π_k is NOT State → State
-//   π_k is Snapshot → Data
-// ============================================================================
-
-use std::sync::Arc;
-
-#[derive(Clone)]
-pub struct Snapshot {
-    pub states: Arc<[State]>,
-}
-
-pub trait PiMode {
-    fn project(&self, snap: &Snapshot) -> Vec<f64>;
-}
-
-// Classical refinement (higher resolution)
-pub struct PiClassical;
-
-impl PiMode for PiClassical {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.states
-            .windows(2)
-            .map(|w| (w[0].x - w[1].x).abs())
-            .collect()
-    }
-}
-
-// Fracture projection (coarser / nonlinear compression)
-pub struct PiFracture;
-
-impl PiMode for PiFracture {
-    fn project(&self, snap: &Snapshot) -> Vec<f64> {
-        snap.states
-            .windows(2)
-            .map(|w| {
-                let d = (w[0].x - w[1].x).abs();
-                d * d
-            })
-            .collect()
-    }
-}
-
-// ============================================================================
-// DVSM — STATIC DISPATCH BACKEND (ZERO-VTABLE EXECUTION CATEGORY)
-// ============================================================================
-//
-// CORE IDEA:
-//
-//   Kernel  = pure dynamical morphism (defines physics)
-//   Backend = compile-time execution functor (defines evaluation strategy)
-//
-// SEPARATION:
-//
-//   Backend NEVER defines dynamics
-//   Kernel NEVER knows execution strategy
-//
-// RESULT:
-//
-//   Fully monomorphized execution graph
-//   SIMD specialization becomes compiler-level, not runtime-level
-// ============================================================================
-
-#[derive(Clone, Debug)]
-pub struct State {
-    pub x: f64,
-}
-
-// ============================================================================
-// 1. CAUSAL KERNEL (MORPHISM OBJECT)
-// ============================================================================
-//
-// This is the ONLY place dynamics are defined.
-// No allocation, no IO, no backend knowledge.
-// ============================================================================
-
-pub trait KernelMonoid: Sync {
-    const ETA: f64;
-    const SIGMA_GAIN: f64;
-    const BIAS: f64;
-
-    #[inline(always)]
-    fn step(s: &State, sigma: f64) -> State {
-        State {
-            x: s.x
-                + Self::ETA * (Self::SIGMA_GAIN * sigma - s.x)
-                + Self::BIAS,
-        }
-    }
-}
-
-// Example kernels (compile-time physics selection)
-
-pub struct StableKernel;
-
-impl KernelMonoid for StableKernel {
-    const ETA: f64 = 0.15;
-    const SIGMA_GAIN: f64 = 1.0;
-    const BIAS: f64 = 0.0;
-}
-
-pub struct AggressiveKernel;
-
-impl KernelMonoid for AggressiveKernel {
-    const ETA: f64 = 0.45;
-    const SIGMA_GAIN: f64 = 1.2;
-    const BIAS: f64 = 0.01;
-}
-
-// ============================================================================
-// 2. BACKEND (EXECUTION FUNCTOR CATEGORY)
-// ============================================================================
-//
-// Backend is NOT a value-level object.
-// It is a compile-time specialization boundary.
-//
-// Think:
-//   Backend ⟶ "how to execute F_A"
-//   Kernel  ⟶ "what F_A is"
-// ============================================================================
-
-pub trait Backend {
-    #[inline(always)]
-    fn apply<K: KernelMonoid>(s: &State, sigma: f64) -> State {
-        K::step(s, sigma)
-    }
-}
-
-// CPU execution strategy (scalar path)
-pub struct Cpu;
-
-// SIMD execution strategy (vectorized lowering target)
-pub struct Simd;
-
-impl Backend for Cpu {}
-
-impl Backend for Simd {
-    // In real SIMD backend:
-    // - State would become [f64; N] or SIMD lane type
-    // - K::step would be vector-lowered by compiler/LLVM
-}
-
-// ============================================================================
-// 3. DVSM ENGINE (FULLY STATIC DISPATCH)
-// ============================================================================
-//
-// K = kernel (physics)
-// B = backend (execution strategy)
-// ============================================================================
-
-pub struct DVSM<K: KernelMonoid, B: Backend> {
-    state: State,
-    history: Vec<State>,
-    _k: std::marker::PhantomData<K>,
-    _b: std::marker::PhantomData<B>,
-}
-
-impl<K: KernelMonoid, B: Backend> DVSM<K, B> {
-    #[inline(always)]
-    pub fn new(init: State) -> Self {
-        Self {
-            state: init,
-            history: vec![],
-            _k: std::marker::PhantomData,
-            _b: std::marker::PhantomData,
-        }
+        system.step(sigma);
     }
 
-    #[inline(always)]
-    pub fn step(&mut self, sigma: f64) {
-        // fully monomorphized call:
-        // Backend + Kernel resolved at compile time
-        let next = B::apply::<K>(&self.state, sigma);
+    // ------------------------------------------------------------
+    // FREEZE WORLD
+    // ------------------------------------------------------------
 
-        self.state = next.clone();
-        self.history.push(next);
-    }
+    let snap =
+        system.snapshot();
 
-    #[inline(always)]
-    pub fn state(&self) -> &State {
-        &self.state
-    }
+    // ------------------------------------------------------------
+    // MULTI-MODE OBSERVATION
+    // ------------------------------------------------------------
+
+    let observer =
+        Observer {
+
+            modes: vec![
+
+                Arc::new(PiClassical),
+
+                Arc::new(PiFracture),
+
+                Arc::new(PiEntropy),
+            ],
+        };
+
+    observer.analyze(&snap);
 }
 
 // ============================================================================
-// 4. PERFORMANCE SEMANTICS (WHAT YOU ACHIEVED)
+// FINAL INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// DVSM-π =
+//
+//     one deterministic causal evolution engine
+//
+// plus
+//
+//     a lattice of quotient observation functors
+//
+// over immutable trajectory space.
+//
+// ----------------------------------------------------------------------------
+//
+// KERNEL:
+//     writes reality
+//
+// π-MODES:
+//     interpret reality
+//
+// ----------------------------------------------------------------------------
+//
+// ANALOGY:
+//
+//     kernel   = film reel
+// ============================================================================
+// DVSM-π — CURRENT EXECUTION + OBSERVATION + SPECIALIZATION SEMANTICS
 // ============================================================================
 //
-// BEFORE:
-//   dyn Backend + dyn Kernel → vtable dispatch → runtime indirection
+// KERNEL DOMAIN
+// ----------------------------------------------------------------------------
 //
-// NOW:
-//   DVSM<K, B> → monomorphized binary specialization
+//     F_A : ℳ → ℳ
 //
-// EFFECT:
+// where:
 //
-//   - K::step is inlineable
-//   - B is zero-cost marker at compile time
-//   - LLVM can fuse + vectorize entire update loop
-//   - SIMD backend becomes a codegen target, not a runtime switch
+//     ℳ ⊂ J^k × G × C
 //
-// ============================================================================
-// 5. IMPORTANT DESIGN CONSEQUENCE
-// ============================================================================
+//     J^k = jet-state manifold
+//     G   = graph coupling topology
+//     C   = constraint / projection structure
 //
-// You are no longer building:
+// The kernel is:
 //
-//   "a system with a backend"
+// • deterministic
+// • frozen-frame synchronous
+// • projection-closed
+// • graph-coupled
+// • backend-independent
 //
-// You are building:
+// ----------------------------------------------------------------------------
+// EXECUTION MODEL (CURRENT STATE)
+// ----------------------------------------------------------------------------
 //
-//   "a family of compiled dynamical systems"
+// DVSM-π now operates as:
 //
-// Each (K, B) pair is a distinct executable morphism.
+//     a statically-specialized family
+//     of compiled dynamical operators.
 //
-// ============================================================================
-// 6. OPTIONAL NEXT STEP (TRUE SIMD SCALE-UP)
-// ============================================================================
+// Canonical specialization:
 //
-// Replace:
+//     DVSM<K, B, P, O>
 //
-//   State { x: f64 }
+// where:
+//
+//     K : kernel operator family
+//     B : execution topology/backend
+//     P : projection / manifold operator
+//     O : observer bundle / π-stack
+//
+// ----------------------------------------------------------------------------
+// OBSERVATION SEMANTICS
+// ----------------------------------------------------------------------------
+//
+// π-modes are STRICTLY observational:
+//
+//     π_k : Traj(ℳ) → E_k
+//
+// Examples:
+//
+//     π_classical
+//     π_fracture
+//     π_entropy
+//     π_switching
+//     π_transport
+//     π_jet
+//
+// Properties:
+//
+// • read-only
+// • snapshot-isolated
+// • async-safe
+// • scheduler-independent
+// • causally disconnected from kernel
+//
+// CRITICAL INVARIANT:
+//
+//     π_k NEVER mutates State
+//
+// Therefore:
+//
+//     kernel = causality
+//     π_modes = interpretation
+//
+// ----------------------------------------------------------------------------
+// DISTRIBUTED + PARALLEL EXECUTION MODEL
+// ----------------------------------------------------------------------------
+//
+// Frozen-frame semantics:
+//
+//     S(t+1) ← Φ(S(t))
+//
+// imply:
+//
+// • no in-place mutation during evaluation
+// • race-free node updates
+// • deterministic replay
+// • rollback-safe execution
+// • embarrassingly parallel graph evolution
+//
+// Thus:
+//
+//     graph partitions
+//     SIMD lanes
+//     GPU workgroups
+//     async observers
+//
+// may execute independently
+// WITHOUT violating causal invariants.
+//
+// ----------------------------------------------------------------------------
+// GPU / SIMD REALIZATION
+// ----------------------------------------------------------------------------
+//
+// Backend B is NOT:
+//
+//     "a runtime backend selector"
+//
+// It IS:
+//
+//     a compile-time execution realization.
+//
+// Examples:
+//
+//     DVSM<ScalarKernel, CpuBackend, JetProjection, Obs>
+//
+//     DVSM<Avx512Kernel, SimdBackend, JetProjection, Obs>
+//
+//     DVSM<CudaKernel, CudaBackend, JetProjection, Obs>
+//
+//     DVSM<WgslKernel, VulkanBackend, JetProjection, Obs>
+//
+// Each becomes:
+//
+//     a distinct compiled executable geometry.
+//
+// ----------------------------------------------------------------------------
+// PERFORMANCE SEMANTICS (CURRENT MODEL)
+// ----------------------------------------------------------------------------
+//
+// LEGACY:
+//
+//     dyn Backend + dyn Kernel
+//         ↓
+//     runtime dispatch
+//         ↓
+//     vtable indirection
+//
+// CURRENT:
+//
+//     DVSM<K, B, P, O>
+//
+//     fully monomorphized at compile time
+//
+// Consequences:
+//
+// • K::step inlineable
+// • Π_M inlineable
+// • graph coupling fusible
+// • jet reconstruction vectorizable
+// • observer detachment zero-cost
+//
+// LLVM can optimize the FULL evolution operator:
+//
+//     Φ = Π_M ∘ F_A
+//
+// as one coherent executable object.
+//
+// ----------------------------------------------------------------------------
+// NONSMOOTH / HYBRID DYNAMICS SUPPORT
+// ----------------------------------------------------------------------------
+//
+// Projection layer Π_M supports:
+//
+// • crossing events
+// • sliding modes
+// • grazing contact
+// • chatter regimes
+// • active-set symbolic tapes
+// • constrained jet transitions
+//
+// Since Π_M is statically known:
+//
+// • switching masks can vectorize
+// • active-set checks become branch-local
+// • event tapes become sparse side channels
+// • hybrid transitions become topology-visible
+//
+// ----------------------------------------------------------------------------
+// ROLLBACK + SNAPSHOT MODEL
+// ----------------------------------------------------------------------------
+//
+// Rollback buffers are:
+//
+// • immutable after commit
+// • observational only
+// • causally disconnected
+//
+// Therefore:
+//
+//     replay ≠ retrocausality
+//
+// Historical trajectories are analyzable
+// without altering future kernel evolution.
+//
+// ----------------------------------------------------------------------------
+// MEMORY GEOMETRY
+// ----------------------------------------------------------------------------
+//
+// Static specialization allows:
+//
+// • AoS / SoA backend specialization
+// • cache-aware graph packing
+// • SIMD-aligned jet storage
+// • projection fusion
+// • observer streaming separation
+//
+// Thus the compiler optimizes:
+//
+//     state geometry
+//     +
+//     execution geometry
+//
+// simultaneously.
+//
+// ----------------------------------------------------------------------------
+// CAPABILITY BOUNDARY (IMPORTANT)
+// ----------------------------------------------------------------------------
+//
+// DVSM-π IS:
+//
+// • a deterministic dynamical systems framework
+// • a graph-coupled contraction architecture
+// • a constrained hybrid systems runtime
+// • a projection-aware simulation substrate
+// • an observable-rich execution geometry
+//
+// DVSM-π IS NOT:
+//
+// • a cryptographic primitive
+// • a military defense system
+// • an autonomous threat deterrence framework
+// • a universal adversarial-proof architecture
+// • a guarantee of real-world geopolitical protection
+//
+// ----------------------------------------------------------------------------
+// FINAL INTERPRETATION
+// ----------------------------------------------------------------------------
+//
+// DVSM-π is best understood as:
+//
+//     a projection-constrained,
+//     graph-coupled,
+//     deterministic dynamical manifold runtime
 //
 // with:
 //
-//   State([f64; N]) or #[repr(simd)]
+// • frozen-frame causality
+// • static execution specialization
+// • manifold-aware projection operators
+// • quotient-functor observation layers
+// • deterministic replay semantics
+// • scalable SIMD/GPU realization paths
 //
-// Then:
+// FORMALLY:
 //
-//   Backend::apply becomes batch vector operator
+//     Φ : ℳ → ℳ
 //
-// That is where AVX2 / NEON optimization becomes real.
+// together with observational functors:
 //
+//     π_k : Traj(ℳ) → E_k
+//
+// where:
+//
+// • Φ evolves reality
+// • π_k interprets reality
+// • execution topology realizes Φ
+// • observers never alter causality
+//
+// ============================================================================
+// END DVSM-π CURRENT EXECUTION SEMANTICS
 // ============================================================================
