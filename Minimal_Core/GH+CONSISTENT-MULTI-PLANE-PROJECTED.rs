@@ -244,3 +244,220 @@ pub fn dvsm_step(
 
     (projected, jet)
 }
+// ============================================================================
+// DVSM-π — INTEGRATION CONTRACT LAYER (GOODHART-RESISTANT CORE BOUNDARY)
+// ============================================================================
+// Purpose:
+//   This module defines the *architectural invariants* that all DVSM code
+//   must satisfy. It is NOT runtime logic — it is a structural contract.
+//
+// Key Idea:
+//   "If these invariants are violated, the system is no longer DVSM."
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// CORE ARCHITECTURAL INVARIANTS
+// ============================================================================
+//
+// (I1) NO CONTROL FROM OBSERVATION
+//     - Jets (v, a, j) MUST NOT influence state update
+//     - Any derivative used in evolution = architecture violation
+//
+// (I2) SINGLE CAUSAL PATH
+//     x_t → F(x_t, σ_t) → Π_M → x_{t+1}
+//
+//     No side channels:
+//       ✗ energy feedback
+//       ✗ jet feedback
+//       ✗ metric feedback
+//
+// (I3) PROJECTION IS FINAL AUTHORITY
+//     - All feasibility enforcement happens ONLY in Π_M
+//     - No pre-penalties, no soft constraints
+//
+// (I4) OBSERVABILITY IS POST-HOC ONLY
+//     - jets are reconstructed AFTER state commit
+//     - jets are not cached as control state
+//
+// (I5) GRAPH IS EXOGENOUS STRUCTURE
+//     - graph modifies σ_t, never modifies Π_M
+//     - topology ≠ objective function
+//
+// ============================================================================
+
+// ============================================================================
+// CONTROL SURFACE (ONLY VALID ENTRY POINT)
+// ============================================================================
+
+#[inline(always)]
+pub fn dvsm_kernel_step(
+    x: f64,
+    sigma: f64,
+    eta: f64,
+    gamma: f64,
+) -> f64 {
+
+    let contraction = x + eta * (sigma - x);
+    let excitation   = gamma * (sigma - x);
+
+    contraction + excitation
+}
+
+// ============================================================================
+// FEASIBILITY PROJECTION (Π_M)
+// ============================================================================
+//
+// IMPORTANT:
+// This is NOT a clamp in the mathematical sense.
+// Clamp is an implementation proxy only.
+// ============================================================================
+
+#[inline(always)]
+pub fn project_state(x: f64, min: f64, max: f64) -> f64 {
+    x.clamp(min, max)
+}
+
+// ============================================================================
+// JET RECONSTRUCTION (OBSERVATION ONLY)
+// ============================================================================
+//
+// MUST ONLY be called AFTER state history is committed.
+// NEVER used in dvsm_kernel_step.
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub v: f64,
+    pub a: f64,
+    pub j: f64,
+}
+
+#[inline(always)]
+pub fn reconstruct_jet(x2: f64, x1: f64, x0: f64) -> Jet {
+
+    let v = x0 - x1;
+    let v_prev = x1 - x2;
+
+    let a = v - v_prev;
+    let j = a - v_prev;
+
+    Jet { v, a, j }
+}
+
+// ============================================================================
+// SAFE DVSM UPDATE PIPELINE (REFERENCE IMPLEMENTATION)
+// ============================================================================
+//
+// This is the ONLY correct execution order:
+//
+//   1. kernel evolve
+//   2. projection Π_M
+//   3. commit state
+//   4. reconstruct jet (optional diagnostics)
+// ============================================================================
+
+#[inline(always)]
+pub fn dvsm_step(
+    x: f64,
+    x_prev: f64,
+    x_prev2: f64,
+    sigma: f64,
+    eta: f64,
+    gamma: f64,
+    min: f64,
+    max: f64,
+) -> (f64, Jet) {
+
+    // ------------------------------------------------------------
+    // (1) CAUSAL EVOLUTION
+    // ------------------------------------------------------------
+    let x_raw = dvsm_kernel_step(x, sigma, eta, gamma);
+
+    // ------------------------------------------------------------
+    // (2) GEOMETRIC FEASIBILITY ENFORCEMENT
+    // ------------------------------------------------------------
+    let x_proj = project_state(x_raw, min, max);
+
+    // ------------------------------------------------------------
+    // (3) OBSERVATIONAL JET ONLY (NO CONTROL PATH)
+    // ------------------------------------------------------------
+    let jet = reconstruct_jet(x_prev2, x_prev, x_proj);
+
+    (x_proj, jet)
+}
+
+// ============================================================================
+// DEV GUARD RAILS (STATIC RULES)
+// ============================================================================
+
+//
+// These are NOT runtime asserts.
+// They are semantic invariants for developers.
+//
+// ---------------------------------------------------------------------------
+// RULE G1: NO JET IN UPDATE PATH
+// ---------------------------------------------------------------------------
+// ❌ forbidden:
+//     x_next = f(x, jet)
+//
+// ✔ required:
+//     x_next = f(x, sigma)
+//
+// ---------------------------------------------------------------------------
+// RULE G2: NO ENERGY TERMS IN CONTROL
+// ---------------------------------------------------------------------------
+// ❌ forbidden:
+//     x_next -= λ * energy(jet)
+//
+// ✔ required:
+//     energy only for logging / diagnostics
+//
+// ---------------------------------------------------------------------------
+// RULE G3: NO SOFT CONSTRAINT SYSTEMS
+// ---------------------------------------------------------------------------
+// ❌ forbidden:
+//     x_next -= penalty(x)
+//
+// ✔ required:
+//     x_next → Π_M(x_next)
+//
+// ---------------------------------------------------------------------------
+// RULE G4: PROJECTION IS IDENTITY OF VALIDITY
+// ---------------------------------------------------------------------------
+// Meaning:
+//     If x ∈ M → Π_M(x) = x
+//
+// If not:
+//     Π_M is the ONLY correction mechanism
+//
+// ============================================================================
+
+// ============================================================================
+// GOODHART RESISTANCE BOUNDARY
+// ============================================================================
+//
+// Core theorem (informal):
+//
+//   If control variables are causally independent of observables,
+//   then optimization pressure cannot form.
+//
+// In DVSM:
+//
+//   control space   = (x, σ)
+//   observable space = (v, a, j)
+//
+// and:
+//
+//   ∂(control)/∂(observable) = 0
+//
+// ============================================================================
+
+// ============================================================================
+// DEBUG / STRESS HOOK (OPTIONAL)
+// ============================================================================
+
+pub fn sanity_check(x: f64) -> bool {
+    x.is_finite()
+}
