@@ -446,3 +446,145 @@ fn main() {
     η(t+1), H(t+1) updated concurrently
 
 ──────────────────────────────────────────────────────────
+
+// ============================================================
+// DVSM FRAME SEMANTICS (STRICT SNAPSHOT + PRE-COMMIT METRIC)
+// ============================================================
+
+use std::marker::PhantomData;
+
+// ------------------------------------------------------------
+// ARITHMETIC MODEL A (epsilon semantics)
+// ------------------------------------------------------------
+
+#[derive(Clone, Copy)]
+pub struct ArithmeticModel {
+    pub epsilon: f64,
+}
+
+impl ArithmeticModel {
+    #[inline]
+    pub fn norm(&self, a: f64, b: f64) -> f64 {
+        (a - b).abs()
+    }
+
+    #[inline]
+    pub fn gt_eps(&self, d: f64) -> bool {
+        d > self.epsilon
+    }
+}
+
+// ------------------------------------------------------------
+// STATE
+// ------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct State {
+    pub x: f64,
+}
+
+// ------------------------------------------------------------
+// SIGMA (exogenous driver)
+// ------------------------------------------------------------
+
+pub trait Sigma {
+    fn next(&mut self) -> Option<f64>;
+}
+
+// ------------------------------------------------------------
+// DVSM KERNEL
+// ------------------------------------------------------------
+
+pub struct Kernel {
+    pub eta: f64,
+    pub drift: f64,
+}
+
+impl Kernel {
+    #[inline]
+    pub fn step(&self, s: State, sigma: f64) -> State {
+        State {
+            x: s.x + self.eta * (sigma - s.x),
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// FRAME SNAPSHOT (IMPORTANT: IMMUTABLE VIEW)
+// ------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct Frame<S> {
+    pub states: Vec<S>,
+}
+
+// ------------------------------------------------------------
+// CORE RUNTIME
+// ------------------------------------------------------------
+
+pub struct Runtime<SIG: Sigma> {
+    sigma: SIG,
+    kernel: Kernel,
+    arith: ArithmeticModel,
+    _p: PhantomData<SIG>,
+}
+
+impl<SIG: Sigma> Runtime<SIG> {
+    pub fn new(sigma: SIG, kernel: Kernel, arith: ArithmeticModel) -> Self {
+        Self {
+            sigma,
+            kernel,
+            arith,
+            _p: PhantomData,
+        }
+    }
+
+    // =========================================================
+    // FRAME STEP (STRICT SEMANTIC ORDERING)
+    // =========================================================
+    pub fn step(
+        &mut self,
+        prev_frame: &Frame<State>,
+    ) -> (Frame<State>, Vec<f64>) {
+
+        // --------------------------------------------------------
+        // (1) FROZEN READ OF FRAME t
+        // --------------------------------------------------------
+        let frozen = prev_frame.states.clone();
+
+        let mut next_states = Vec::with_capacity(frozen.len());
+        let mut deltas = Vec::with_capacity(frozen.len());
+
+        // --------------------------------------------------------
+        // (2) PRE-COMMIT COMPUTATION (NO STATE MUTATION YET)
+        // --------------------------------------------------------
+        for (i, s_i) in frozen.iter().enumerate() {
+
+            let sigma_t = self.sigma.next().unwrap_or(0.0);
+
+            // F_A application (candidate state)
+            let s_next_i = self.kernel.step(*s_i, sigma_t);
+
+            // neighbor snapshot (same frozen frame)
+            let s_j = frozen[(i + 1) % frozen.len()];
+
+            // ----------------------------------------------------
+            // Δ IS PURE FUNCTIONAL ARTIFACT (NOT CAUSAL INPUT)
+            // Δ_ij(t) = ||F_A(S_i(t), σ) - S_j(t)||
+            // ----------------------------------------------------
+            let delta = self.arith.norm(s_next_i.x, s_j.x);
+
+            deltas.push(delta);
+
+            next_states.push(s_next_i);
+        }
+
+        // --------------------------------------------------------
+        // (3) COMMIT TO FRAME t+1 (ATOMIC BARRIER)
+        // --------------------------------------------------------
+        (
+            Frame { states: next_states },
+            deltas,
+        )
+    }
+}
