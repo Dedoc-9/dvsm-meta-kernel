@@ -588,3 +588,75 @@ impl<SIG: Sigma> Runtime<SIG> {
         )
     }
 }
+
+Frame Semantics: Frozen-State Execution with Pre-Commit Transition Functionals (DVSM Snapshot–Commit Architecture)
+
+import numpy as np
+
+class AdaptiveAgentNetwork:
+    def __init__(self, num_nodes, state_dim):
+        self.S = np.random.rand(num_nodes, state_dim)
+        self.H = np.zeros(num_nodes)
+        self.eta = np.random.rand(num_nodes)
+        self.num_nodes = num_nodes
+
+    def step(self, adj_matrix, sigma, F_A, phi, Psi):
+
+        # ========================================================
+        # FRAME t SNAPSHOT (IMMUTABLE VIEW)
+        # ========================================================
+        S_frozen = np.copy(self.S)
+        eta_frozen = np.copy(self.eta)
+        H_frozen = np.copy(self.H)
+
+        S_next = np.zeros_like(self.S)
+        H_next = np.zeros_like(self.H)
+        eta_next = np.zeros_like(self.eta)
+
+        # ========================================================
+        # PHASE 1 — STATE TRANSITION (F_A ONLY)
+        # ========================================================
+        for i in range(self.num_nodes):
+
+            neighbors = np.where(adj_matrix[i] > 0)[0]
+
+            if len(neighbors) > 0:
+                S_j = S_frozen[neighbors]
+            else:
+                S_j = S_frozen[i]
+
+            S_next[i] = F_A(
+                S_frozen[i],
+                S_j,
+                sigma,
+                eta_frozen[i]
+            )
+
+        # ========================================================
+        # PHASE 2 — PRE-COMMIT METRICS (PURE FUNCTIONAL SPACE)
+        # ========================================================
+        for i in range(self.num_nodes):
+
+            neighbors = np.where(adj_matrix[i] > 0)[0]
+
+            delta_i = 0.0
+
+            for j in neighbors:
+                # IMPORTANT FIX:
+                # Δ uses ONLY frozen neighbor state + candidate transition
+                delta_ij = np.linalg.norm(S_next[i] - S_frozen[j])
+                delta_i += delta_ij
+
+            # ====================================================
+            # STATELESS UPDATE FUNCTIONS (NO IN-PLACE MUTATION)
+            # ====================================================
+
+            H_next[i] = H_frozen[i] + phi(delta_i)
+            eta_next[i] = Psi(eta_frozen[i], delta_i)
+
+        # ========================================================
+        # ATOMIC COMMIT BARRIER (FRAME t+1)
+        # ========================================================
+        self.S = S_next
+        self.H = H_next
+        self.eta = eta_next
