@@ -980,14 +980,17 @@ pub fn compute_derivatives(
         _ => 0.0,
     };
 
-    let j = match (prev2, prev1) {
-        (Some(p2), Some(p1)) => {
-            let v_prev = p1.x - p2.x;
-            let a_prev = v_prev;
-            a - a_prev
-        }
-        _ => 0.0,
-    };
+  let j = match (prev2, prev1) {
+    (Some(p2), Some(p1)) => {
+        let v_prev = p1.x - p2.x;
+        let v_prev_prev = p2.x - p2.x; // NOTE: placeholder limitation (no t-3 state)
+
+        let a_prev = v_prev - v_prev_prev;
+
+        a - a_prev
+    }
+    _ => 0.0,
+};
 
     Derivatives {
         velocity: v,
