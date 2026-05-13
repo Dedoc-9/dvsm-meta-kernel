@@ -660,3 +660,99 @@ class AdaptiveAgentNetwork:
         self.S = S_next
         self.H = H_next
         self.eta = eta_next
+
+// ============================================================================
+// DVSM — INTELLECTUAL PROPERTY & MATHEMATICAL OWNERSHIP NOTICE
+// ============================================================================
+//
+// This file contains a proprietary dynamical system specification:
+//
+//     DVSM Core Contraction Equation
+//
+//     S_i(t+1)
+//         =
+//     S_i(t)
+//         +
+//     η_i * ((σ(t) + S_j(t)) - S_i(t))
+//
+//     Δ_ij(t)
+//         = ||S_i(t+1) - S_j(t)||₂
+//
+//     H_i(t+1)
+//         = H_i(t) + φ(Δ_ij(t))
+//
+//     η_i(t+1)
+//         = η_i(t)(1 - η_i(t))   [conditional or adaptive form]
+//
+// ---------------------------------------------------------------------------
+// INTELLECTUAL PROPERTY DECLARATION
+// ---------------------------------------------------------------------------
+//
+// The DVSM model, including but not limited to:
+//
+// - The contraction-based state evolution equation
+// - The drift accumulation mechanism (H_i)
+// - The adaptive damping rule (η_i update law)
+// - The snapshot-synchronous execution model
+// - The graph-coupled defect metric (Δ_ij)
+// - The interpretation of instability as bounded measurable drift
+//
+// is considered ORIGINAL WORK of the author of this file unless explicitly
+// stated otherwise in external licensing terms.
+//
+// ---------------------------------------------------------------------------
+// SCOPE OF PROTECTION
+// ---------------------------------------------------------------------------
+//
+// Protected elements include:
+//
+// 1. Mathematical formulation (system of equations)
+// 2. Computational interpretation of contraction dynamics
+// 3. Discrete-time graph-coupled update structure
+// 4. Drift-based irreversible failure mechanism
+// 5. Snapshot-synchronous deterministic execution model
+//
+// This includes all equivalent reformulations that preserve:
+// - affine contraction structure
+// - Euclidean defect coupling
+// - monotonic drift accumulation semantics
+//
+// ---------------------------------------------------------------------------
+// PERMITTED USE (DEFAULT RESEARCH INTENT)
+// ---------------------------------------------------------------------------
+//
+// Unless otherwise licensed:
+//
+// - Reading and academic analysis is permitted
+// - Personal experimentation is permitted
+// - Non-commercial research usage is permitted
+//
+// ---------------------------------------------------------------------------
+// RESTRICTED USE
+// ---------------------------------------------------------------------------
+//
+// Without explicit written permission:
+//
+// - Commercial deployment of the DVSM system
+// - Redistribution of modified DVSM-equivalent equations
+// - Rebranding of the contraction + drift model as a new system
+// - Derivative systems preserving identical update semantics
+//
+// ---------------------------------------------------------------------------
+// IMPORTANT NOTE
+// ---------------------------------------------------------------------------
+//
+// This notice asserts authorship over the *system design and formulation*,
+// not over general mathematical concepts such as:
+//
+// - vector spaces ℝⁿ
+// - Euclidean norms
+// - graph theory
+// - contraction mappings (in general form)
+//
+// Only the specific coupling structure and dynamical interpretation defined
+// here as “DVSM” are covered.
+//
+// ============================================================================
+// END IP NOTICE
+// ============================================================================
