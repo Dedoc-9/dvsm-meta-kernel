@@ -7,6 +7,15 @@
 // operating in derivative-augmented state space
 // with stability constraints replacing reward logic
 
+// DEV NOTE (CRITICAL INSIGHT)
+// DVSM replaces optimization over states with feasibility over trajectories.
+//
+// Classical systems: optimize objective(x_t)
+// DVSM system:      constrain admissible trajectories x_{0:t} ∈ valid manifold
+//
+// This shifts the problem from “best state” to “allowed evolution paths”,
+// making behavior a geometric constraint problem rather than scalar optimization.
+
 // ============================================================================
 // Author: Daniel J. Dillberg
 // ============================================================================
