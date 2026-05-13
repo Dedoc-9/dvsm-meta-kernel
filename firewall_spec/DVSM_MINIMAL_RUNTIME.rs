@@ -2,7 +2,237 @@
 DVSM MINIMAL RUNTIME — INTRO BLOCK + DEV NOTES + FUNDAMENTALS
 Author: Daniel J. Dillberg
 ============================================================
+/*!
+# DVSM Minimal Core — Execution Model (v0.1)
 
+## INTRO BLOCK
+
+This file defines the *compressed operational core* of the DVSM system.
+
+All categorical, sheaf-theoretic, and higher-stack constructs have been
+eliminated in favor of a single measurable substrate:
+
+- State vectors (S)
+- Scalar contraction (η)
+- Drift accumulation (H)
+
+The system is intentionally **memoryless per step**, except for a bounded
+scalar drift ledger used only for failure detection.
+
+The runtime is a deterministic discrete dynamical system:
+
+    S_{t+1} = S_t + η ((σ_t + S_neighbor) - S_t)
+
+All higher abstractions (connections, torsion, holonomy, curvature) are
+reduced to observable Euclidean error accumulation.
+
+---
+
+## WHAT CHANGED IN THIS FILE (FROM PREVIOUS LAYERS)
+
+### 1. Removed abstract categorical layers
+Deleted:
+- ωₜ (connection form)
+- δₜ (torsion tensor)
+- Čech cohomology checks
+- inverse limits / derived functors
+- stackification / Grothendieck topology
+- sheaf gluing logic
+
+Replaced with:
+- single scalar drift accumulator (H)
+- local Euclidean defect measurement (Δ)
+
+---
+
+### 2. Replaced topology with direct neighbor sampling
+Old model:
+- global cover + Čech nerve + overlap consistency
+
+New model:
+- single neighbor state interaction per step
+
+Result:
+- O(N²) global consistency checks removed (conceptually)
+- replaced with local O(1) interaction (implementation-dependent)
+
+---
+
+### 3. Replaced curvature logic with threshold arithmetic
+Old model:
+- Ω_J(t), δ_t, holonomy transport laws
+
+New model:
+- if Δ > ε → increase drift H, shrink η
+
+Interpretation:
+- curvature = error magnitude
+- torsion = adaptive damping response
+- holonomy = accumulated irreversible drift
+
+---
+
+## DEV NOTES (PRODUCTION ENGINEERING ISSUES)
+
+### 1. Neighbor selection ambiguity (CRITICAL)
+
+Current logic:
+
+    snapshot.values().find(|&&s| s != node.state)
+
+#### Problem:
+- unstable under consensus
+- self-matching fallback causes invalid excitation:
+
+    σ + S_self
+
+#### Fix requirement:
+Use explicit graph adjacency or deterministic peer index:
+
+    neighbor_id ∈ adjacency_list[i]
+
+OR:
+
+    select nearest neighbor by metric distance, not equality
+
+---
+
+### 2. Floating-point equality instability (CRITICAL)
+
+Current logic:
+
+    s != node.state
+
+#### Problem:
+- f32 comparisons are not stable across:
+  - SIMD reorderings
+  - compiler optimizations
+  - GPU/CPU divergence
+
+#### Fix:
+
+Replace with epsilon metric:
+
+    |s - node.state| > ε_cmp
+
+or better:
+
+    use L2 distance threshold
+
+---
+
+### 3. Complexity bottleneck (HIGH)
+
+Current structure:
+- implicit scan over all snapshot nodes
+- leads to O(N²) interaction pattern
+
+#### Fix options:
+
+A. Spatial hashing (recommended)
+    - bucket nodes by quantized state space
+
+B. Fixed topology graph
+    - adjacency list per node
+
+C. Sparse interaction kernel
+    - only k-nearest neighbors
+
+---
+
+## ARITHMETIC FUNDAMENTALS (CORE MODEL ASSUMPTIONS)
+
+### 1. State space
+Each node lives in:
+
+    S ∈ ℝⁿ
+
+Typically:
+- n = 2, 4, 8, 16 depending on signal resolution
+
+---
+
+### 2. Update rule is affine contraction
+
+    S_{t+1} = (1 - η) S_t + η (σ_t + S_j)
+
+Interpretation:
+- convex interpolation between:
+  - current state
+  - external excitation field
+
+---
+
+### 3. Contraction coefficient η
+
+    η ∈ (0, 1)
+
+Behavior:
+- η → 0 : frozen node (no adaptation)
+- η → 1 : fully reactive node (unstable if noisy)
+
+Stability condition:
+
+    0 < η < 0.5  (practical stability regime)
+
+---
+
+### 4. Drift accumulation H
+
+Defined as:
+
+    H_{t+1} = H_t + Δ_{ij}
+
+where:
+
+    Δ_{ij} = ||S_i - S_j||
+
+Interpretation:
+- irreversible disagreement ledger
+- monotonic increasing scalar
+- acts as failure detector, not corrective signal
+
+---
+
+### 5. Failure condition
+
+System transitions to FRACTURED state when:
+
+    H_i > H_max
+
+Meaning:
+- node has accumulated too much irreducible inconsistency
+- cannot be stabilized via local contraction alone
+
+---
+
+## SUMMARY OF SYSTEM BEHAVIOR
+
+This is no longer a geometric stack system.
+
+It is:
+
+> A bounded, contractive, distributed dynamical system with
+> scalar drift-based failure detection.
+
+All higher categorical structures were projections of:
+
+- error propagation
+- contraction dynamics
+- bounded accumulation
+
+---
+
+## NEXT ENGINEERING STEP (OPTIONAL)
+
+If extending this system further, the only meaningful upgrades are:
+
+1. Replace neighbor selection with explicit graph topology
+2. Add deterministic synchronization barrier (if distributed)
+3. Replace scalar drift H with vector-valued residual memory
+4. Introduce stochastic input noise model for stability testing
+*/
+   
 OVERVIEW
 --------
 This file implements a minimal distributed consensus-style
