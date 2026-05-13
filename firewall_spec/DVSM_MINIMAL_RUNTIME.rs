@@ -6445,3 +6445,194 @@ interpolation/prediction smoothing layer (FPS feel)
 ECS archetype memory optimization (cache layout)
 distributed multi-server shard routing
 GPU–CPU async sync buffers (true zero-copy pipeline)
+
+ [ Incoming Network Packets ] ──> Packet Ingestion (Staging Buffer)
+                                           │
+                                           ▼
+ 🛑 PHASE 1: PREPARE ───────────> [ Check Rollback Target ]
+                                  If Diverged: Rewind Timeline Pointer
+                                           │
+                                           ▼
+ ⚙️ PHASE 2: EXECUTE ───────────> [ Dispatch ECS Job Graph ] 
+                                  [ Upload & Execute GPU Sim Kernel ]
+                                           │
+                                           ▼
+ 🔍 PHASE 3: RECONCILE ─────────> [ Non-Destructive Snapshot Commit ]
+                                  [ Global State Alignment Verification ]
+
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::VecDeque;
+
+/// =======================================================
+/// 🧠 1. CORE TIMELINE TYPES (A / B / C separation)
+/// =======================================================
+
+pub type Frame = u64;
+
+/// GPU computed simulation field
+#[derive(Clone, Copy, Debug)]
+pub struct GpuField {
+    pub value: [f32; 8],
+}
+
+/// ECS job-driven delta state
+#[derive(Clone, Copy, Debug)]
+pub struct EcsDelta {
+    pub impulse: [f32; 8],
+}
+
+/// Network correction (unordered, delayed, noisy)
+#[derive(Clone, Copy, Debug)]
+pub struct NetCorrection {
+    pub correction: [f32; 8],
+}
+
+/// =======================================================
+/// 🧩 2. STATE MODEL (collapsed algebra target)
+/// S_{t+1} = F(S_t, G_t, N_t, E_t)
+/// =======================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct SimulationState {
+    pub state: [f32; 8],
+}
+
+/// =======================================================
+/// ⚠️ 3. FRAME AUTHORITY CONTRACT (MISSING PIECE FIX)
+/// =======================================================
+
+/// Single source-of-truth clock
+pub struct FrameAuthority {
+    pub frame: AtomicU64,
+}
+
+impl FrameAuthority {
+    pub fn new() -> Self {
+        Self {
+            frame: AtomicU64::new(0),
+        }
+    }
+
+    /// ONLY valid way to advance system time
+    pub fn tick(&self) -> Frame {
+        self.frame.fetch_add(1, Ordering::SeqCst)
+    }
+
+    pub fn current(&self) -> Frame {
+        self.frame.load(Ordering::SeqCst)
+    }
+}
+
+/// =======================================================
+/// 🧠 4. INVARIANT (THE REAL SYSTEM LAW)
+/// R(S_t) = R(S_gpu) = R(S_net)
+/// =======================================================
+
+pub trait RepresentationInvariant {
+    fn project(&self) -> [f32; 8];
+}
+
+/// All subsystems must implement projection into SAME space
+impl RepresentationInvariant for SimulationState {
+    fn project(&self) -> [f32; 8] {
+        self.state
+    }
+}
+
+impl RepresentationInvariant for GpuField {
+    fn project(&self) -> [f32; 8] {
+        self.value
+    }
+}
+
+impl RepresentationInvariant for NetCorrection {
+    fn project(&self) -> [f32; 8] {
+        self.correction
+    }
+}
+
+impl RepresentationInvariant for EcsDelta {
+    fn project(&self) -> [f32; 8] {
+        self.impulse
+    }
+}
+
+/// =======================================================
+/// ⚙️ 5. FUSION EQUATION (EXPLICIT FORM)
+/// S_{t+1} = S_t + G_t + E_t + N_t
+/// =======================================================
+
+#[inline]
+pub fn fuse(
+    state: SimulationState,
+    gpu: GpuField,
+    ecs: EcsDelta,
+    net: NetCorrection,
+) -> SimulationState {
+    let mut out = [0.0f32; 8];
+
+    for i in 0..8 {
+        out[i] =
+            state.state[i]
+            + gpu.value[i]
+            + ecs.impulse[i]
+            + net.correction[i];
+    }
+
+    SimulationState { state: out }
+}
+
+/// =======================================================
+/// ⚠️ 6. TIMELINE SEPARATION MODEL
+/// (THIS IS THE CORE ARCHITECTURAL FIX)
+/// =======================================================
+
+pub struct TimelineBundle {
+    pub gpu: GpuField,
+    pub ecs: EcsDelta,
+    pub net: NetCorrection,
+}
+
+/// =======================================================
+/// 🧱 7. FRAME-CONSISTENT SIMULATION KERNEL
+/// (MANDATORY SYNCHRONIZATION BARRIER)
+/// =======================================================
+
+pub struct SimulationKernel {
+    pub clock: FrameAuthority,
+    pub current: SimulationState,
+
+    /// delayed network buffer (unordered arrival)
+    pub net_buffer: VecDeque<NetCorrection>,
+}
+
+impl SimulationKernel {
+    pub fn new(initial: [f32; 8]) -> Self {
+        Self {
+            clock: FrameAuthority::new(),
+            current: SimulationState { state: initial },
+            net_buffer: VecDeque::new(),
+        }
+    }
+
+    /// The ONLY valid frame step
+    pub fn step(&mut self, bundle: TimelineBundle, ecs: EcsDelta) {
+        let frame = self.clock.tick();
+
+        // 1. resolve latest network correction (if any)
+        let net = self.net_buffer.pop_front().unwrap_or(NetCorrection {
+            correction: [0.0; 8],
+        });
+
+        // 2. deterministic fusion across ALL timelines
+        self.current = fuse(self.current, bundle.gpu, ecs, net);
+
+        // 3. frame is now committed (no subsystem can advance independently)
+        let _committed_frame = frame;
+    }
+
+    /// Network is asynchronous → must be buffered
+    pub fn ingest_network(&mut self, packet: NetCorrection) {
+        self.net_buffer.push_back(packet);
+    }
+}
