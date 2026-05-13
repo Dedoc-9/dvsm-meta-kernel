@@ -290,9 +290,35 @@ impl<S: SigmaGen> DVSMRuntime<S> {
             // ADAPTIVE DAMPING
             // η <- η(1 - η)
             // ------------------------------------------------------------
+            
+// η update = function(defect, current state, recovery pressure)
+// ============================================================
+// ADAPTIVE GAIN FIELD (STABILITY-COUPLED, NORMALIZED)
+// ============================================================
 
-            let next_eta = node_i.eta * (1.0 - node_i.eta);
+// sensitivity of instability response
+let lambda: f64 = 0.6;
 
+// recovery pressure
+let beta: f64 = 0.05;
+
+// bounded defect response φ(Δ)
+let phi: f64 = defect / (1.0 + defect);
+
+// normalize control influence so system is scale-stable
+let control = lambda * phi - beta;
+
+// η update (single normalized feedback channel)
+let mut next_eta: f64 =
+    node_i.eta * (1.0 - control);
+
+// enforce bounded DVSM invariants
+if next_eta < 0.01 {
+    next_eta = 0.01;
+}
+if next_eta > 0.95 {
+    next_eta = 0.95;
+}           
             // ------------------------------------------------------------
             // FRACTURE CONDITION
             // ------------------------------------------------------------
