@@ -28,6 +28,89 @@
 //   all updates computed from frozen frame state
 //
 // ============================================================================
+//
+// DVSM — CORE CLARIFICATION (SINGLE CONSOLIDATED VIEW)
+
+// At its core, DVSM is a deterministic, snapshot-synchronous dynamical system on a graph:
+
+// 1. Kernel dynamics (causal engine)
+//    S_i(t+1) = S_i(t) + η_i · (coupled_signal - S_i(t))
+
+//   → This is a contractive nonlinear update rule on a graph
+//   → Equivalent to discrete-time contraction mapping with external forcing σ
+//   → Includes neighbor diffusion (local or global coupling variants)
+
+// 2. Snapshot isolation (hard invariant)
+//   All S(t+1) are computed from frozen S(t)
+
+//   → No in-place reads of evolving state
+//   → Guarantees determinism, replayability, and race-free parallelism
+//   → Separates compute phase (F_A) from commit phase
+
+// 3. Stability + drift layer (secondary dynamics)
+//   Δ_ij = ||S_i - S_j||            (geometry / deviation field)
+//   H_i(t+1) = H_i(t) + φ(Δ_ij)     (cumulative instability)
+//   η_i(t+1) = Ψ(η_i, Δ_ij)         (adaptive contraction strength)
+
+//   → Δ defines geometry of divergence
+//   → H accumulates irreversible “stress”
+//   → η modulates contraction speed (stability feedback control)
+
+// 4. Dual interaction regimes
+//   - Graph-local: neighbor coupling (O(E·D)) → scalable diffusion dynamics
+//   - Global: pairwise Δ_ij (O(N²·D)) → diagnostic fracture / coherence field
+
+// 5. Observer layer (π-modes)
+//   π_classical, π_fracture, etc. are pure projections:
+
+//   π_k : Traj(S) → ℝ^m
+
+//   → Read-only transformations of frozen trajectories
+//   → No causal influence on kernel
+//   → Can run in parallel / asynchronously / GPU-side
+
+// 6. System identity (compressed form)
+
+//   DVSM = deterministic graph-coupled contraction system
+//          + adaptive stability field (η)
+//          + cumulative drift memory (H)
+//          + geometric defect metric (Δ)
+//          + pure observational functor layer (π)
+
+// 7. Key structural invariant
+
+//   kernel = causality
+//   π-modes = interpretation
+//   drift = memory of instability
+//   η = self-regulating contraction strength
+
+//   → Observers never influence dynamics
+//   → Only kernel evolves state
+
+// 8. Practical classification
+
+//   DVSM behaves like:
+//   - a synchronous physics simulation kernel
+//   - with contraction dynamics on a graph
+//  - augmented by stability-aware step-size control
+//   - plus post-hoc geometric diagnostics
+
+//   Not a learning system in the ML sense,
+//   but a deterministic dynamical system with measurable instability feedback.
+
+// DVSM is best categorized as:
+
+// ❖ Not:
+// a neural network (no loss minimization)
+// a probabilistic model (no inference)
+// a reinforcement learning system (no reward loop)
+
+// ❖ But rather:
+// deterministic dynamical system
+// graph-coupled contraction field
+// stability-aware iterative map
+// observable-rich simulation kernel
+//
 // ============================================================================
 // DVSM — CLARIFICATION (ARITHMETIC MODEL SPLIT + MUTATION SEMANTICS)
 // ============================================================================
