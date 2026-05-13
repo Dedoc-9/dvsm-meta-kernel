@@ -1051,3 +1051,146 @@ impl Graph {
 // - research / analysis → HYBRID
 // - small N / physics probing → GLOBAL
 // ============================================================================ 
+
+// DVSM MODE DISCOVERY ADDENDUM (ENGINE-LOCKED FORMALIZATION)
+// Single-Kernel + Multi-Projection Observation Layer
+// NOTE: π_modes are PURELY OBSERVATIONAL (no causal feedback)
+
+use std::sync::Arc;
+
+// ============================================================
+// CORE STATE KERNEL (CAUSAL REALITY)
+// ============================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct State<const N: usize> {
+    pub s: [f64; N],
+    pub eta: f64,
+}
+
+// S(t+1) = F_A(S(t), σ(t), η)
+#[inline(always)]
+pub fn f_a<const N: usize>(s: &State<N>, sigma: &[f64; N]) -> State<N> {
+    let mut next = [0.0; N];
+
+    for i in 0..N {
+        next[i] = (1.0 - s.eta) * s.s[i] + s.eta * sigma[i];
+    }
+
+    State { s: next, eta: s.eta }
+}
+
+// ============================================================
+// SNAPSHOT (FROZEN FRAME INVARIANT)
+// ============================================================
+
+#[derive(Clone)]
+pub struct Snapshot<const N: usize> {
+    pub s: Vec<State<N>>,
+}
+
+// ============================================================
+// OBSERVATION FUNCTOR SPACE (π_mode)
+// ============================================================
+
+pub trait PiMode<const N: usize>: Send + Sync {
+    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64>;
+}
+
+// ------------------------------------------------------------
+// π_classical: L2 residual geometry
+// ------------------------------------------------------------
+pub struct PiClassical;
+
+impl<const N: usize> PiMode<N> for PiClassical {
+    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64> {
+        snap.s
+            .windows(2)
+            .map(|w| {
+                let mut acc = 0.0;
+                for i in 0..N {
+                    let d = w[0].s[i] - w[1].s[i];
+                    acc += d * d;
+                }
+                acc.sqrt()
+            })
+            .collect()
+    }
+}
+
+// ------------------------------------------------------------
+// π_fracture: instability field (drift proxy)
+// ------------------------------------------------------------
+pub struct PiFracture;
+
+impl<const N: usize> PiMode<N> for PiFracture {
+    fn eval(&self, snap: &Snapshot<N>) -> Vec<f64> {
+        snap.s
+            .windows(2)
+            .map(|w| {
+                let mut acc = 0.0;
+                for i in 0..N {
+                    let d = w[0].s[i] - w[1].s[i];
+                    acc += d * d;
+                }
+                acc.sqrt().powi(2)
+            })
+            .collect()
+    }
+}
+
+// ============================================================
+// KERNEL ENGINE (CAUSAL ONLY)
+// ============================================================
+
+pub struct DVSM<const N: usize> {
+    pub state: Vec<State<N>>,
+}
+
+impl<const N: usize> DVSM<N> {
+    pub fn step(&mut self, sigma: &[f64; N]) {
+        let snapshot = self.state.clone(); // freeze frame
+
+        let mut next = Vec::with_capacity(snapshot.len());
+
+        for s in &snapshot {
+            next.push(f_a(s, sigma));
+        }
+
+        self.state = next; // atomic commit
+    }
+
+    pub fn snapshot(&self) -> Snapshot<N> {
+        Snapshot {
+            s: self.state.clone(),
+        }
+    }
+}
+
+// ============================================================
+// OBSERVATION ENGINE (ASYNC SAFE, NO MUTATION)
+// ============================================================
+
+pub struct Observer<const N: usize> {
+    pub classical: Arc<dyn PiMode<N>>,
+    pub fracture: Arc<dyn PiMode<N>>,
+}
+
+impl<const N: usize> Observer<N> {
+    pub fn analyze(&self, snap: &Snapshot<N>) -> (Vec<f64>, Vec<f64>) {
+        let a = self.classical.eval(snap);
+        let b = self.fracture.eval(snap);
+        (a, b)
+    }
+}
+
+// ============================================================
+// EXECUTION CONTRACT
+// ============================================================
+//
+// 1. DVSM::step() owns ALL mutation (causal kernel)
+// 2. Observer ONLY reads Snapshot (no feedback path)
+// 3. π_modes are functorial projections π: Traj → E
+// 4. Frame invariance guaranteed via snapshot cloning
+//
+// ============================================================
