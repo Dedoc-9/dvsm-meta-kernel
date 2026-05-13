@@ -121,45 +121,168 @@
 // No scalar objective participates in control flow.
 //
 // ============================================================================
-//
-// GOODHART RESISTANCE STATEMENT
+// GOODHART RESISTANCE STATEMENT (REFINED)
 // ============================================================================
 //
-// Observables are explicitly decoupled from control:
+// The primary advantage of this architecture is Systemic Integrity:
 //
-//   observables → descriptive projections only
-//   control      → constrained geometric update + projection
+// The system is not optimized toward metrics.
+// The system evolves within constraints where metrics are only observations.
 //
-// This prevents:
+// This creates a structural separation between:
 //
-//   observable → objective substitution
-//
-// by ensuring:
-//
-//   metrics are epiphenomenal outputs of trajectory geometry
-//
-// and are NOT used to steer the update rule.
+//   control dynamics   → geometric feasibility evolution
+//   observables       → epiphenomenal state projections
 //
 // ============================================================================
-//
-// SYSTEM CLASSIFICATION
+// CORE RESULT: "UNGAMEABILITY BY CONSTRUCTION"
 // ============================================================================
 //
-// DVSM is a:
+// The system is not made robust to gaming.
+//
+// Rather, it is structured such that:
+//
+//   gaming is not a well-defined operation in the control space.
+//
+// Because:
+//
+//   control actions do not optimize observables,
+//   observables cannot be directly targeted by the update rule.
+//
+// ============================================================================
+// ADVANTAGE 1 — ELIMINATION OF METRIC FIXATION
+// ============================================================================
+//
+// In classical optimization systems:
+//
+//   x_{t+1} = argmin_x Loss(metric(x))
+//
+// agents can exploit representational shortcuts:
+//
+//   maximize metric ≠ perform task
+//
+// In DVSM-π:
+//
+//   x̃_{t+1} = F_A(x_t, σ_t) + γ(σ_t − P(x_t))
+//   x_{t+1}  = Π_M(x̃_{t+1})
+//
+// Key property:
+//
+//   metrics are not part of the control objective.
+//
+// Therefore:
+//
+//   no gradient path exists from metric → control update.
+//
+// Result:
+//
+//   shortcut exploitation collapses,
+//   because shortcuts are not in the optimization domain.
+//
+// ============================================================================
+// ADVANTAGE 2 — STRUCTURAL STABILITY (GEOMETRIC HOMEOSTASIS)
+// ============================================================================
+//
+// Stability is enforced through:
+//
+//   trajectory feasibility constraints (Π_M)
+//   bounded excitation response (γ term)
+//   contraction dynamics (η term)
+//
+// This produces a system analogous to biological regulation:
+//
+//   not optimizing heart rate,
+//   but maintaining viability through coupled feedback constraints.
+//
+// Result:
+//
+//   stability emerges from structure,
+//   not from reward minimization.
+//
+// ============================================================================
+// ADVANTAGE 3 — HIGH-FIDELITY OBSERVABILITY
+// ============================================================================
+//
+// Observables are defined as:
+//
+//   O(x) = π-projection of system state
+//
+// They are:
+//
+//   • non-controlling
+//   • non-influential on update rules
+//   • causally downstream of dynamics
+//
+// Therefore:
+//
+//   measurement does NOT perturb optimization,
+//   because no optimization target exists.
+//
+// Result:
+//
+//   observability becomes diagnostic rather than adversarial.
+//
+// Data reflects system state without feeding back into control pressure.
+//
+// ============================================================================
+// SUMMARY PROPERTY
+// ============================================================================
+//
+// DVSM-π achieves:
+//
+//   stability without optimization pressure
+//   integrity without metric targeting
+//   observability without control contamination
+//
+// This is what is meant by:
+//
+//   Systemic Integrity
+//
+// ============================================================================
+// SYSTEM CLASSIFICATION (REFINED)
+// ============================================================================
+//
+// DVSM is:
 //
 //   - discrete-time constrained dynamical system
+//     (state evolves in explicit time steps under deterministic rules)
+//
 //   - control-affine evolution map with projection closure
-//   - feasibility-preserving contraction operator
-//   - trajectory manifold evolution engine
+//     (input influences are affine in structure, with feasibility enforced via Π_M)
+//
+//   - feasibility-preserving dynamical operator
+//     (admissible states are maintained through geometric constraint enforcement,
+//      not scalar correction)
+//
+//   - trajectory-manifold evolution engine
+//     (validity is defined over entire state sequences, not isolated points)
+//
+// ============================================================================
 //
 // NOT:
 //
 //   - reward optimization system
+//     (no scalar reward or loss function governs state evolution)
+//
 //   - penalty minimization framework
+//     (no subtractive energy shaping or cost-driven descent dynamics)
+//
 //   - scalar objective maximizer
+//     (no global or local objective function is optimized or differentiated)
 //
 // ============================================================================
 //
+// CORE INTERPRETATION NOTE
+// ============================================================================
+//
+// The system evolves by:
+//
+//   constrained generation + geometric projection
+//
+// rather than:
+//
+//   objective-driven improvement.
+// ============================================================================
 // ENDPOINT INTENT
 // ============================================================================
 //
@@ -178,8 +301,6 @@
 //
 // and must NOT reintroduce scalar optimization pressure.
 //
-// ============================================================================
-
 // ============================================================================
 // DVSM-π — PROJECTED JET-CONSTRAINED MULTI-NODE CONTROL SYSTEM (Definition 1)
 // ============================================================================
