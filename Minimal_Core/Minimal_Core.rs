@@ -1,5 +1,9 @@
 // ============================================================================
 // DVSM — DISTRIBUTED GRAPH-COUPLED CONTRACTION SYSTEM
+// + CURRENT STATE: frozen-frame kernel + SIMD-ready + GPU-mappable
+// + OBSERVATION LAYERS: π_classical / π_fracture / π_modes (read-only projections)
+// + EXTENSIONS: rollback buffers, spatial partitioning, async telemetry, GPU dispatch model
+// + GUARANTEE: deterministic execution, snapshot-isolated mutation, no observer feedback into kernel
 // Hardened Minimal Runtime
 // Author: Daniel J. Dillberg
 // ============================================================================
