@@ -5,6 +5,22 @@
 // Evolution Stage: Stability Layer Rebalanced (Post-Goodhart Hardening)
 // Status: Mathematical Endpoint Form (Minimal, Constraint-Complete Kernel)
 // ============================================================================
+// DVSM-π+++ CORE UPDATE LAW
+//
+// The system evolves by unconstrained generation followed by geometric closure:
+//
+//     x_{t+1} = Π_M( F(x_t, σ_t) )
+//
+// where:
+//   F      : unconstrained graph-coupled evolution operator
+//   Π_M    : stratified projection onto feasible jet-manifold M
+//   x_t    : current state on or near M
+//   σ_t    : external excitation signal
+//
+// Interpretation:
+//   - F proposes a candidate transition in ambient space
+//   - Π_M enforces manifold consistency and feasibility closure
+//   - only projected states are admitted into system trajectory
 //
 // ============================================================================
 // SYSTEM EVOLUTION (REFINED SEMANTIC HISTORY)
