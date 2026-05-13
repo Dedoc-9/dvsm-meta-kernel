@@ -64,7 +64,49 @@
 //   • no scalar "objective pressure" exists in dynamics
 //
 // ============================================================================
-// KEY PRINCIPLE
+// KEY PRINCIPLE (REFINED)
+// ============================================================================
+//
+// Stability is NOT an optimization result.
+//
+// Stability is a geometric property of constrained evolution.
+//
+// The system does NOT converge by minimizing energy.
+// The system remains stable by ensuring:
+//
+//   evolution is restricted to a feasible trajectory manifold
+//   while preserving bounded excitation degrees of freedom
+//
+// In other words:
+//
+//   stability = property of allowed paths
+//   not       = outcome of scalar minimization
+//
+// ============================================================================
+//
+// FUNDAMENTAL MATHEMATICAL ENDPOINT
+// ============================================================================
+//
+// The DVSM core is expressed as a two-stage map:
+//
+//   x̃_{t+1} = x_t + η(σ_t - x_t) + γ(σ_t - P(x_t))
+//
+//   x_{t+1}  = Π_M(x̃_{t+1})
+//
+// WHERE:
+//
+//   x_t   : system state
+//   σ_t   : external input signal
+//   P(x_t): state-conditioned expected input manifold (non-controlling prior)
+//
+//   η     : contraction coefficient (controls inertia toward equilibrium)
+//   γ     : excitation coefficient (controls responsiveness to deviation)
+//
+//   Π_M   : feasibility projection operator enforcing admissible state space
+//
+// ============================================================================
+//
+// CORE DESIGN PRINCIPLE
 // ============================================================================
 //
 // Stability is NOT achieved by minimizing energy.
@@ -74,82 +116,67 @@
 //   restricting evolution to a feasible trajectory manifold
 //   while preserving bounded excitation degrees of freedom
 //
-// ============================================================================
-//
-// ============================================================================
-//
-// FUNDAMENTAL MATHEMATICAL ENDPOINT
-// ----------------------------------------------------------------------------
-// The DVSM core is now expressed as:
-//
-//     x_{t+1} = Π_M( x_t + η(σ_t - x_t) + γ(σ_t - P(x_t)) )
-//
-// WHERE:
-//
-//   x_t        : system state
-//   σ_t        : external input signal
-//   P(x_t)     : expected input manifold (state-conditioned prior)
-//   η          : contraction coefficient (stability)
-//   γ          : excitation preservation coefficient
-//   Π_M        : feasibility projection operator (constraints + bounds)
-//
-// ============================================================================
-//
-// CORE DESIGN PRINCIPLE
-// ----------------------------------------------------------------------------
-// Stability is NOT achieved by minimizing energy.
-//
-// Stability is achieved by:
-//
-//     restricting evolution to a feasible trajectory manifold
-//     while preserving bounded excitation degrees of freedom
+// The kernel is free evolution.
+// The projection enforces validity.
+// No scalar objective participates in control flow.
 //
 // ============================================================================
 //
 // GOODHART RESISTANCE STATEMENT
-// ----------------------------------------------------------------------------
-// Optimization targets are explicitly separated from observables:
+// ============================================================================
 //
-//     observables → do NOT define control objective
-//     control     → operates on constrained geometry
+// Observables are explicitly decoupled from control:
+//
+//   observables → descriptive projections only
+//   control      → constrained geometric update + projection
 //
 // This prevents:
 //
-//     metric = objective collapse
+//   observable → objective substitution
 //
 // by ensuring:
 //
-//     metrics remain epiphenomenal projections
+//   metrics are epiphenomenal outputs of trajectory geometry
+//
+// and are NOT used to steer the update rule.
 //
 // ============================================================================
 //
 // SYSTEM CLASSIFICATION
-// ----------------------------------------------------------------------------
+// ============================================================================
+//
 // DVSM is a:
 //
 //   - discrete-time constrained dynamical system
-//   - control-affine update process
-//   - projection-stabilized contraction map
-//   - trajectory-feasible evolution engine
+//   - control-affine evolution map with projection closure
+//   - feasibility-preserving contraction operator
+//   - trajectory manifold evolution engine
 //
 // NOT:
 //
-//   - reward optimizer
-//   - penalty minimization system
+//   - reward optimization system
+//   - penalty minimization framework
 //   - scalar objective maximizer
 //
 // ============================================================================
 //
 // ENDPOINT INTENT
-// ----------------------------------------------------------------------------
-// This represents the minimal stable form of DVSM:
+// ============================================================================
+//
+// Minimal DVSM structure:
 //
 //   contraction (η)
 // + excitation (γ)
 // + feasibility projection (Π_M)
 //
-// Any additional complexity (Δ, H, j, etc.)
-// must reduce to or derive from this structure.
+// All higher-order constructs (Δ, H, jet terms, etc.):
+//
+//   must reduce to either
+//     (a) state geometry description
+//     (b) feasibility constraint definition
+//     (c) observation operator
+//
+// and must NOT reintroduce scalar optimization pressure.
 //
 // ============================================================================
 
