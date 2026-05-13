@@ -1024,3 +1024,191 @@ fn main() {
         }
     }
 }
+
+Game Loop
+   ├── Input system
+   ├── DVSM update layer   ← your system lives here
+   │       ├── entity state update
+   │       ├── interaction step
+   │       └── drift/stability check
+   ├── Physics engine
+   ├── Rendering
+   └── Network sync (optional DVSM mirror)
+
+/*!
+DVSM DISTRIBUTED + SIMD CORE
+
+LAYER 1:
+- UDP-based distributed node communication
+- each node exchanges state packets
+
+LAYER 2:
+- SIMD-accelerated state update kernel
+- 8-way parallel vector processing (f32x8)
+
+This is a real execution architecture:
+- network = message passing graph
+- compute = SIMD contraction dynamics
+*/
+
+use std::net::UdpSocket;
+use std::time::Duration;
+
+use std::arch::x86_64::*;
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+
+const LANES: usize = 8; // SIMD width
+const PORT: u16 = 9000;
+
+/* ============================================================
+   LAYER 1 — SIMD CORE (8-WAY VECTOR STATE UPDATE)
+   ============================================================ */
+
+#[derive(Clone, Copy)]
+pub struct SimdNode {
+    pub state: [f32; LANES],
+    pub eta: f32,
+}
+
+impl SimdNode {
+    pub fn new(state: [f32; LANES], eta: f32) -> Self {
+        Self { state, eta }
+    }
+
+    /// SIMD core update:
+    /// S' = (1-η)S + η(σ + S_neighbor)
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn step(
+        &mut self,
+        sigma: &[f32; LANES],
+        neighbor: &[f32; LANES],
+    ) {
+        let eta = self.eta;
+        let one_minus_eta = 1.0 - eta;
+
+        let eta_v = _mm256_set1_ps(eta);
+        let one_eta_v = _mm256_set1_ps(one_minus_eta);
+
+        let sigma_v = _mm256_loadu_ps(sigma.as_ptr());
+        let neigh_v = _mm256_loadu_ps(neighbor.as_ptr());
+        let state_v = _mm256_loadu_ps(self.state.as_ptr());
+
+        // excitation = sigma + neighbor
+        let exc_v = _mm256_add_ps(sigma_v, neigh_v);
+
+        // weighted update
+        let term1 = _mm256_mul_ps(one_eta_v, state_v);
+        let term2 = _mm256_mul_ps(eta_v, exc_v);
+
+        let result = _mm256_add_ps(term1, term2);
+
+        _mm256_storeu_ps(self.state.as_mut_ptr(), result);
+    }
+}
+
+/* ============================================================
+   LAYER 2 — DISTRIBUTED NODE (UDP MESSAGE PASSING)
+   ============================================================ */
+
+pub struct DistributedNode {
+    pub simd: SimdNode,
+    pub id: u32,
+    pub peer_addr: String,
+    pub socket: UdpSocket,
+}
+
+impl DistributedNode {
+    pub fn new(id: u32, bind: &str, peer_addr: &str, eta: f32) -> Self {
+        let socket = UdpSocket::bind(bind).expect("bind failed");
+        socket
+            .set_read_timeout(Some(Duration::from_millis(5)))
+            .ok();
+
+        Self {
+            simd: SimdNode::new([0.0; LANES], eta),
+            id,
+            peer_addr: peer_addr.to_string(),
+            socket,
+        }
+    }
+
+    /// Serialize state → UDP packet
+    fn send_state(&self) {
+        let mut buf = [0u8; 32];
+
+        for i in 0..LANES {
+            let bytes = self.simd.state[i].to_le_bytes();
+            buf[i * 4..i * 4 + 4].copy_from_slice(&bytes);
+        }
+
+        let _ = self.socket.send_to(&buf, &self.peer_addr);
+    }
+
+    /// Receive neighbor state
+    fn recv_state(&self) -> Option<[f32; LANES]> {
+        let mut buf = [0u8; 32];
+
+        match self.socket.recv_from(&mut buf) {
+            Ok(_) => {
+                let mut out = [0.0; LANES];
+                for i in 0..LANES {
+                    let mut bytes = [0u8; 4];
+                    bytes.copy_from_slice(&buf[i * 4..i * 4 + 4]);
+                    out[i] = f32::from_le_bytes(bytes);
+                }
+                Some(out)
+            }
+            Err(_) => None,
+        }
+    }
+
+    /// Full distributed + SIMD step
+    pub fn tick(&mut self, sigma: &[f32; LANES]) {
+        // 1. get neighbor state (or fallback to self)
+        let neighbor = self.recv_state().unwrap_or(self.simd.state);
+
+        // 2. SIMD update
+        unsafe {
+            self.simd.step(sigma, &neighbor);
+        }
+
+        // 3. broadcast updated state
+        self.send_state();
+    }
+}
+
+/* ============================================================
+   DEMO MAIN (2 NODE SYSTEM)
+   ============================================================ */
+
+fn main() {
+    let mut node_a = DistributedNode::new(
+        1,
+        "127.0.0.1:9000",
+        "127.0.0.1:9001",
+        0.25,
+    );
+
+    let mut node_b = DistributedNode::new(
+        2,
+        "127.0.0.1:9001",
+        "127.0.0.1:9000",
+        0.30,
+    );
+
+    let sigma: [f32; LANES] = [0.5; LANES];
+
+    loop {
+        node_a.tick(&sigma);
+        node_b.tick(&sigma);
+
+        println!(
+            "A: {:?}\nB: {:?}\n---",
+            node_a.simd.state,
+            node_b.simd.state
+        );
+    }
+}
