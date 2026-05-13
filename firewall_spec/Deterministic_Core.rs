@@ -372,3 +372,198 @@ impl<S: SigmaFunctor> DVSMRuntime<S> {
 //
 // END DEVELOPER NOTES BLOCK
 // ============================================================================
+// ============================================================================
+// DVSM — AXIOMATIC KERNEL SPEC (v1.0 TIGHT)
+// Driven Deterministic Contraction System
+// ============================================================================
+//
+// CORE INTERPRETATION:
+//
+//   Σ  → generates σ_t (external deterministic functor)
+//   F  → deterministic contraction operator
+//   S  → evolving state space
+//
+//   No feedback exists from S → Σ
+//   No stochasticity exists in kernel or Σ (by requirement)
+//
+// ============================================================================
+
+// ============================================================================
+// 1. CORE TYPES
+// ============================================================================
+
+pub type Signal = f64;
+pub type State = f64;
+
+// ============================================================================
+// 2. SIGMA LAYER (EXOGENOUS GENERATION ONLY)
+// ============================================================================
+
+/// σ-stream generator (external to DVSM kernel)
+pub trait Sigma {
+    fn next(&mut self) -> Option<Signal>;
+}
+
+/// Determinism marker (no runtime semantics)
+pub trait DeterministicSigma {}
+
+// NOTE:
+// Determinism is a construction constraint, not an execution property.
+
+// ============================================================================
+// 3. SIGMA IMPLEMENTATIONS (EXAMPLES ONLY)
+// ============================================================================
+
+pub struct StaticSigma<const N: usize> {
+    pub data: [Signal; N],
+    pub index: usize,
+}
+
+impl<const N: usize> Sigma for StaticSigma<N> {
+    fn next(&mut self) -> Option<Signal> {
+        if self.index >= N {
+            return None;
+        }
+        let v = self.data[self.index];
+        self.index += 1;
+        Some(v)
+    }
+}
+
+impl<const N: usize> DeterministicSigma for StaticSigma<N> {}
+
+// ------------------------------------------------------------------------
+
+pub struct IterSigma {
+    state: u64,
+    seed: u64,
+    limit: u64,
+}
+
+impl IterSigma {
+    pub fn new(seed: u64, limit: u64) -> Self {
+        Self { state: seed, seed, limit }
+    }
+}
+
+impl Sigma for IterSigma {
+    fn next(&mut self) -> Option<Signal> {
+        self.state = self.state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1);
+
+        Some((self.state % self.limit) as Signal / self.limit as Signal)
+    }
+}
+
+impl DeterministicSigma for IterSigma {}
+
+// ============================================================================
+// 4. DVSM KERNEL (F — DETERMINISTIC CONTRACTION OPERATOR)
+// ============================================================================
+
+pub struct DVSMKernel {
+    pub w: State,
+    pub eta: State,
+}
+
+impl DVSMKernel {
+    pub fn new(w: State, eta: State) -> Self {
+        Self { w, eta }
+    }
+
+    #[inline]
+    pub fn step(&mut self, sigma: Signal) -> State {
+        self.w = self.w + self.eta * (sigma - self.w);
+        self.w
+    }
+}
+
+// ============================================================================
+// 5. RUNTIME (CAUSAL DRIVER)
+// ============================================================================
+
+pub struct DVSMRuntime<S: Sigma> {
+    sigma: S,
+    kernel: DVSMKernel,
+}
+
+impl<S: Sigma> DVSMRuntime<S> {
+    pub fn new(sigma: S, kernel: DVSMKernel) -> Self {
+        Self { sigma, kernel }
+    }
+
+    /// Executes: Σ → F → S
+    pub fn step(&mut self) -> Option<State> {
+        let sigma_t = self.sigma.next()?;
+        let s_next = self.kernel.step(sigma_t);
+        Some(s_next)
+    }
+
+    pub fn run(&mut self, steps: usize) -> Vec<State> {
+        let mut out = Vec::with_capacity(steps);
+
+        for _ in 0..steps {
+            match self.step() {
+                Some(s) => out.push(s),
+                None => break,
+            }
+        }
+
+        out
+    }
+}
+
+// ============================================================================
+// 6. AXIOMATIC SYSTEM SPECIFICATION
+// ============================================================================
+//
+// A1 — STATE EVOLUTION (DRIVEN CONTRACTION):
+//
+//   S_{t+1} = F(S_t, σ_t)
+//
+// where:
+//
+//   F is deterministic contraction:
+//     F(s, σ) = s + η(σ - s)
+//
+// ------------------------------------------------------------------------
+//
+// A2 — SIGMA EXOGENEITY:
+//
+//   σ_t ∈ Σ is externally defined and deterministic by construction
+//
+//   Σ does not depend on S_t
+//
+// ------------------------------------------------------------------------
+//
+// A3 — NO BACKWARD COUPLING:
+//
+//   S_t does not influence Σ
+//   O and L (if defined) are observational only
+//
+// ------------------------------------------------------------------------
+//
+// A4 — DETERMINISM CONDITION:
+//
+//   identical (S₀, Σ) ⇒ identical trajectory {S_t}
+//
+// ============================================================================
+//
+// 7. ARCHITECTURAL SUMMARY
+// ============================================================================
+//
+// DVSM = driven deterministic contraction system:
+//
+//   Σ : external deterministic signal functor
+//   F : contraction operator
+//   S : evolving state
+//
+// Flow:
+//
+//   Σ → σ_t → F → S_t
+//
+// ============================================================================
+//
+// END AXIOMATIC KERNEL SPEC
+// ============================================================================
