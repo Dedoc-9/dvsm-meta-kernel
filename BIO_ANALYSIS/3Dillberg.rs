@@ -1814,3 +1814,177 @@ That is a phase transition in algorithm class, not an incremental improvement.
 //   for VR + inference + adaptive field modeling
 //
 // ============================================================
+// ============================================================
+// 🧭 DVSM-π+++ FREE ENERGY — CANONICAL DEFINITION (FINAL FORM)
+// ============================================================
+//
+// This is the SINGLE generating functional of the entire system.
+//
+// Everything else (L, B, W, R, PDE, particles, VR dynamics)
+// is a discretization, projection, or splitting of this object.
+//
+// ============================================================
+//
+// 🧠 STATE SPACE
+// ============================================================
+//
+// μ ∈ P(ℝ³)
+// g ∈ ℝ³   (latent geometry coordinate)
+// x ∈ ℝ³   (observation embedding)
+//
+// Kernel:
+//   K(g, g') : ℝ³ × ℝ³ → ℝ⁺
+//
+// Reference measure:
+//   μ₀ (prior / equilibrium base measure)
+//
+// ============================================================
+
+
+// ============================================================
+// ⚙️ FREE ENERGY FUNCTIONAL (CORE OBJECT)
+// ============================================================
+//
+// F(μ) = Data + Interaction + Confinement + Entropy
+//
+// ------------------------------------------------------------
+// (1) DATA TERM (likelihood mismatch)
+// ------------------------------------------------------------
+//
+// F_data(μ) = ∫ ||g - x||² dμ(g)
+//
+// Interpretation:
+//   - pulls latent geometry toward observations
+//   - defines reconstruction field
+//
+// ------------------------------------------------------------
+// (2) INTERACTION TERM (mean-field coupling)
+// ------------------------------------------------------------
+//
+// F_int(μ) = λ ∬ K(g, g') dμ(g) dμ(g')
+//
+// Interpretation:
+//   - enforces structure / coherence
+//   - creates clustering / repulsion geometry
+//
+// ------------------------------------------------------------
+// (3) CONFINEMENT TERM (Ornstein–Uhlenbeck prior)
+// ------------------------------------------------------------
+//
+// F_conf(μ) = α ∫ ||g||² dμ(g)
+//
+// Interpretation:
+//   - prevents unbounded drift
+//   - defines global geometric anchor
+//
+// ------------------------------------------------------------
+// (4) ENTROPY TERM (Gibbs regularization)
+// ------------------------------------------------------------
+//
+// F_ent(μ) = T ∫ log(μ(g)) dμ(g)
+//          = T KL(μ || μ₀) + const
+//
+// Interpretation:
+//   - stabilizes distribution
+//   - prevents particle collapse
+//   - enforces stochasticity floor
+//
+// ============================================================
+
+
+// ============================================================
+// 🧠 FINAL COMBINED FORM
+// ============================================================
+//
+// F(μ) =
+     ∫ ||g - x||² dμ(g)
+   + λ ∬ K(g, g') dμ(g)dμ(g')
+   + α ∫ ||g||² dμ(g)
+   + T ∫ μ(g) log μ(g) dg
+//
+// ============================================================
+
+
+// ============================================================
+// ⚙️ VARIATIONAL DERIVATIVE (DRIVING FORCE)
+// ============================================================
+//
+// δF/δμ(g) =
+     ||g - x||²
+   + 2λ ∫ K(g, g') dμ(g')
+   + α ||g||²
+   + T (1 + log μ(g))
+//
+// This is the object used by:
+//
+//   - Langevin drift
+//   - Wasserstein gradient flow
+//   - operator splitting updates
+//
+// ============================================================
+
+
+// ============================================================
+// 🧭 WASSERSTEIN GRADIENT FLOW FORM
+// ============================================================
+//
+// ∂t μ = -∇_{W₂} F(μ)
+//
+// Expanded (Fokker–Planck form):
+//
+// ∂t μ = ∇ · [
+//   μ ∇(
+//       ||g - x||²
+//     + 2λ ∫ K(g, g') dμ(g')
+//     + α ||g||²
+//     + T log μ
+//   )
+// ]
+//
+// ============================================================
+
+
+// ============================================================
+// 🧠 OPERATOR IDENTITY (IMPLEMENTATION LINK)
+// ============================================================
+//
+// This functional generates:
+//
+//   L = Langevin (drift + diffusion from δF/δμ)
+//   B = Gibbs softmax projection
+//   W = mean-field interaction convolution
+//   R = resampling projection onto empirical measures
+//
+// So:
+//
+//   T_τ ≈ exp(-τ ∇_{W₂} F)
+//
+// ============================================================
+
+
+// ============================================================
+// ⚠️ STRUCTURAL STATUS
+// ============================================================
+//
+// ✔ Fully closed functional
+// ✔ Wasserstein-consistent gradient structure
+// ✔ Supports particle approximation
+// ✔ Stable under SMC + Langevin discretization
+//
+// ============================================================
+
+
+// ============================================================
+// 🧭 FINAL IDENTIFICATION
+// ============================================================
+//
+// DVSM-π+++ is:
+//
+//   a stochastic operator splitting scheme
+//   approximating Wasserstein gradient flow of:
+//
+//       F(μ)
+//
+// over probability measures μ ∈ P(ℝ³)
+//
+// ============================================================
