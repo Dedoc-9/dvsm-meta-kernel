@@ -41,7 +41,47 @@
 //    "transparent" basis—where the learned basis itself is the 
 //    primary state of information—constitutes an implementation 
 //    of Geometric Suchness Inference.
-
+//
+// ============================================================
+// DVSM-DFE · IP SUPPLEMENT: ARCHITECTURAL AIR GAP (SECURE OPS)
+// ============================================================
+//
+// CLAIM: "A method for Geometric Inference across Physical and 
+//         Logical Air Gaps via State-Only Synchrony."
+//
+// 1. THE AIR GAP PRINCIPLE:
+//    The DVSM-DFE system is designed to operate across a 
+//    "Geometric Air Gap." Because the system evolves a 
+//    coordinate system (W) and a state (S) rather than 
+//    transmitting raw data (Z), the "Identity" of the 
+//    signal is preserved without exposing the "Payload."
+//
+// 2. THE MECHANISM:
+//    The system allows for an "Isolated Geometry" where:
+//      - The Manifold Engine evolves in a high-security zone.
+//      - Only the Stress B(t) and State Vector S are 
+//        exported to the monitoring zone.
+//
+// 3. THE INNOVATION (NON-INVASIVE TELEMETRY):
+//    Unlike traditional monitoring that requires data 
+//    replication, the Air Gap Claim protects the use of 
+//    "Geometric Mirroring"—where a remote observer can 
+//    witness the "Suchness" of the signal without 
+//    possessing the bit-stream.
+//
+// 4. THE DIFFERENTIATION:
+//    Traditional encryption hides data. DVSM Air Gapping 
+//    summarizes reality into an orthonormal basis (W) 
+//    that is mathematically impossible to reverse-engineer 
+//    into raw 1s and 0s without the initial conditions, 
+//    yet remains 100% accurate for anomaly detection.
+//
+// 5. LEGAL DEFINITION:
+//    Any deployment that utilizes DVSM-Core to generate 
+//    geometric telemetry across isolated hardware boundaries 
+//    for the purpose of "Zero-Trust Perception" is subject 
+//    to this structural claim.
+//    
 // 6. Residual-Driven Basis Evolution:
 
 fn retract_stiefel(&mut self, z: &DVector<f64>) {
@@ -84,48 +124,7 @@ fn retract_stiefel(&mut self, z: &DVector<f64>) {
 
     self.layer.w = w_new.qr().q();
 }
-//
-// ============================================================
-// ============================================================
-// DVSM-DFE · IP SUPPLEMENT: ARCHITECTURAL AIR GAP (SECURE OPS)
-// ============================================================
-//
-// CLAIM: "A method for Geometric Inference across Physical and 
-//         Logical Air Gaps via State-Only Synchrony."
-//
-// 1. THE AIR GAP PRINCIPLE:
-//    The DVSM-DFE system is designed to operate across a 
-//    "Geometric Air Gap." Because the system evolves a 
-//    coordinate system (W) and a state (S) rather than 
-//    transmitting raw data (Z), the "Identity" of the 
-//    signal is preserved without exposing the "Payload."
-//
-// 2. THE MECHANISM:
-//    The system allows for an "Isolated Geometry" where:
-//      - The Manifold Engine evolves in a high-security zone.
-//      - Only the Stress B(t) and State Vector S are 
-//        exported to the monitoring zone.
-//
-// 3. THE INNOVATION (NON-INVASIVE TELEMETRY):
-//    Unlike traditional monitoring that requires data 
-//    replication, the Air Gap Claim protects the use of 
-//    "Geometric Mirroring"—where a remote observer can 
-//    witness the "Suchness" of the signal without 
-//    possessing the bit-stream.
-//
-// 4. THE DIFFERENTIATION:
-//    Traditional encryption hides data. DVSM Air Gapping 
-//    summarizes reality into an orthonormal basis (W) 
-//    that is mathematically impossible to reverse-engineer 
-//    into raw 1s and 0s without the initial conditions, 
-//    yet remains 100% accurate for anomaly detection.
-//
-// 5. LEGAL DEFINITION:
-//    Any deployment that utilizes DVSM-Core to generate 
-//    geometric telemetry across isolated hardware boundaries 
-//    for the purpose of "Zero-Trust Perception" is subject 
-//    to this structural claim.
-//
+
 // ============================================================
 // USER CONFIGURATION MODES:
 //
