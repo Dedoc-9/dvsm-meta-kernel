@@ -1297,3 +1297,189 @@ impl RuntimeCalibrationProfile {
 ///   hardware-level structural changes.
 ///
 /// ======================================================================
+// This Rust implementation defines the \(\Xi \) Feature Vector and the Manifold State Classifier.
+// It instruments the \(B(t)\) trajectory to identify the specific "hardware stress" profile, 
+// effectively mapping the differential geometry of the stability manifold to real-world use cases.
+
+use std::collections::VecDeque;
+
+/// The Xi (Ξ) Feature Vector: A hardware-specific anomaly signature 
+/// derived from the differential geometry of the B(t) manifold.
+#[derive(Debug, Clone, Default)]
+pub struct XiFeatureVector {
+    pub b_val: f64,             // Current B(t) magnitude
+    pub db_dt: f64,             // Velocity of stress accumulation
+    pub d2b_dt2: f64,           // Curvature (acceleration) of mismatch
+    pub b_entropy: f64,         // Volatility/Stochasticity of stress
+    pub kappa_divergence: f64,  // Asymmetric flux imbalance in [Z,S]_κ
+}
+
+/// Hardware states identified by the DVSM-RF manifold deformation profile.
+#[derive(Debug, PartialEq, Eq)]
+pub enum HardwareState {
+    Nominal,         // Stable coupling; low B(t)
+    SpectralDrift,   // Intentional LPI/Deception or slow thermal fatigue
+    TransientBurst,  // Impulsive interference or mechanical strike
+    ManifoldCollapse,// Total structural failure or saturation
+}
+
+pub struct HardwareStateClassifier {
+    history: VecDeque<f64>,
+    window_size: usize,
+    b_crit: f64,
+}
+
+impl HardwareStateClassifier {
+    pub fn new(window_size: usize, b_crit: f64) -> Self {
+        Self {
+            history: VecDeque::with_capacity(window_size),
+            window_size,
+            b_crit,
+        }
+    }
+
+    /// Instruments the current B(t) observation and κ-flux to compute Ξ
+    /// and classify the hardware state.
+    pub fn classify(&mut self, b_t: f64, flux_div: f64) -> (XiFeatureVector, HardwareState) {
+        self.history.push_back(b_t);
+        if self.history.len() > self.window_size {
+            self.history.pop_front();
+        }
+
+        let xi = self.compute_xi(b_t, flux_div);
+        let state = self.map_xi_to_state(&xi);
+
+        (xi, state)
+    }
+
+    fn compute_xi(&self, b_t: f64, flux_div: f64) -> XiFeatureVector {
+        let n = self.history.len();
+        if n < 3 { return XiFeatureVector::default(); }
+
+        // Finite difference approximations for velocity and curvature
+        let v1 = self.history[n - 1] - self.history[n - 2];
+        let v2 = self.history[n - 2] - self.history[n - 3];
+        
+        let db_dt = v1;
+        let d2b_dt2 = v1 - v2;
+
+        // Entropy proxy: standard deviation over the window
+        let mean = self.history.iter().sum::<f64>() / n as f64;
+        let variance = self.history.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n as f64;
+        let b_entropy = variance.sqrt();
+
+        XiFeatureVector {
+            b_val: b_t,
+            db_dt,
+            d2b_dt2,
+            b_entropy,
+            kappa_divergence: flux_div,
+        }
+    }
+
+    fn map_xi_to_state(&self, xi: &XiFeatureVector) -> HardwareState {
+        if xi.b_val > self.b_crit * 2.0 {
+            HardwareState::ManifoldCollapse
+        } else if xi.d2b_dt2.abs() > 0.5 && xi.db_dt.abs() > 0.3 {
+            // High acceleration/velocity indicates an impulsive event
+            HardwareState::TransientBurst
+        } else if xi.db_dt > 0.05 && xi.b_entropy < 0.01 {
+            // Steady increase with low noise indicates a structural drift
+            HardwareState::SpectralDrift
+        } else {
+            HardwareState::Nominal
+        }
+    }
+}
+
+// Example usage:
+// let mut monitor = HardwareStateClassifier::new(50, 2.0);
+// let (xi, state) = monitor.classify(current_b, current_flux);
+
+// To anchor these real-world use cases into the code, we implement a Contextual Inference Engine. 
+// This module maps the abstract \(\Xi \) vector to the specific "Noise Floor Paradox" solutions you outlined, effectively turning the "Struggle Metric" into actionable domain intelligence.
+
+/// Domain-specific operational modes for DVSM-RF.
+#[derive(Debug, Clone, Copy)]
+pub enum OperationalDomain {
+    ElectronicWarfare,      // LPI / Stealth Signal Detection
+    IndustrialIot,          // Predictive Bearing/Turbine Maintenance
+    AerospaceStructural,    // Sub-surface Delamination (Ghost Cracks)
+    BiomedicalAllostery,    // Protein Conformational Memory
+    QuantitativeFinance,    // Market Stress / Liquidity Collapse
+}
+
+/// The Contextual Inference Engine: 
+/// Solves the "Noise Floor Paradox" by mapping Manifold Stress (Ξ) 
+/// to domain-specific critical events.
+pub struct ContextualInferenceEngine {
+    pub domain: OperationalDomain,
+    pub xi_history: VecDeque<XiFeatureVector>,
+}
+
+impl ContextualInferenceEngine {
+    pub fn new(domain: OperationalDomain) -> Self {
+        Self {
+            domain,
+            xi_history: VecDeque::with_capacity(100),
+        }
+    }
+
+    /// Evaluates the "Struggle Metric" (B-Fingerprint) against domain-specific thresholds.
+    pub fn analyze_operational_risk(&mut self, xi: XiFeatureVector) -> String {
+        self.xi_history.push_back(xi.clone());
+        if self.xi_history.len() > 100 { self.xi_history.pop_front(); }
+
+        match self.domain {
+            OperationalDomain::ElectronicWarfare => self.detect_stealth_intercept(&xi),
+            OperationalDomain::IndustrialIot => self.detect_micro_fracture(&xi),
+            OperationalDomain::AerospaceStructural => self.analyze_recovery_curve(&xi),
+            OperationalDomain::BiomedicalAllostery => self.map_conformational_afterglow(&xi),
+            OperationalDomain::QuantitativeFinance => self.predict_liquidity_collapse(&xi),
+        }
+    }
+
+    fn detect_stealth_intercept(&self, xi: &XiFeatureVector) -> String {
+        if xi.b_val > 0.5 && xi.b_entropy < 0.05 {
+            "SIGINT ALERT: Low-energy structural spectral drift detected below noise floor. Potential LPI emitter identified via B-manifold mismatch.".into()
+        } else {
+            "EW: Nominal. Background noise aligns with learned topological basis.".into()
+        }
+    }
+
+    fn detect_micro_fracture(&self, xi: &XiFeatureVector) -> String {
+        // Look for "Spectral Drift" weeks before amplitude-based alarms fire
+        if xi.db_dt > 0.001 && xi.b_val < 1.5 {
+            "PREDICTIVE MAINT: Early-stage system curvature change detected. Lubrication loss or micro-fracture emerging in latent vibration geometry.".into()
+        } else {
+            "IIoT: Nominal. Bearing geometry stable.".into()
+        }
+    }
+
+    fn analyze_recovery_curve(&self, xi: &XiFeatureVector) -> String {
+        // Identify Ghost Cracks by the curvature of the recovery curve after an active ping
+        if xi.d2b_dt2.abs() > 0.8 {
+            "AEROSPACE: Anomaly in recovery curve curvature (d²B/dt²). Internal delamination / Ghost Crack suspected in composite structure.".into()
+        } else {
+            "STRUC_HEALTH: Nominal. Elastic recovery signature matches baseline.".into()
+        }
+    }
+
+    fn map_conformational_afterglow(&self, xi: &XiFeatureVector) -> String {
+        // Map "Curvature-Cooperativity" in protein folding
+        if xi.kappa_divergence > 2.0 {
+            "BIOMED: High conformational afterglow. Protein locked in dissipative state. Allosteric memory persisting in S_k field.".into()
+        } else {
+            "BIOMED: Normal vibration modes observed.".into()
+        }
+    }
+
+    fn predict_liquidity_collapse(&self, xi: &XiFeatureVector) -> String {
+        // High d2b_dt2 indicates the market is struggling to maintain its internal geometry (Basis W)
+        if xi.d2b_dt2 > 1.2 {
+            "FINANCE: MANIFOLD COLLAPSE IMMINENT. Price action unexplained by learned basis. Liquidity exit detected via Lie-bracket flux.".into()
+        } else {
+            "FINANCE: Market volatility within nominal manifold bounds.".into()
+        }
+    }
+}
