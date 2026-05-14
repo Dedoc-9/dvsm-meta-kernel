@@ -588,6 +588,184 @@ pub fn underdamped_step(
         parts[i].vel=vn; parts[i].geom=gn;
     }
 }
+
+//! ============================================================
+//! IP / NOVELTY ANALYSIS SECTION — DVSM OPERATOR ENGINE
+//! ============================================================
+//!
+//! This file documents the *structural novelty claims*
+//! embedded in the DVSM semigroup / particle / operator system.
+//!
+//! It is NOT executable logic.
+//! It is a mathematical IP classification layer.
+//!
+//! ============================================================
+
+/*
+===============================================================
+7. WHAT IS GENUINELY NOVEL IN THIS FRAMING
+===============================================================
+
+(1) RESAMPLING AS A FUNCTOR (NOT A PROCEDURAL STEP)
+
+In classical SMC:
+
+    Rτ : weighted particles → resampled particles
+
+Here:
+
+    Rτ is elevated to a categorical projection functor:
+
+        Rτ ∈ End(𝒫_N(ℝ³))
+
+with explicit interpretation as:
+
+    • covariance-generating map
+    • representation reduction morphism
+    • non-linear projection operator on empirical measures
+
+Key shift:
+    resampling is no longer algorithmic
+    it is a structural operator in the semigroup decomposition
+
+---------------------------------------------------------------
+
+(2) LLN / CLT OPERATOR BIFURCATION (DUAL UNIVERSE STRUCTURE)
+
+The system is explicitly split into:
+
+    LLN LIMIT:
+        Φ∞ = ℒ_μ + 𝒱_μ
+
+    CLT FLUCTUATIONS:
+        M = resampling covariance operator
+
+This yields:
+
+    𝒜_N = Φ∞ + (1/N)M
+
+Key novelty:
+    not asymptotics “after the fact”
+    but explicit dual operator ontology inside the implementation
+
+Interpretation:
+
+    • LLN = deterministic semigroup flow on measures
+    • CLT = Gaussian SPDE over fluctuation field η_t^N
+
+---------------------------------------------------------------
+
+(3) KERNEL HETEROGENEITY IN A SINGLE INTERACTING SYSTEM
+
+The system mixes:
+
+    • RBF   → smooth compact operator (Gaussian RKHS-like)
+    • Riesz → singular long-range interaction
+    • LJ    → stiff, non-convex, physically cutoff potential
+
+This creates:
+
+    multi-regime well-posedness interaction inside one flow
+
+Implication:
+
+    OP1 convergence must handle:
+        • mixed Lipschitz classes
+        • singular kernel domains
+        • non-uniform stability constants
+
+This is uncommon in standard SMC / McKean–Vlasov implementations.
+
+===============================================================
+8. MAIN MATHEMATICAL RISKS (IF FORMAL PROOF IS ATTEMPTED)
+===============================================================
+
+(A) NON-UNIFORM LIPSCHITZ FAILURE ACROSS KERNELS
+
+LJ + Riesz introduce:
+
+    unbounded or locally explosive gradients
+
+Consequences:
+
+    standard Grönwall estimates break globally
+
+Requires:
+
+    piecewise coercivity or truncated flow domains
+
+---------------------------------------------------------------
+
+(B) RESAMPLING BREAKS MARTINGALE STRUCTURE
+
+Rτ introduces discontinuous filtration update:
+
+    ℱ_t^N ≠ σ(g_i(t), w_i(t))
+
+Thus:
+
+    classical stochastic calculus decomposition fails unless:
+
+        compensated resampling measure is introduced
+
+Need:
+
+    • filtration enlargement
+    • martingale correction term for Rτ
+    • or embedding into jump process generator
+
+---------------------------------------------------------------
+
+(C) WEIGHT COLLAPSE VS VARIANCE EXPLOSION TRADEOFF
+
+Bτ + Rτ interaction yields:
+
+    • ESS collapse (degeneracy phase)
+    • OR variance blow-up (diffuse regime)
+
+This implies:
+
+    adaptive resampling threshold OP2 is not optional
+    it is structurally required for stability
+
+===============================================================
+9. BOTTOM LINE (STRUCTURAL CLASSIFICATION)
+===============================================================
+
+This system is best classified as:
+
+    A three-layer nonlinear semigroup decomposition:
+
+        (1) LLN semigroup:
+            nonlinear McKean–Vlasov–Feynman–Kac flow
+
+        (2) CLT layer:
+            Gaussian SPDE driven by resampling covariance operator M
+
+        (3) Implementation layer:
+            particle approximation with explicit operator factorization
+
+---------------------------------------------------------------
+
+MOST ACCURATE ABSTRACT FORM:
+
+    Φ_t^N
+        = Φ_t^∞
+        + (1/N) M_t
+        + discretized representation functor Rτ
+
+===============================================================
+FINAL REMARK
+===============================================================
+
+The key structural move is not computational.
+
+It is:
+
+    resampling → operator
+    fluctuation → explicit SPDE object
+    simulation → semigroup representation system
+
 // ============================================================
 // END OF FILE
 // ============================================================
