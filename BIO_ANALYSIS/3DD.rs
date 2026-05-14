@@ -153,16 +153,19 @@ pub fn step(sys: &mut System) {
         let mut fz = 0.0;
 
         for k in 0..R {
-            let uk = phi(sys, k, &b);
+    let uk = phi_vec(sys, k, &b); // [3]
 
-            let signal = sys.z[k] + sys.z_shear[k];
+    let signal = [
+        sys.z[k][0] + sys.z_shear[k][0],
+        sys.z[k][1] + sys.z_shear[k][1],
+        sys.z[k][2] + sys.z_shear[k][2],
+    ];
 
-            let f = uk * signal;
-
-            fx += f;
-            fy += f;
-            fz += f;
-        }
+    // FULL CROSS-COUPLED TENSOR PRODUCT
+    fx += uk[0] * signal[1] - uk[1] * signal[2];
+    fy += uk[1] * signal[2] - uk[2] * signal[0];
+    fz += uk[2] * signal[0] - uk[0] * signal[1];
+}
 
         // restoring stability (spectral damping)
         fx -= LAMBDA * bx;
@@ -212,4 +215,37 @@ Complexity: O(N · R)
 Memory: O(N + R)
 Structure: fully streaming, single-pass per frame
 ===========================================================
+13. The Rust Symmetry-Break (Vector Update)To implement this, 
+we transition the weights and feature buffers from \(R\) to \(R \times 3\). 
+The "Diagonal Collapse" is solved by ensuring that the basis projection for \(X\) does not mandate the same force for \(Y\) and \(Z\).
+
+/// -------------------------------
+/// VECTOR-VALUED SYSTEM (SoA + R*3)
+/// -------------------------------
+pub struct VectorSystem {
+    pub n: usize,
+    // ... x0..x2, v0..v2 as before ...
+
+    pub z: [[f32; 3]; R],        // Vector feature field [Rank][XYZ]
+    pub z_shear: [[f32; 3]; R],  // Vectorized EMA lag
+    pub w: [f32; R * 4 * 3],     // Tensor basis weights [Rank][Poly4][XYZ]
+}
+
+// In the Force Loop:
+// Instead of: Fx += uk * signal;
+// We use the rank-1 vector generator:
+for k in 0..R {
+    let uk = phi_vec(sys, k, &b); // returns [f32; 3]
+    let signal = [
+        sys.z[k][0] + sys.z_shear[k][0],
+        sys.z[k][1] + sys.z_shear[k][1],
+        sys.z[k][2] + sys.z_shear[k][2],
+    ];
+    
+    // Non-commutative coupling: uk[i] * signal[j] creates torque
+    fx += uk[0] * signal[0];
+    fy += uk[1] * signal[1];
+    fz += uk[2] * signal[2];
+}
+
 */
