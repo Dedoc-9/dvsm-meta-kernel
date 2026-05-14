@@ -307,3 +307,30 @@ impl DVSMCore {
         self.stress.compute_b(&self.layer.s, &z_proj, cfg.epsilon)
     }
 }
+{
+  "system": "DVSM-DFE Stiefel Manifold Geometric Engine (V3)",
+  "author": "Daniel J. Dillberg",
+  "geometry": {
+    "manifold": "Stiefel St(n, r)",
+    "state_space": "Spherical Sⁿ⁻¹",
+    "basis": "Orthonormal low-rank frame (W)",
+    "state": "Geometric inertia vector (S)"
+  },
+  "hyperparameters": {
+    "alpha": "State inertia (mixing memory vs. new projection)",
+    "lambda": "Geometric damping / contractive factor",
+    "eta": "Basis adaptation rate (learning speed)",
+    "epsilon": "Numerical stability floor"
+  },
+  "mathematical_operators": {
+    "projection": "P_W(z) = Σ⟨w_k, z⟩ w_k",
+    "stress_function": "B(t) = 1 - ⟨s_hat, z_proj_hat⟩",
+    "evolution": "s_{t+1} = normalize((1-λ)[α s_hat + (1-α) z_hat] + λ s)"
+  },
+  "defensible_claims": {
+    "novelty_1": "Coupled evolution of spherical dynamics and Stiefel frames",
+    "novelty_2": "Residual-driven basis adaptation (non-gradient descent)",
+    "novelty_3": "Stress defined as manifold-space angular divergence",
+    "stability": "Bounded nonlinear dynamics via manifold projection"
+  }
+}
