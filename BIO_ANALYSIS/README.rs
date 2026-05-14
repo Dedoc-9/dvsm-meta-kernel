@@ -822,6 +822,150 @@ This protects the **result** (controlled burst behavior) rather than the impleme
 
 ---
 
+// dvsm_secure_params.rs
+// DVSM-π+++ · Protected Calibration Layer (IP Boundary Enforcement)
+// Concept: κ(i,j), α, λ, THRESHOLD are encrypted domain calibration parameters.
+//          weights / states are derived at runtime and are NOT secret.
+
+use std::f64::consts::PI;
+
+/// =========================
+/// PUBLIC STATE (NON-IP)
+/// =========================
+
+#[derive(Clone, Debug)]
+pub struct DVSMState {
+    pub z: Vec<f64>,   // spectral field (public runtime state)
+    pub s: Vec<f64>,   // EMA memory
+    pub w: Vec<f64>,   // derived basis weights (NOT protected IP)
+}
+
+/// =========================
+/// ENCRYPTED PARAMETER BLOB
+/// =========================
+
+#[derive(Clone)]
+pub struct EncryptedParams {
+    pub blob: Vec<u8>, // encrypted κ, α, λ, THRESHOLD
+}
+
+/// Decrypted calibration (PROTECTED DOMAIN PARAMETERS)
+pub struct CalibratedParams {
+    pub kappa: Vec<Vec<f64>>, // κ(i,j)
+    pub alpha: f64,           // EMA memory factor
+    pub lambda: f64,          // dissipation
+    pub threshold: f64,       // THRESHOLD (gain cap)
+}
+
+/// =========================
+/// DECRYPTION INTERFACE
+/// =========================
+/// NOTE: placeholder — in production this would be AES-GCM / hardware-backed key.
+
+pub fn decrypt_params(enc: &EncryptedParams, key: &[u8]) -> CalibratedParams {
+    // --- MOCK DECRYPTION LAYER (replace with real crypto) ---
+    let seed = key.iter().fold(0u64, |acc, b| acc.wrapping_add(*b as u64));
+
+    let n = 8;
+
+    let mut kappa = vec![vec![0.0; n]; n];
+    for i in 0..n {
+        for j in 0..n {
+            kappa[i][j] = ((i as f64 * 1.37 - j as f64 * 1.73 + seed as f64).sin());
+        }
+    }
+
+    CalibratedParams {
+        kappa,
+        alpha: 0.97,        // EMA memory baseline
+        lambda: 0.15,       // dissipation
+        threshold: 1.25,    // spectral cap
+    }
+}
+
+/// =========================
+/// DVSM CORE UPDATE (V6 CORE)
+/// =========================
+
+pub fn step_system(
+    state: &mut DVSMState,
+    params: &CalibratedParams,
+) {
+    let n = state.z.len();
+
+    let mut dz = vec![0.0; n];
+
+    // Lie-bracket style interaction: [Z, S]_κ
+    for i in 0..n {
+        for j in 0..n {
+            if i == j { continue; }
+
+            let kij = params.kappa[i % params.kappa.len()][j % params.kappa.len()];
+            dz[i] += (state.z[i] * state.s[j] - state.z[j] * state.s[i]) * kij;
+        }
+
+        dz[i] -= params.lambda * state.z[i];
+    }
+
+    // Update Z
+    for i in 0..n {
+        state.z[i] += dz[i];
+
+        // =========================
+        // V2.2-style PER-MODE GAIN (NOT SECRET)
+        // =========================
+        let gain = if state.z[i].abs() > params.threshold {
+            params.threshold / state.z[i].abs()
+        } else {
+            1.0
+        };
+
+        state.z[i] *= gain;
+    }
+
+    // =========================
+    // EMA MEMORY UPDATE (S)
+    // =========================
+    for i in 0..n {
+        state.s[i] = params.alpha * state.s[i]
+            + (1.0 - params.alpha) * state.z[i];
+    }
+
+    // =========================
+    // DERIVED BASIS WEIGHTS (PUBLIC)
+    // =========================
+    let norm: f64 = state.z.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-9);
+
+    for i in 0..n {
+        state.w[i] = state.z[i] / norm;
+    }
+}
+
+/// =========================
+/// BURST METRIC (NON-SECRET OBSERVABLE)
+/// =========================
+
+pub fn burst_metric(state: &DVSMState) -> f64 {
+    let z_norm: f64 = state.z.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let s_norm: f64 = state.s.iter().map(|x| x * x).sum::<f64>().sqrt();
+
+    s_norm / (z_norm + 1e-9)
+}
+
+/// =========================
+/// FACTORY
+/// =========================
+
+pub fn init_state(n: usize) -> DVSMState {
+    DVSMState {
+        z: vec![0.0; n],
+        s: vec![0.0; n],
+        w: vec![0.0; n],
+    }
+}
+         
+---
+
 ## Convergence References
 
 | Result | Scope | Citation |
