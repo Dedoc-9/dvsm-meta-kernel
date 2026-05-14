@@ -1380,3 +1380,298 @@ fn main() {
     "emergence": "stability arises from structure, not loss minimization"
   }
 }
+// ============================================================================
+// DVSM-π — 2D PROJECTION-CLOSED STOCHASTIC DYNAMICAL SYSTEM (vNEXT+)
+// ============================================================================
+// Mathematical Status:
+//   Projection-closed stochastic dynamical system on ℝ²
+//   with jet-lifted observational geometry
+//
+// Core law:
+//   x_{t+1} = Π_M( x_t + F(x_t, σ_t) + ξ_t )
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// 2D STATE SPACE
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct State {
+    pub x: f64,
+    pub y: f64,
+}
+
+// ============================================================================
+// MANIFOLD (BOX CONSTRAINT IN ℝ²)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Manifold {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub y_min: f64,
+    pub y_max: f64,
+}
+
+// ============================================================================
+// PROJECTION Π_M (IDEMPOTENT CLOSURE OPERATOR)
+// ============================================================================
+
+#[inline(always)]
+fn project(s: State, m: &Manifold) -> State {
+    State {
+        x: s.x.clamp(m.x_min, m.x_max),
+        y: s.y.clamp(m.y_min, m.y_max),
+    }
+}
+
+// ============================================================================
+// VECTORIZED DVSM FIELD F (STRUCTURALLY CORRECTED)
+// ============================================================================
+//
+// FIX:
+// - contraction = stabilizing pull toward σ
+// - excitation = nonlinear deviation field (NOT same direction)
+// ============================================================================
+
+#[inline(always)]
+fn F(s: State, sigma: State, eta: f64, gamma: f64) -> State {
+
+    // contraction (linear stabilizer)
+    let cx = eta * (sigma.x - s.x);
+    let cy = eta * (sigma.y - s.y);
+
+    // excitation (nonlinear deviation field)
+    let ex = gamma * (s.y - sigma.y).sin();
+    let ey = gamma * (sigma.x - s.x).cos();
+
+    State {
+        x: cx + ex,
+        y: cy + ey,
+    }
+}
+
+// ============================================================================
+// SCALE-AWARE NOISE FIELD
+// ============================================================================
+
+#[inline(always)]
+fn noise(seed: f64, strength: f64, m: &Manifold) -> State {
+    let scale_x = m.x_max - m.x_min;
+    let scale_y = m.y_max - m.y_min;
+
+    let base = ((seed * 12.9898).sin() * 43758.5453).fract() * 2.0 - 1.0;
+
+    State {
+        x: base * strength * scale_x,
+        y: base * strength * scale_y,
+    }
+}
+
+// ============================================================================
+// JET LIFT (OBSERVATIONAL ONLY)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Jet {
+    pub vx: f64,
+    pub vy: f64,
+    pub ax: f64,
+    pub ay: f64,
+}
+
+// finite difference jet lift
+fn jet(prev2: State, prev1: State, curr: State) -> Jet {
+    let vx = curr.x - prev1.x;
+    let vy = curr.y - prev1.y;
+
+    let vx_p = prev1.x - prev2.x;
+    let vy_p = prev1.y - prev2.y;
+
+    Jet {
+        vx,
+        vy,
+        ax: vx - vx_p,
+        ay: vy - vy_p,
+    }
+}
+
+// ============================================================================
+// PURE GEOMETRIC REGIME CLASSIFIER (NO ENERGY SCALARS)
+// ============================================================================
+
+#[derive(Debug, PartialEq)]
+pub enum Regime {
+    ProjectionDominated,
+    DriftDominated,
+    Balanced,
+    Chaotic,
+    StiffBoundary,
+}
+
+fn classify(s: State, prev: State, j: Jet, m: &Manifold) -> Regime {
+
+    let bx = (s.x - m.x_min).abs().min((m.x_max - s.x).abs());
+    let by = (s.y - m.y_min).abs().min((m.y_max - s.y).abs());
+
+    let boundary = bx.min(by);
+
+    let motion = ((s.x - prev.x).powi(2) + (s.y - prev.y).powi(2)).sqrt();
+
+    let jet_mag = (j.vx.powi(2) + j.vy.powi(2) + j.ax.powi(2) + j.ay.powi(2)).sqrt();
+
+    // geometric (NOT scalar energy thresholds)
+    if boundary < 0.05 {
+        return Regime::ProjectionDominated;
+    }
+
+    if motion < 1e-6 {
+        return Regime::DriftDominated;
+    }
+
+    if jet_mag > 50.0 * (m.x_max - m.x_min).max(m.y_max - m.y_min) {
+        return Regime::Chaotic;
+    }
+
+    if boundary < 0.1 && motion > 1e-2 {
+        return Regime::StiffBoundary;
+    }
+
+    Regime::Balanced
+}
+
+// ============================================================================
+// CORE STEP (CLEAN 2D PROJECTION-CLOSED DVSM)
+// ============================================================================
+
+pub fn step(
+    x2: State,
+    x1: State,
+    x0: State,
+    sigma: State,
+    eta: f64,
+    gamma: f64,
+    noise_strength: f64,
+    seed: f64,
+    m: &Manifold,
+) -> (State, Jet, Regime) {
+
+    // deterministic flow
+    let f = F(x0, sigma, eta, gamma);
+
+    // stochastic perturbation (scale-aware)
+    let xi = noise(seed, noise_strength, m);
+
+    // unconstrained update
+    let raw = State {
+        x: x0.x + f.x + xi.x,
+        y: x0.y + f.y + xi.y,
+    };
+
+    // projection closure Π_M
+    let next = project(raw, m);
+
+    // jet lift (post-projection ONLY)
+    let j = jet(x2, x1, next);
+
+    // regime classification on projected trajectory ONLY
+    let r = classify(next, x0, j, m);
+
+    (next, j, r)
+}
+
+// ============================================================================
+// PHASE STATISTICS
+// ============================================================================
+
+#[derive(Debug, Default)]
+pub struct PhaseStats {
+    pub projection: usize,
+    pub drift: usize,
+    pub balanced: usize,
+    pub chaotic: usize,
+    pub stiff: usize,
+}
+
+impl PhaseStats {
+    pub fn record(&mut self, r: Regime) {
+        match r {
+            Regime::ProjectionDominated => self.projection += 1,
+            Regime::DriftDominated => self.drift += 1,
+            Regime::Balanced => self.balanced += 1,
+            Regime::Chaotic => self.chaotic += 1,
+            Regime::StiffBoundary => self.stiff += 1,
+        }
+    }
+}
+
+// ============================================================================
+// PROBE RUNNER
+// ============================================================================
+
+pub fn run(
+    steps: usize,
+    mut s: State,
+    sigma: State,
+    m: Manifold,
+    eta: f64,
+    gamma: f64,
+    noise: f64,
+) -> PhaseStats {
+
+    let mut stats = PhaseStats::default();
+
+    let mut s1 = s;
+    let mut s2 = s;
+
+    for t in 0..steps {
+        let seed = t as f64;
+
+        let (nx, j, r) = step(
+            s2, s1, s,
+            sigma,
+            eta,
+            gamma,
+            noise,
+            seed,
+            &m,
+        );
+
+        stats.record(r);
+
+        s2 = s1;
+        s1 = s;
+        s = nx;
+
+        let _ = j;
+    }
+
+    stats
+}
+
+// ============================================================================
+// ENTRY
+// ============================================================================
+
+fn main() {
+    let m = Manifold {
+        x_min: -1.0,
+        x_max: 1.0,
+        y_min: -1.0,
+        y_max: 1.0,
+    };
+
+    let stats = run(
+        500,
+        State { x: 0.2, y: -0.1 },
+        State { x: 0.4, y: 0.3 },
+        m,
+        0.25,
+        0.6,
+        0.05,
+    );
+
+    println!("DVSM-π vNEXT+ Phase Stats: {:?}", stats);
+}
