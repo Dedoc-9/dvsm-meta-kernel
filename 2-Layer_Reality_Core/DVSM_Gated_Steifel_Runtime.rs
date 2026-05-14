@@ -3,6 +3,47 @@
 // Author: Daniel J. Dillberg
 // ============================================================
 // ============================================================
+// DVSM-DFE · CONTENTS INDEX (ARCHITECTURAL MAP)
+// ============================================================
+//
+// 1. System Identity & Core Claim (IP / Suchness Definition)
+// 2. Air-Gap Architecture & Zero-Trust Telemetry Model
+// 3. Stiefel Residual Evolution Operator (Core Update Law)
+// 4. Projection / Residual / Tangent Flow Mathematics
+// 5. Manifold Retraction & QR Stability Enforcement
+// 6. Geometric Governance Layer (Φ(D) Constraints)
+// 7. Coupled Dynamics: S-State + W-Basis Evolution
+// 8. Stress Functional B(t) (Geometric Friction Metric)
+// 9. Mode System (A: Pure Geometry / B: Confidence-Gated)
+// 10. Runtime Scheduling Layer (FIFO Streaming Engine)
+// 11. Tau Gating System (Confidence / RF Robustness Control)
+// 12. Drift Detection & Failure Mode Semantics
+// 13. Operator Algebra Summary (S / W / Z Spaces)
+// 14. System Guarantees (Bounded Manifold Evolution)
+//
+// ============================================================
+// ============================================================
+// DVSM-DFE · SYSTEM INDEX (GEOMETRIC CORE + GOVERNANCE STACK)
+// ============================================================
+//
+// 1. Projection Layer        → Π_W(Z) = W Wᵀ Z
+// 2. Residual Field          → R = Z - Π_W(Z)
+// 3. Normalization Gate      → R̂ = R / ||R||
+// 4. Tangent Flow            → ΔW ∈ T_W St(n,r)
+// 5. Retraction Operator     → W ← QR(W + ΔW)
+//
+// 6. Core Update Law         → S_{t+1} on S^{n−1}
+// 7. Stress Functional       → B(t) = angular divergence
+// 8. Mode System             → A (pure) / B (gated τ)
+// 9. Runtime Scheduler       → FIFO streaming execution
+//
+// 10. Invariants             → ||S||=1, WᵀW=I, bounded drift
+// 11. Governance Layer       → Φ(D) activation predicate
+// 12. System Output          → Stress + Geometry state
+// 13. Failure Semantics      → Stiefel drift + stress spike
+// 14. Architecture Type      → Coupled manifold dynamical system
+//
+// ============================================================
 // DVSM-DFE · IP SUPPLEMENT: GEOMETRIC SUCHNESS (COHERENCE)
 // ============================================================
 //
