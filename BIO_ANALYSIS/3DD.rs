@@ -527,4 +527,173 @@ It is:
 
 a GPU-resident non-normal dynamical field where particles act as probes of a learned Lie-algebraic interaction manifold.
 
+// ============================================================
+// ENGINE V2.1 — DVSM-π+++ OPERATOR FIELD SIMULATOR
+// Deterministic non-normal mean-field system
+// Entropy is emergent (NO Langevin noise)
+// ============================================================
+
+use wgpu::util::DeviceExt;
+
+const R: u32 = 8;
+const WORKGROUP_SIZE: u32 = 64;
+const TILE_COUNT: u32 = 32;
+
+// ============================================================
+// PARTICLE STATE
+// ============================================================
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Particle {
+    pos: [f32; 4],
+    vel: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Params {
+    dt: f32,
+    alpha: f32,   // EMA entropy carrier
+    lambda: f32,  // spectral sink
+    eta: f32,     // basis drift temperature
+    r: u32,
+    _pad: [f32; 3],
+}
+
+// ============================================================
+// ENGINE STATE
+// ============================================================
+
+pub struct Engine {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+
+    particles: wgpu::Buffer,
+
+    // mean-field structure
+    z_tile: wgpu::Buffer,
+    z_global: wgpu::Buffer,
+
+    // adaptive interaction basis (Σ manifold)
+    u: wgpu::Buffer,
+
+    params: wgpu::Buffer,
+
+    bind_group: wgpu::BindGroup,
+
+    pipeline_v2a: wgpu::ComputePipeline,
+    pipeline_reduce: wgpu::ComputePipeline,
+    pipeline_v2b: wgpu::ComputePipeline,
+}
+
+// ============================================================
+// EXECUTION
+// ============================================================
+
+impl Engine {
+    pub fn step(&self, particle_count: u32) {
+        let wg = (particle_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+
+        let mut encoder =
+            self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        // ----------------------------------------------------
+        // PASS 1 — DVSM FLOW (NON-NORMAL TRANSPORT)
+        // ----------------------------------------------------
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            pass.set_pipeline(&self.pipeline_v2a);
+            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.dispatch_workgroups(wg, 1, 1);
+        }
+
+        // ----------------------------------------------------
+        // PASS 2 — TILED MEAN FIELD REDUCTION (NO ATOMICS)
+        // ----------------------------------------------------
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            pass.set_pipeline(&self.pipeline_reduce);
+            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.dispatch_workgroups(R, 1, 1);
+        }
+
+        // ----------------------------------------------------
+        // PASS 3 — BASIS EVOLUTION (ENTROPY = GEOMETRIC DRIFT)
+        // ----------------------------------------------------
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            pass.set_pipeline(&self.pipeline_v2b);
+            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.dispatch_workgroups(R, 1, 1);
+        }
+
+        self.queue.submit(Some(encoder.finish()));
+    }
+}
+🧾 DEV NOTES (IMPORTANT — THIS IS THE REAL SYSTEM BEHAVIOR)
+
+1. What this actually is
+
+Not a physics engine.
+
+It is:
+
+a rank-limited, non-normal operator field with tiled mean-field compression and online basis adaptation
+
+2. Why atomics were removed
+
+Atomics previously caused:
+
+nondeterministic field updates
+contention collapse at scale
+hidden synchronization bottlenecks
+
+Now replaced with:
+
+spatial tiling → deterministic reduction → stable spectral field
+
+3. Why emergence is preserved
+
+Emergence is NOT in particle interaction.
+
+It is in:
+
+EMA-free memory in Z_tile accumulation
+non-commutative cross(phi * U, Z)
+residual-driven basis drift (v2b)
+
+So:
+
+dynamics come from geometry drift, not particle coupling
+
+4. Computational structure
+
+Stage	Complexity
+v2a	O(N·R)
+reduce	O(R·T)
+v2b	O(R)
+
+Total:
+
+O(N·R) with bounded reduction overhead
+
+5. Stability mechanism
+
+Three stabilizers:
+
+λ → spectral sink (prevents drift explosion)
+normalization in basis update → prevents collapse
+tiling → removes stochastic race conditions
+
+6. What you have now (final classification)
+
+This is:
+
+a self-adaptive non-normal Lie-field simulator with deterministic GPU tiling and rank-limited spectral learning
+
+// ============================================================
+// END ENGINE V2.1
+// ============================================================
+
 */
