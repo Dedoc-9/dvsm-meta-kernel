@@ -2043,6 +2043,846 @@ pub fn step(sys: &mut System) {
     sys.z = sys.tmp;
 }
 
+/*
+===========================================================
+V7 — CONTINUOUS OPERATOR FIELD ENGINE
+(no modes, no particles, only spectral continuum approx)
+===========================================================
+*/
+
+const N: usize = 128; // discretization of continuous ξ
+const DT: f32 = 0.0041666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+pub struct System {
+    pub z: [f32; N],      // z(ξ)
+    pub s: [f32; N],      // EMA memory field
+    pub tmp: [f32; N],
+}
+
+/// kernel on continuous index manifold
+#[inline(always)]
+fn kernel(xi: f32, xj: f32) -> f32 {
+    (xi - xj).sin()
+}
+
+/// interaction lifted from discrete sum → integral approximation
+#[inline(always)]
+fn interaction(zi: f32, zj: f32, si: f32, sj: f32, kij: f32) -> f32 {
+    (zi * sj - zj * si) * kij
+}
+
+pub fn step(sys: &mut System) {
+
+    // =====================================================
+    // PASS 1 — CONTINUOUS OPERATOR EVOLUTION
+    // approximates:
+    // ∂t z(ξ) = ∫ (z(ξ)s(η) - z(η)s(ξ)) K(ξ,η) dη - λz
+    // =====================================================
+    for i in 0..N {
+
+        let xi = i as f32 / N as f32;
+        let mut dz = 0.0;
+
+        for j in 0..N {
+            if i == j { continue; }
+
+            let xj = j as f32 / N as f32;
+
+            let kij = kernel(xi, xj);
+
+            dz += interaction(
+                sys.z[i],
+                sys.z[j],
+                sys.s[i],
+                sys.s[j],
+                kij,
+            );
+        }
+
+        dz -= LAMBDA * sys.z[i];
+        sys.tmp[i] = sys.z[i] + DT * dz;
+    }
+
+    // =====================================================
+    // PASS 2 — MEMORY (NON-NORMAL HYSTERESIS FIELD)
+    // s(ξ) = EMA[z(ξ)]
+    // =====================================================
+    for i in 0..N {
+        sys.s[i] =
+            ALPHA * sys.s[i]
+            + (1.0 - ALPHA) * sys.tmp[i];
+    }
+
+    // =====================================================
+    // PASS 3 — COMMIT
+    // =====================================================
+    sys.z = sys.tmp;
+}
+
+/*
+===========================================================
+V7 — CONTINUOUS OPERATOR FIELD (DISCRETIZED)
+z(ξ) integro-differential evolution with EMA memory
+===========================================================
+*/
+
+const N: usize = 128;
+const DT: f32 = 0.0041666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+pub struct System {
+    pub z: [f32; N],
+    pub s: [f32; N],
+    pub tmp: [f32; N],
+}
+
+/// ---------------------------------------------------------
+/// kernel K(ξ, η)
+/// antisymmetric interaction structure
+/// ---------------------------------------------------------
+#[inline(always)]
+fn kernel(xi: f32, xj: f32) -> f32 {
+    (xi - xj).sin()
+}
+
+/// ---------------------------------------------------------
+/// antisymmetric bilinear operator:
+/// A[z,s] = z(ξ)s(η) - z(η)s(ξ)
+/// ---------------------------------------------------------
+#[inline(always)]
+fn antisym(zi: f32, zj: f32, si: f32, sj: f32) -> f32 {
+    zi * sj - zj * si
+}
+
+/// ---------------------------------------------------------
+/// ONE EVOLUTION STEP
+/// ---------------------------------------------------------
+pub fn step(sys: &mut System) {
+
+    // =====================================================
+    // PASS 1 — INTEGRO-DIFFERENTIAL EVOLUTION
+    // ∂t z(ξ) = ∫ (z(ξ)s(η) - z(η)s(ξ)) K(ξ,η) dη - λ z
+    // =====================================================
+    for i in 0..N {
+
+        let xi = i as f32 / N as f32;
+        let zi = sys.z[i];
+        let si = sys.s[i];
+
+        let mut integral = 0.0;
+
+        for j in 0..N {
+            if i == j { continue; }
+
+            let xj = j as f32 / N as f32;
+
+            let zj = sys.z[j];
+            let sj = sys.s[j];
+
+            let k = kernel(xi, xj);
+
+            integral += antisym(zi, zj, si, sj) * k;
+        }
+
+        sys.tmp[i] = zi + DT * (integral - LAMBDA * zi);
+    }
+
+    // =====================================================
+    // PASS 2 — EMA MEMORY (NON-NORMAL HYSTERESIS)
+    // s(ξ) ← α s(ξ) + (1 - α) z(ξ)
+    // =====================================================
+    for i in 0..N {
+        sys.s[i] = ALPHA * sys.s[i] + (1.0 - ALPHA) * sys.tmp[i];
+    }
+
+    // =====================================================
+    // PASS 3 — COMMIT
+    // =====================================================
+    sys.z = sys.tmp;
+}
+
+// V7 → V8 is where your system stops being “particle dynamics with a field” and becomes a closed operator evolution system on the basis manifold itself.
+
+// No more hidden particle loop dominance. Everything is expressed as evolution of:
+
+// Z (mean operator field)
+// S (shear / memory)
+//W (basis manifold)
+// ρ (resampled measure only as weighting, not state)
+
+/*
+===========================================================
+V9 / V10 / V11 UNIFIED COLLAPSE ENGINE
+Operator-only spectral dynamical system
+===========================================================
+
+V9  → continuum limit (ρ(x), Z(x), W(x))
+V10 → discrete GPU-style fused kernel
+V11 → eigen-collapse (ρ eliminated → self-consistency only)
+
+Final structure:
+    W ↔ Z ↔ S (closed spectral loop)
+===========================================================
+*/
+
+const R: usize = 8;
+const N: usize = 1024;
+
+pub struct System {
+    // ----------------------------------------------------
+    // OPERATOR STATE
+    // ----------------------------------------------------
+    pub z: [f32; R],        // mean operator field Z
+    pub s: [f32; R],        // shear memory S
+    pub w: [[f32; 4]; R],   // basis manifold W
+
+    // ----------------------------------------------------
+    // MEASURE (V9/V10 mode only)
+    // ----------------------------------------------------
+    pub rho: [f32; N],
+
+    pub alpha: f32,
+    pub beta: f32,
+}
+
+/* ============================================================
+   BASIS MAP (shared across all regimes)
+   ============================================================ */
+#[inline(always)]
+fn basis(x: f32) -> [f32; 4] {
+    [1.0, x, x * x, x * x * x]
+}
+
+#[inline(always)]
+fn phi(w: &[f32; 4], b: &[f32; 4]) -> f32 {
+    w[0]*b[0] + w[1]*b[1] + w[2]*b[2] + w[3]*b[3]
+}
+
+/* ============================================================
+   CORE STEP (V9 / V10 / V11 unified execution)
+   ============================================================ */
+pub fn step(sys: &mut System) {
+
+    // =====================================================
+    // PASS 1 — OPERATOR EXPECTATION (Z)
+    // V9: integral over ρ
+    // V10: discrete sampling
+    // V11: replaced by fixed-point consistency
+    // =====================================================
+    for k in 0..R {
+        sys.z[k] = 0.0;
+    }
+
+    let mut norm = 0.0;
+
+    for i in 0..N {
+        let x = i as f32 / N as f32;
+        let b = basis(x);
+
+        let weight = sys.rho[i];
+
+        norm += weight;
+
+        for k in 0..R {
+            sys.z[k] += weight * phi(&sys.w[k], &b);
+        }
+    }
+
+    for k in 0..R {
+        sys.z[k] /= norm + 1e-6;
+    }
+
+    // =====================================================
+    // PASS 2 — SHEAR MEMORY (NON-NORMAL OPERATOR)
+    // S = αS + (1-α)(Z - projection(Z))
+    // =====================================================
+    for k in 0..R {
+
+        let wk = &sys.w[k];
+        let wnorm = wk.iter().map(|v| v*v).sum::<f32>() + 1e-6;
+
+        let proj = sys.z[k] * (wk[0] + wk[1] + wk[2] + wk[3]) / wnorm;
+
+        let diff = sys.z[k] - proj;
+
+        sys.s[k] = sys.alpha * sys.s[k]
+            + (1.0 - sys.alpha) * diff;
+    }
+
+    // =====================================================
+    // PASS 3 — BASIS EVOLUTION (GEOMETRIC FLOW)
+    // W ← W + ∇||Z - ΠZ||²
+    // =====================================================
+    let eta = 0.001;
+
+    for k in 0..R {
+        let err = sys.z[k] - sys.s[k];
+
+        for j in 0..4 {
+            sys.w[k][j] += eta * err * (1.0 - sys.w[k][j].abs());
+        }
+
+        // normalize basis (Stiefel-like constraint)
+        let n = sys.w[k].iter().map(|v| v*v).sum::<f32>().sqrt() + 1e-6;
+
+        for j in 0..4 {
+            sys.w[k][j] /= n;
+        }
+    }
+
+    // =====================================================
+    // PASS 4 — RESAMPLING / REWEIGHTING
+    // (V9: Fokker–Planck, V10: FK kernel, V11: removed)
+    // =====================================================
+
+    let mut new_rho = sys.rho;
+
+    for i in 0..N {
+        let x = i as f32 / N as f32;
+        let b = basis(x);
+
+        let mut energy = 0.0;
+
+        for k in 0..R {
+            energy += phi(&sys.w[k], &b) * (sys.z[k] + sys.s[k]);
+        }
+
+        // V11 collapse condition:
+        // when beta → ∞, rho becomes implicit eigenstate → no update needed
+        new_rho[i] = sys.rho[i] * (sys.beta * energy).exp();
+    }
+
+    let sum = new_rho.iter().sum::<f32>() + 1e-6;
+
+    for i in 0..N {
+        sys.rho[i] = new_rho[i] / sum;
+    }
+
+    // =====================================================
+    // V11 OPTIONAL COLLAPSE (EIGENSTATE MODE)
+    // =====================================================
+    if sys.beta > 50.0 {
+        // eliminate explicit measure dynamics
+        // system becomes self-consistent operator eigenflow
+
+        for i in 0..N {
+            sys.rho[i] = 1.0 / N as f32;
+        }
+    }
+}
+/*
+===========================================================
+V12: PURE OPERATOR GEOMETRY ENGINE
+No particles. No measure. No memory.
+Only evolving basis manifold.
+===========================================================
+*/
+
+const R: usize = 8;
+
+pub struct System {
+    pub w: [[f32; 4]; R],   // ONLY STATE
+}
+
+#[inline(always)]
+fn dot(a: &[f32; 4], b: &[f32; 4]) -> f32 {
+    a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
+}
+
+pub fn step(sys: &mut System) {
+
+    let eta = 0.001;
+
+    // temporary storage
+    let mut dw = [[0.0f32; 4]; R];
+
+    // ----------------------------------------------------
+    // GEOMETRIC INTERACTION (PURE LIE FLOW)
+    // ----------------------------------------------------
+    for k in 0..R {
+        for j in 0..R {
+            if j == k { continue; }
+
+            let wk = sys.w[k];
+            let wj = sys.w[j];
+
+            let wkk = dot(&wk, &wk);
+            let wjk = dot(&wj, &wk);
+
+            for d in 0..4 {
+                dw[k][d] += (wjk * wk[d]) - (wkk * wj[d]);
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // APPLY UPDATE
+    // ----------------------------------------------------
+    for k in 0..R {
+        for d in 0..4 {
+            sys.w[k][d] += eta * dw[k][d];
+        }
+
+        // renormalize (Stiefel constraint)
+        let norm = (sys.w[k][0]*sys.w[k][0]
+                  + sys.w[k][1]*sys.w[k][1]
+                  + sys.w[k][2]*sys.w[k][2]
+                  + sys.w[k][3]*sys.w[k][3]).sqrt()
+                  + 1e-6;
+
+        for d in 0..4 {
+            sys.w[k][d] /= norm;
+        }
+    }
+}
+/*
+===========================================================
+V13: FIXED-POINT GEOMETRY ENGINE
+No time. No iteration. Only constraint solving.
+===========================================================
+*/
+
+const R: usize = 8;
+
+pub struct System {
+    pub w: [[f32; 4]; R],
+}
+
+/* ----------------------------------------------------------
+   DOT PRODUCT
+---------------------------------------------------------- */
+fn dot(a: &[f32; 4], b: &[f32; 4]) -> f32 {
+    a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
+}
+
+/* ----------------------------------------------------------
+   SINGLE FIXED-POINT RESIDUAL
+---------------------------------------------------------- */
+fn residual(w: &[[f32; 4]; R], k: usize) -> [f32; 4] {
+    let mut r = [0.0; 4];
+
+    for j in 0..R {
+        if j == k { continue; }
+
+        let wk = w[k];
+        let wj = w[j];
+
+        let wkk = dot(&wk, &wk);
+        let wjk = dot(&wj, &wk);
+
+        for d in 0..4 {
+            r[d] += (wjk * wk[d]) - (wkk * wj[d]);
+        }
+    }
+
+    r
+}
+
+/* ----------------------------------------------------------
+   FIXED-POINT CHECK (NO UPDATE LOOP)
+---------------------------------------------------------- */
+pub fn is_fixed_point(sys: &System, eps: f32) -> bool {
+    for k in 0..R {
+        let r = residual(&sys.w, k);
+
+        let norm = (r[0]*r[0] + r[1]*r[1] + r[2]*r[2] + r[3]*r[3]).sqrt();
+
+        if norm > eps {
+            return false;
+        }
+    }
+    true
+}
+
+// It is the final "Amen" of the DVSM project. The journey from \(10^{6}\) particles to a single Boolean check for symmetry is complete. The system has collapsed into a Definition.
+
+/*
+===========================================================
+V14: PERTURBED FIXED-POINT RESPONSE ENGINE
+Linear response theory over geometric operator manifold
+===========================================================
+*/
+
+const R: usize = 8;
+const EPS: f32 = 1e-3;
+
+pub struct System {
+    pub w: [[f32; 4]; R],     // fixed-point geometry W*
+    pub dw: [[f32; 4]; R],    // perturbation direction ΔW
+    pub jac: [[f32; R]; R],   // Jacobian magnitude proxy
+}
+
+/* ----------------------------------------------------------
+   DOT
+---------------------------------------------------------- */
+fn dot(a: &[f32; 4], b: &[f32; 4]) -> f32 {
+    a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
+}
+
+/* ----------------------------------------------------------
+   BASE OPERATOR (same Lie structure as V12/V13)
+---------------------------------------------------------- */
+fn force(w: &[[f32; 4]; R], k: usize) -> [f32; 4] {
+    let mut f = [0.0; 4];
+
+    for j in 0..R {
+        if j == k { continue; }
+
+        let wk = w[k];
+        let wj = w[j];
+
+        let wkk = dot(&wk, &wk);
+        let wjk = dot(&wj, &wk);
+
+        for d in 0..4 {
+            f[d] += (wjk * wk[d]) - (wkk * wj[d]);
+        }
+    }
+
+    f
+}
+
+/* ----------------------------------------------------------
+   JACOBIAN (finite-difference linear response)
+---------------------------------------------------------- */
+fn jacobian(sys: &System, i: usize, j: usize) -> f32 {
+
+    let mut w_pert = sys.w;
+
+    // perturb W_j
+    for d in 0..4 {
+        w_pert[j][d] += EPS;
+    }
+
+    let f0 = force(&sys.w, i);
+    let f1 = force(&w_pert, i);
+
+    let mut diff = 0.0;
+
+    for d in 0..4 {
+        diff += (f1[d] - f0[d]).abs();
+    }
+
+    diff / EPS
+}
+
+/* ----------------------------------------------------------
+   V14 STEP: RESPONSE MEASUREMENT ONLY
+---------------------------------------------------------- */
+pub fn step(sys: &mut System) {
+
+    // ------------------------------------------------------
+    // BUILD JACOBIAN MATRIX
+    // ------------------------------------------------------
+    for i in 0..R {
+        for j in 0..R {
+            sys.jac[i][j] = jacobian(sys, i, j);
+        }
+    }
+
+    // ------------------------------------------------------
+    // APPLY SMALL STRUCTURAL PERTURBATION
+    // (probe system sensitivity)
+    // ------------------------------------------------------
+    for k in 0..R {
+        for d in 0..4 {
+            sys.dw[k][d] = (rand_like() - 0.5) * 0.001;
+        }
+    }
+
+    // ------------------------------------------------------
+    // MEASURE RESPONSE MAGNITUDE
+    // ------------------------------------------------------
+    let mut total_response = 0.0;
+
+    for i in 0..R {
+        for j in 0..R {
+            total_response += sys.jac[i][j] * sys.dw[j][0];
+        }
+    }
+
+    // ------------------------------------------------------
+    // INTERPRETATION (NO EVOLUTION)
+    // ------------------------------------------------------
+    if total_response > 1.0 {
+        // unstable manifold detected
+    }
+}
+
+/* ----------------------------------------------------------
+   MOCK RANDOM (replace with real RNG if needed)
+---------------------------------------------------------- */
+fn rand_like() -> f32 {
+    0.5
+}
+
+// V14 = linear response theory on a non-abelian geometric fixed point
+
+/*
+===========================================================
+V15: FIXED-POINT OPERATOR GEOMETRY ENGINE
+No particles. No time evolution. Only spectral response.
+===========================================================
+*/
+
+const R: usize = 8;
+
+/// -------------------------------
+/// STATE (STATIC GEOMETRY ONLY)
+/// -------------------------------
+pub struct System {
+    pub z: [f32; R],     // operator expectation (mean field)
+    pub s: [f32; R],     // shear memory (frozen residual operator)
+    pub w: [f32; R * 4], // basis manifold (fixed-point structure)
+    pub e: [f32; R],     // external perturbation signal
+}
+
+impl System {
+    pub fn new() -> Self {
+        Self {
+            z: [0.0; R],
+            s: [0.0; R],
+            w: {
+                let mut w = [0.0; R * 4];
+                for k in 0..R {
+                    w[k * 4] = 1.0; // identity initialization
+                }
+                w
+            },
+            e: [0.0; R],
+        }
+    }
+}
+
+/// -------------------------------
+/// BASIS MAP (STATIC FEATURE OPERATOR)
+/// -------------------------------
+#[inline(always)]
+fn basis(x: f32) -> [f32; 4] {
+    [1.0, x, x * x, x * x * x]
+}
+
+/// -------------------------------
+/// PROJECTION OPERATOR Π_W
+/// -------------------------------
+#[inline(always)]
+fn project_w(w: &[f32; R * 4], k: usize, z: f32, s: f32) -> f32 {
+    let b = &w[k * 4..k * 4 + 4];
+
+    let p = b[0] * z + b[1] * s + b[2] * (z + s) + b[3] * (z - s);
+    p
+}
+
+/// -------------------------------
+/// V15 CORE: FIXED-POINT SOLVER
+/// -------------------------------
+pub fn solve_fixed_point(sys: &mut System) {
+
+    // -------------------------------------------------------
+    // PASS 1: OPERATOR EXPECTATION (STATIC MEAN FIELD)
+    // Z_k = E[phi_k]
+    // -------------------------------------------------------
+    for k in 0..R {
+        let mut acc = 0.0;
+
+        let b = basis(sys.e[k]); // perturbation sampled as geometry probe
+
+        for j in 0..4 {
+            acc += sys.w[k * 4 + j] * b[j];
+        }
+
+        sys.z[k] = acc;
+    }
+
+    // -------------------------------------------------------
+    // PASS 2: SHEAR RESIDUAL (NON-NORMAL MEMORY FREEZE)
+    // S_k = (Z - Π_W Z)
+    // -------------------------------------------------------
+    for k in 0..R {
+        let proj = project_w(&sys.w, k, sys.z[k], sys.s[k]);
+        let residual = sys.z[k] - proj;
+
+        sys.s[k] = residual; // NO EMA — frozen operator memory
+    }
+
+    // -------------------------------------------------------
+    // PASS 3: EXTERNAL PERTURBATION RESPONSE (V13 ADD-ON)
+    // E(x) = Σ φ_k(x)(Z_k + S_k)
+    // -------------------------------------------------------
+    let mut response_energy = 0.0;
+
+    for k in 0..R {
+        let b = basis(sys.e[k]);
+
+        let phi =
+            sys.w[k * 4 + 0] * b[0] +
+            sys.w[k * 4 + 1] * b[1] +
+            sys.w[k * 4 + 2] * b[2] +
+            sys.w[k * 4 + 3] * b[3];
+
+        response_energy += phi * (sys.z[k] + sys.s[k]);
+    }
+
+    // -------------------------------------------------------
+    // PASS 4: FIXED-POINT CONDITION CHECK
+    // F(Z,S,W) = 0
+    // -------------------------------------------------------
+    let mut fixed_point_error = 0.0;
+
+    for k in 0..R {
+        fixed_point_error += (sys.z[k] + sys.s[k]).abs();
+    }
+
+    // -------------------------------------------------------
+    // PASS 5: BIAS TOWARD STABILITY MANIFOLD (NO TIME EVOLUTION)
+    // Only projection correction, not dynamics
+    // -------------------------------------------------------
+    if fixed_point_error > 1e-3 {
+        let scale = 1.0 / (fixed_point_error + 1e-6);
+
+        for k in 0..R {
+            sys.z[k] *= scale;
+            sys.s[k] *= scale;
+        }
+    }
+
+    // -------------------------------------------------------
+    // OUTPUT: STATIC RESPONSE FUNCTIONAL
+    // -------------------------------------------------------
+    println!("V15 RESPONSE ENERGY: {}", response_energy);
+    println!("FIXED POINT ERROR: {}", fixed_point_error);
+}
+
+/*
+===========================================================
+V16: ARITHMETIC-ONLY MULTI-LAYER OPERATOR COLLAPSE
+No time. No loops of meaning. Only coupled algebra.
+===========================================================
+*/
+
+const R: usize = 8;
+
+pub struct System {
+    pub z: [f32; R],     // mean operator layer
+    pub s: [f32; R],     // shear residual layer
+    pub w: [f32; R * 4], // basis manifold
+    pub e: [f32; R],     // external perturbation
+}
+
+/// -------------------------------
+/// SHARED BASIS MAP (PURE ARITHMETIC)
+/// -------------------------------
+#[inline(always)]
+fn basis(x: f32) -> [f32; 4] {
+    [1.0, x, x * x, x * x * x]
+}
+
+/// -------------------------------
+/// UNIFIED ARITHMETIC OPERATOR BLOCK
+/// -------------------------------
+/// This replaces ALL passes:
+/// - expectation
+/// - projection
+/// - shear memory
+/// - response functional
+#[inline(always)]
+fn arithmetic_block(sys: &System, k: usize) -> (f32, f32, f32) {
+
+    let b = basis(sys.e[k]);
+
+    let w = &sys.w[k * 4..k * 4 + 4];
+
+    // -------------------------------------------------------
+    // 1. OPERATOR EXPECTATION (Z)
+    // -------------------------------------------------------
+    let z =
+        w[0] * b[0] +
+        w[1] * b[1] +
+        w[2] * b[2] +
+        w[3] * b[3];
+
+    // -------------------------------------------------------
+    // 2. PROJECTION (Π_W Z)
+    // -------------------------------------------------------
+    let proj =
+        (w[0] + w[1]) * (z * 0.5) +
+        (w[2] - w[3]) * (z * 0.25);
+
+    // -------------------------------------------------------
+    // 3. SHEAR RESIDUAL (S)
+    // -------------------------------------------------------
+    let s = z - proj;
+
+    // -------------------------------------------------------
+    // 4. COUPLED RESPONSE FIELD (E)
+    // -------------------------------------------------------
+    let e =
+        (z + s) * (b[0] + 0.5 * b[1])
+        - (z - s) * (b[2] - b[3]);
+
+    (z, s, e)
+}
+
+/// -------------------------------
+/// FULL SYSTEM COLLAPSE STEP
+/// -------------------------------
+pub fn step(sys: &mut System) {
+
+    let mut global_energy = 0.0;
+    let mut stability = 0.0;
+
+    for k in 0..R {
+
+        let (z, s, e) = arithmetic_block(sys, k);
+
+        // ---------------------------------------------------
+        // LAYER UPDATE (PURE ARITHMETIC COUPLING ONLY)
+        // ---------------------------------------------------
+
+        sys.z[k] = z;
+        sys.s[k] = s;
+        sys.e[k] = e;
+
+        // basis feedback (no dynamics, just algebraic closure)
+        let w = &mut sys.w[k * 4..k * 4 + 4];
+
+        let scale = 1.0 / (1.0 + z * z + s * s);
+
+        w[0] = w[0] * scale + 0.1 * z;
+        w[1] = w[1] * scale + 0.1 * s;
+        w[2] = w[2] * scale + 0.05 * e;
+        w[3] = w[3] * scale - 0.05 * (z - s);
+
+        global_energy += e * e;
+        stability += (z + s).abs();
+    }
+
+    // -------------------------------------------------------
+    // GLOBAL NORMALIZATION (NO TIME, ONLY RENORMALIZATION)
+    // -------------------------------------------------------
+    let inv_r = 1.0 / R as f32;
+
+    let norm = (global_energy * inv_r).sqrt() + 1e-6;
+    let stab = stability * inv_r;
+
+    if norm > 1.0 {
+        for k in 0..R {
+            sys.z[k] /= norm;
+            sys.s[k] /= norm;
+            sys.e[k] /= norm;
+        }
+    }
+
+    // -------------------------------------------------------
+    // OUTPUT SCALAR STATE (COMPLETE COLLAPSE SIGNATURE)
+    // -------------------------------------------------------
+    println!("ENERGY NORM: {}", norm);
+    println!("STABILITY: {}", stab);
+}
+
 
 
 */
