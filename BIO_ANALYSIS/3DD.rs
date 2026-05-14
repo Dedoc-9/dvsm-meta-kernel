@@ -730,5 +730,254 @@ a self-adaptive non-normal Lie-field simulator with deterministic GPU tiling and
 // ============================================================
 // END ENGINE V2.1
 // ============================================================
+/*
+===========================================================
+DVSM-LIKE NON-NORMAL PARTICLE FIELD ENGINE (V3-R)
+Single-file Rust implementation
+
+Core upgrades:
+- Mean-field feature coupling (O(N·R))
+- EMA shear memory (non-normality source)
+- TRUE R operator: Feynman–Kac resampling (birth/death)
+===========================================================
+*/
+
+use rand::Rng;
+
+const R: usize = 8;
+const DT: f32 = 1.0 / 240.0;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+pub struct System {
+    pub n: usize,
+
+    // positions
+    pub x0: Vec<f32>,
+    pub x1: Vec<f32>,
+    pub x2: Vec<f32>,
+
+    // velocities
+    pub v0: Vec<f32>,
+    pub v1: Vec<f32>,
+    pub v2: Vec<f32>,
+
+    // mean-field + shear
+    pub z: [[f32; 3]; R],
+    pub z_shear: [[f32; 3]; R],
+
+    // basis weights
+    pub w: [[f32; 4]; R],
+
+    // R operator: fitness (selection probability)
+    pub fitness: Vec<f32>,
+}
+
+impl System {
+    pub fn new(n: usize) -> Self {
+        Self {
+            n,
+            x0: vec![0.0; n],
+            x1: vec![0.0; n],
+            x2: vec![0.0; n],
+
+            v0: vec![0.0; n],
+            v1: vec![0.0; n],
+            v2: vec![0.0; n],
+
+            z: [[0.0; 3]; R],
+            z_shear: [[0.0; 3]; R],
+            w: [[0.0; 4]; R],
+
+            fitness: vec![0.0; n],
+        }
+    }
+}
+
+/* -------------------------------
+   BASIS FUNCTION (local feature map)
+-------------------------------- */
+#[inline(always)]
+fn basis(x: f32) -> [f32; 4] {
+    let x2 = x * x;
+    let x3 = x2 * x;
+    [1.0, x, x2, x3]
+}
+
+/* -------------------------------
+   FEATURE PROJECTION
+-------------------------------- */
+#[inline(always)]
+fn phi(w: &[f32; 4], b: &[f32; 4]) -> f32 {
+    w[0] * b[0] + w[1] * b[1] + w[2] * b[2] + w[3] * b[3]
+}
+
+/* -------------------------------
+   MAIN STEP
+-------------------------------- */
+pub fn step(sys: &mut System) {
+    let mut rng = rand::thread_rng();
+
+    // reset global field
+    for k in 0..R {
+        sys.z[k] = [0.0; 3];
+    }
+
+    /* =====================================================
+       PASS 1 — MEAN FIELD + FITNESS COMPUTATION
+    ====================================================== */
+    for i in 0..sys.n {
+        let b = basis(sys.x0[i]);
+
+        let mut fitness = 0.0;
+
+        for k in 0..R {
+            let p = phi(&sys.w[k], &b);
+
+            // accumulate mean field
+            sys.z[k][0] += p;
+            sys.z[k][1] += p;
+            sys.z[k][2] += p;
+
+            // fitness = alignment with field + shear memory
+            fitness += p * (sys.z[k][0] + sys.z_shear[k][0]);
+        }
+
+        sys.fitness[i] = fitness / R as f32;
+    }
+
+    // normalize mean field
+    let inv_n = 1.0 / sys.n as f32;
+    for k in 0..R {
+        sys.z[k][0] *= inv_n;
+        sys.z[k][1] *= inv_n;
+        sys.z[k][2] *= inv_n;
+    }
+
+    /* =====================================================
+       PASS 2 — EMA SHEAR (NON-NORMAL MEMORY)
+    ====================================================== */
+    for i in 0..sys.n {
+        let b = basis(sys.x0[i]);
+
+        for k in 0..R {
+            let p = phi(&sys.w[k], &b);
+            let diff = p - 0.5 * p;
+
+            sys.z_shear[k][0] =
+                ALPHA * sys.z_shear[k][0] + (1.0 - ALPHA) * diff;
+
+            sys.z_shear[k][1] = sys.z_shear[k][0];
+            sys.z_shear[k][2] = sys.z_shear[k][0];
+        }
+    }
+
+    /* =====================================================
+       PASS 3 — PARTICLE DYNAMICS
+    ====================================================== */
+    for i in 0..sys.n {
+        let bx = sys.x0[i];
+        let by = sys.x1[i];
+        let bz = sys.x2[i];
+
+        let b = basis(bx);
+
+        let mut fx = 0.0;
+        let mut fy = 0.0;
+        let mut fz = 0.0;
+
+        for k in 0..R {
+            let uk = phi(&sys.w[k], &b);
+
+            let sx = sys.z[k][0] + sys.z_shear[k][0];
+            let sy = sys.z[k][1] + sys.z_shear[k][1];
+            let sz = sys.z[k][2] + sys.z_shear[k][2];
+
+            fx += uk * (sy - sz);
+            fy += uk * (sz - sx);
+            fz += uk * (sx - sy);
+        }
+
+        fx -= LAMBDA * bx;
+        fy -= LAMBDA * by;
+        fz -= LAMBDA * bz;
+
+        sys.v0[i] += DT * fx;
+        sys.v1[i] += DT * fy;
+        sys.v2[i] += DT * fz;
+
+        sys.x0[i] += DT * sys.v0[i];
+        sys.x1[i] += DT * sys.v1[i];
+        sys.x2[i] += DT * sys.v2[i];
+    }
+
+    /* =====================================================
+       PASS 4 — TRUE R OPERATOR (RESAMPLING)
+       Feynman–Kac selection (birth / death)
+    ====================================================== */
+
+    // 1. exponential weighting
+    let mut total = 0.0;
+    for i in 0..sys.n {
+        sys.fitness[i] = sys.fitness[i].exp();
+        total += sys.fitness[i];
+    }
+
+    let inv_total = 1.0 / (total + 1e-6);
+
+    // 2. build CDF
+    let mut cdf = vec![0.0; sys.n];
+    let mut acc = 0.0;
+
+    for i in 0..sys.n {
+        sys.fitness[i] *= inv_total;
+        acc += sys.fitness[i];
+        cdf[i] = acc;
+    }
+
+    // 3. resample population
+    let mut nx0 = sys.x0.clone();
+    let mut nx1 = sys.x1.clone();
+    let mut nx2 = sys.x2.clone();
+
+    let mut nv0 = sys.v0.clone();
+    let mut nv1 = sys.v1.clone();
+    let mut nv2 = sys.v2.clone();
+
+    for i in 0..sys.n {
+        let r: f32 = rng.gen();
+
+        let mut j = 0;
+        while j < sys.n && cdf[j] < r {
+            j += 1;
+        }
+        if j >= sys.n {
+            j = sys.n - 1;
+        }
+
+        nx0[i] = sys.x0[j];
+        nx1[i] = sys.x1[j];
+        nx2[i] = sys.x2[j];
+
+        nv0[i] = sys.v0[j];
+        nv1[i] = sys.v1[j];
+        nv2[i] = sys.v2[j];
+    }
+
+    sys.x0 = nx0;
+    sys.x1 = nx1;
+    sys.x2 = nx2;
+
+    sys.v0 = nv0;
+    sys.v1 = nv1;
+    sys.v2 = nv2;
+
+    /* =====================================================
+       STABILITY GUARD (anti-collapse floor)
+    ====================================================== */
+    for i in 0..sys.n {
+        sys.fitness[i] = sys.fitness[i].max(0.01);
+    }
+}
 
 */
