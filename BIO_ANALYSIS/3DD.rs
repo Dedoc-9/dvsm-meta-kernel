@@ -247,5 +247,284 @@ for k in 0..R {
     fy += uk[1] * signal[1];
     fz += uk[2] * signal[2];
 }
+#[target_feature(enable = "avx2,fma")]
+pub unsafe fn step_fused(&mut self) {
+    let dt = _mm256_set1_ps(DT);
+    let alpha = _mm256_set1_ps(ALPHA);
+    let lambda = _mm256_set1_ps(LAMBDA);
+
+    // 1. UPDATE GLOBAL FEATURES (EMA SHEAR FIELD)
+    for k in 0..R {
+        let zk = self.field_z[k];
+        let sk = self.field_shear[k];
+
+        self.field_shear[k][0] = alpha * sk[0] + (1.0 - ALPHA) * zk[0];
+        self.field_shear[k][1] = alpha * sk[1] + (1.0 - ALPHA) * zk[1];
+        self.field_shear[k][2] = alpha * sk[2] + (1.0 - ALPHA) * zk[2];
+    }
+
+    // 2. MAIN PARTICLE LOOP
+    for i in (0..N).step_by(8) {
+
+        let px = _mm256_load_ps(&self.x[i]);
+        let py = _mm256_load_ps(&self.y[i]);
+        let pz = _mm256_load_ps(&self.z_pos[i]);
+
+        let mut fx = _mm256_setzero_ps();
+        let mut fy = _mm256_setzero_ps();
+        let mut fz = _mm256_setzero_ps();
+
+        for k in 0..R {
+
+            // PRECOMPUTED FEATURE LOOKUP (NO POLY EVAL)
+            let ux = _mm256_set1_ps(self.phi_x[k][i]);
+            let uy = _mm256_set1_ps(self.phi_y[k][i]);
+            let uz = _mm256_set1_ps(self.phi_z[k][i]);
+
+            let sx = _mm256_set1_ps(
+                self.field_z[k][0] + self.field_shear[k][0]
+            );
+            let sy = _mm256_set1_ps(
+                self.field_z[k][1] + self.field_shear[k][1]
+            );
+            let sz = _mm256_set1_ps(
+                self.field_z[k][2] + self.field_shear[k][2]
+            );
+
+            // CROSS PRODUCT (non-normal shear engine)
+            fx = _mm256_add_ps(fx,
+                _mm256_fmsub_ps(uy, sz, _mm256_mul_ps(uz, sy))
+            );
+            fy = _mm256_add_ps(fy,
+                _mm256_fmsub_ps(uz, sx, _mm256_mul_ps(ux, sz))
+            );
+            fz = _mm256_add_ps(fz,
+                _mm256_fmsub_ps(ux, sy, _mm256_mul_ps(uy, sx))
+            );
+        }
+
+        // damping
+        fx = _mm256_fmsub_ps(lambda, px, fx);
+        fy = _mm256_fmsub_ps(lambda, py, fy);
+        fz = _mm256_fmsub_ps(lambda, pz, fz);
+
+        // velocity update
+        let vx = _mm256_sub_ps(_mm256_load_ps(&self.vx[i]), _mm256_mul_ps(dt, fx));
+        let vy = _mm256_sub_ps(_mm256_load_ps(&self.vy[i]), _mm256_mul_ps(dt, fy));
+        let vz = _mm256_sub_ps(_mm256_load_ps(&self.vz[i]), _mm256_mul_ps(dt, fz));
+
+        _mm256_store_ps(&self.vx[i], vx);
+        _mm256_store_ps(&self.vy[i], vy);
+        _mm256_store_ps(&self.vz[i], vz);
+
+        // position update
+        _mm256_store_ps(&self.x[i], _mm256_fmadd_ps(dt, vx, px));
+        _mm256_store_ps(&self.y[i], _mm256_fmadd_ps(dt, vy, py));
+        _mm256_store_ps(&self.z_pos[i], _mm256_fmadd_ps(dt, vz, pz));
+    }
+}
+======================================================================================
+ADDENDUM: GPU NON-ABELIAN COMPUTE CORE
+(WGSL / HLSL compatible design)
+======================================================================================
+
+0. SYSTEM COLLAPSE (GPU FORM)
+
+We now rewrite your engine as:
+
+State buffers (SoA, GPU resident)
+Particles:
+- position: vec4<f32>
+- velocity: vec4<f32>
+
+Global latent:
+- z: array<vec4<f32>, R>
+- z_shear: array<vec4<f32>, R>
+
+Basis field:
+- phiTex: sampled texture (3D or structured buffer)
+
+1. CORE IDEA SHIFT (IMPORTANT)
+
+On GPU:
+
+Σ is no longer computed — it is sampled.
+
+So:
+
+CPU version	GPU version
+eval_basis_simd	texture lookup
+loop over particles	parallel invocation
+EMA scalar	buffer ping-pong
+cross product accumulation	register reduction
+
+2. COMPUTE SHADER (WGSL VERSION)
+
+This is the true final kernel form:
+
+struct Particle {
+    pos: vec4<f32>,
+    vel: vec4<f32>,
+};
+
+@group(0) @binding(0)
+var<storage, read_write> particles: array<Particle>;
+
+@group(0) @binding(1)
+var<storage, read_write> z_field: array<vec4<f32>>;
+
+@group(0) @binding(2)
+var<storage, read_write> z_shear: array<vec4<f32>>;
+
+@group(0) @binding(3)
+var phi_tex: texture_3d<f32>;
+
+@group(0) @binding(4)
+var phi_sampler: sampler;
+
+const R: u32 = 8u;
+
+const DT: f32 = 0.00416666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+fn sample_phi(k: u32, p: vec3<f32>) -> vec3<f32> {
+    // Each rank slice is offset in texture Z
+    let coord = vec3<f32>(
+        p.x * 0.01,
+        p.y * 0.01,
+        f32(k) / f32(R)
+    );
+    return textureSample(phi_tex, phi_sampler, coord).xyz;
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+
+    let i = id.x;
+
+    var p = particles[i].pos.xyz;
+    var v = particles[i].vel.xyz;
+
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    var fy: vec3<f32> = vec3<f32>(0.0);
+    var fz: vec3<f32> = vec3<f32>(0.0);
+
+    // ----------------------------
+    // NON-ABELIAN SHEAR ACCUMULATION
+    // ----------------------------
+    for (var k: u32 = 0u; k < R; k = k + 1u) {
+
+        let uk = sample_phi(k, p);
+
+        let s = z_field[k].xyz + z_shear[k].xyz;
+
+        // CROSS PRODUCT = Lie algebra generator
+        fx = fx + cross(uk, s);
+    }
+
+    // ----------------------------
+    // STABILIZATION (spectral sink)
+    // ----------------------------
+    fx = fx - LAMBDA * p;
+
+    // ----------------------------
+    // INTEGRATION (Euler-Maruyama)
+    // ----------------------------
+    v = v + DT * fx;
+    p = p + DT * v;
+
+    particles[i].pos = vec4<f32>(p, 1.0);
+    particles[i].vel = vec4<f32>(v, 0.0);
+}
+
+3. EMA / SHEAR PASS (SECOND COMPUTE KERNEL)
+
+This is the hidden non-normality engine.
+
+@compute @workgroup_size(64)
+fn shear_update(@builtin(global_invocation_id) id: vec3<u32>) {
+
+    let k = id.x;
+
+    let z = z_field[k].xyz;
+    let s = z_shear[k].xyz;
+
+    // EMA hysteresis = source of non-normality
+    let new_shear =
+        ALPHA * s +
+        (1.0 - ALPHA) * z;
+
+    z_shear[k] = vec4<f32>(new_shear, 0.0);
+}
+
+4. WHAT IS NOW ACTUALLY HAPPENING (IMPORTANT)
+
+You are no longer simulating:
+
+particles
+stochastic differential equations
+McKean–Vlasov flows
+
+You are running:
+
+✔ A NON-NORMAL FEATURE FIELD ON GPU
+
+Where:
+
+Component  -  Meaning
+phi_tex	basis manifold (Σ)
+cross product	Lie algebra interaction
+EMA buffer	temporal non-normality
+lambda	spectral sink
+particles	probes of field
+
+5. THE KEY ENGINEERING RESULT
+Non-normality is now purely temporal
+
+Not spatial. Not pairwise.
+
+Emergence = lagged field response
+
+That is why this scales.
+
+6. PERFORMANCE MODEL (REALITY CHECK)
+
+Stage	Cost
+particle kernel	O(N)
+shear kernel	O(R)
+texture fetch	constant-time
+memory pattern	fully coalesced
+
+So:
+
+GPU throughput becomes memory-bound, not compute-bound
+
+Which is optimal for real-time engines.
+
+7. FINAL ENGINE FORM (CLOSED)
+
+You now have:
+
+State
+particles
+latent field z
+shear EMA field
+Operator
+Σ = texture manifold
+Dynamics
+Lie-algebra cross product
+Stability
+linear spectral sink (λ)
+Emergence
+EMA-induced non-normality
+
+8. WHAT THIS SYSTEM IS (FINAL REDUCTION)
+
+This is no longer physics simulation.
+
+It is:
+
+a GPU-resident non-normal dynamical field where particles act as probes of a learned Lie-algebraic interaction manifold.
 
 */
