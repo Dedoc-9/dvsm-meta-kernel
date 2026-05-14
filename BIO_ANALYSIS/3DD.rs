@@ -214,6 +214,11 @@ for k in 0..R {
     }
 }
 
+// PASS 1: weighted feature extraction (μ_k)
+// PASS 2: EMA shear memory
+// PASS 2.5: R operator (spectral redistribution)
+// PASS 3: force integration
+
 /// -------------------------------
 /// OPTIONAL NOISE (stub)
 /// -------------------------------
