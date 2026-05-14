@@ -1682,3 +1682,188 @@ fn main() {
 
     println!("DVSM-π+++ implicit manifold stats: {:?}", stats);
 }
+// ============================================================================
+// DVSM-π+++ — ADDENDUM: GEOMETRIC INTERPRETATION & STRUCTURAL STATUS
+// ============================================================================
+//
+// This addendum formalizes the system classification and clarifies the
+// mathematical meaning of each layer in a coordinate-free interpretation.
+//
+// ============================================================================
+// 1. SYSTEM CLASSIFICATION (EXACT FORM)
+// ============================================================================
+//
+// DVSM-π+++ is a:
+//
+//   Stochastic Differential Inclusion on an Implicit Manifold
+//
+// of the form:
+//
+//   dx ∈ F(x, σ) dt + Σ(x,t) dW_t
+//   x ∈ ℳ = { (x,y) | C(x,y) = 0 }
+//
+// with discrete-time numerical realization:
+//
+//   x_{t+1} = Π_ℳ( x_t + dt·F(x_t, σ_t) + √dt·ξ_t )
+//
+// where Π_ℳ is a nonlinear retraction operator approximating
+// projection onto the constraint manifold.
+//
+// ============================================================================
+// 2. MANIFOLD SEMANTICS (CRITICAL DISTINCTION)
+// ============================================================================
+//
+// The constraint manifold is:
+//
+//   ℳ = { (x,y) ∈ ℝ² | C(x,y) = 0 }
+//
+// IMPORTANT:
+//
+// - ℳ is NOT a box constraint
+// - ℳ is NOT separable in coordinates
+// - ℳ is an embedded nonlinear submanifold
+//
+// The projection operator Π_ℳ is therefore:
+//
+//   Π_ℳ : ℝ² → ℳ
+//
+// implemented as a local fixed-point geometric correction:
+//
+//   s_{k+1} = s_k - λ ∇C(s_k) C(s_k)
+//
+// until convergence.
+//
+// This is NOT optimization.
+// It is a geometric consistency retraction.
+//
+// ============================================================================
+// 3. DYNAMICAL STRUCTURE (WHAT ACTUALLY EVOLVES)
+// ============================================================================
+//
+// The system evolves three coupled but causally separated layers:
+//
+//   (A) Ambient drift:
+//       x̃_{t+1} = x_t + dt·F(x_t, σ_t) + √dt·ξ_t
+//
+//   (B) Geometric closure:
+//       x_{t+1} = Π_ℳ(x̃_{t+1})
+//
+//   (C) Observational lift:
+//       J_t = J(x_{t-2}, x_{t-1}, x_t)
+//
+// CRITICAL PROPERTY:
+//
+//   Only (A → B) is causal.
+//   (C) is strictly post-hoc.
+//
+// ============================================================================
+// 4. FIELD STRUCTURE INTERPRETATION
+// ============================================================================
+//
+// The vector field F is a superposition of:
+//
+//   - dissipative contraction (η-term)
+//   - rotational transport (γ-term)
+//
+// yielding a hybrid structure:
+//
+//   F = F_dissipative + F_rotational
+//
+// Interpretation:
+//
+//   - η induces gradient-like attraction toward σ
+//   - γ induces antisymmetric flow (Hamiltonian-like component)
+//
+// This makes the system:
+//
+//   "damped stochastic Hamiltonian flow with projection closure"
+//
+// ============================================================================
+// 5. NOISE STRUCTURE (SCALING LAW)
+// ============================================================================
+//
+// Noise is explicitly:
+//
+//   ξ_t ∼ O(√dt)
+//
+// ensuring consistency with continuous-time diffusion limits.
+//
+// This places the system in:
+//
+//   weak Euler–Maruyama discretization class
+//
+// with projection applied after drift+diffusion step.
+//
+// ============================================================================
+// 6. JET STRUCTURE (GEOMETRIC OBSERVABLE ONLY)
+// ============================================================================
+//
+// Jets represent discrete curvature of the trajectory:
+//
+//   v_t = Δx_t
+//   a_t = Δ²x_t
+//
+// They approximate local second-order geometry of the
+// projected path:
+//
+//   J_t ≈ ∇² x_t (discrete embedding curvature)
+//
+// IMPORTANT:
+//
+//   J_t is NOT part of the evolution law.
+//
+// It does NOT influence:
+//   - F
+//   - Π_ℳ
+//   - ξ_t
+//
+// It is purely diagnostic geometry.
+//
+// ============================================================================
+// 7. REGIME SPACE (INTERPRETATION ONLY)
+// ============================================================================
+//
+// Regimes correspond to geometric phase structure:
+//
+//   - ProjectionDominated → boundary attraction regime
+//   - DriftDominated      → near-equilibrium stagnation
+//   - Chaotic             → curvature blow-up in tangent embedding
+//   - StiffBoundary       → high constraint curvature interaction
+//
+// These are NOT energy states.
+// They are NOT optimization states.
+// They are geometric flow signatures.
+//
+// ============================================================================
+// 8. FUNDAMENTAL INVARIANTS
+// ============================================================================
+//
+// (I1) Closure:
+//   x_t ∈ ℳ for all t (up to numerical error)
+//
+// (I2) Causal separation:
+//   J_t does not affect evolution
+//
+// (I3) Projection dominance:
+//   All violations of ℳ are resolved by Π_ℳ only
+//
+// (I4) Non-optimization:
+//   No scalar objective exists anywhere in the system
+//
+// ============================================================================
+// 9. FINAL STRUCTURAL IDENTIFICATION
+// ============================================================================
+//
+// DVSM-π+++ is equivalent to:
+//
+//   A stochastic flow in ℝ²
+//   with implicit manifold constraint enforcement
+//   and post-hoc jet bundle observation
+//
+// In modern geometric terms:
+//
+//   A projected Itô diffusion on an embedded submanifold
+//
+// ============================================================================
+// END ADDENDUM
+// ============================================================================
