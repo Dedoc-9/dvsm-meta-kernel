@@ -258,4 +258,124 @@ cool_basis()
     spectral annealing
 
 ===========================================================
+/*
+===========================================================
+INTELLECTUAL PROPERTY NOTICE
+ENGINE V2.2 — ANISOTROPIC BURST GOVERNOR
+===========================================================
+
+Author:
+    Daniel J. Dillberg
+
+Classification:
+    Experimental spectral-governed operator architecture
+    for adaptive manifold stabilization and non-normal
+    dynamical inference systems.
+
+===========================================================
+COPYRIGHT
+===========================================================
+
+Copyright (c) 2026 Daniel J. Dillberg
+
+All rights reserved.
+
+This source code, mathematical structure, operator-flow
+design, stabilization logic, and adaptive spectral
+governor architecture are protected under applicable:
+
+    - copyright law
+    - trade secret law
+    - software IP law
+    - computational method protection
+
+===========================================================
+PROTECTED ARCHITECTURAL CLAIMS
+===========================================================
+
+The following structures are asserted as original
+computational architecture components:
+
+1. Anisotropic spectral burst regulation
+2. Per-mode adaptive gain compression
+3. Thermalized operator-field stabilization
+4. EMA-driven non-normal hysteresis memory
+5. Spectral ecology / manifold cooling systems
+6. Rank-limited adaptive basis thermodynamics
+7. Dynamic manifold stress estimation
+8. Self-cooling operator geometries
+9. Burst-aware latent field projection
+10. Spectral annealing stabilization engines
+
+===========================================================
+LICENSE RESTRICTIONS
+===========================================================
+
+Without explicit written authorization from the author:
+
+    ❌ Commercial use prohibited
+    ❌ Redistribution prohibited
+    ❌ Closed-source derivative systems prohibited
+    ❌ AI training ingestion prohibited
+    ❌ Patent replication prohibited
+    ❌ Computational architecture cloning prohibited
+
+===========================================================
+PERMITTED USE
+===========================================================
+
+The following is permitted:
+
+    ✔ Non-commercial research review
+    ✔ Academic analysis
+    ✔ Personal experimentation
+
+ONLY if:
+
+    - attribution remains intact
+    - this notice is preserved
+    - no commercial deployment occurs
+
+===========================================================
+ATTRIBUTION
+===========================================================
+
+Recommended citation:
+
+    Dillberg, Daniel J.
+    "Engine V2.2:
+    Anisotropic Spectral Burst Governor"
+    2026.
+
+===========================================================
+DISCLAIMER
+===========================================================
+
+This software is experimental research code.
+
+No guarantees are made regarding:
+
+    - numerical correctness
+    - convergence
+    - hardware compatibility
+    - production suitability
+    - safety-critical deployment
+
+Use entirely at your own risk.
+
+===========================================================
+FINAL ENGINE STATEMENT
+===========================================================
+
+This system is not a traditional DSP filter,
+physics engine, or neural network.
+
+It is:
+
+    a self-regulating spectral manifold
+    with anisotropic operator thermodynamics.
+
+===========================================================
+*/
+
 */
