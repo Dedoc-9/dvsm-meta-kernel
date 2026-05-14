@@ -100,19 +100,27 @@ pub fn step(sys: &mut System) {
     PASS 1: GLOBAL FEATURE FIELD (alignment statistics)
     ----------------------------------------------------
     */
-    for i in 0..sys.n {
-        let b = basis(sys.x0[i]);
+// ADD NEW BUFFER (or reuse z_shear temporarily as weights)
+let mut weight_sum = [0.0; R];
 
-        for k in 0..R {
-            sys.z[k] += phi(sys, k, &b);
-        }
-    }
-
-    let inv_n = 1.0 / sys.n as f32;
+for i in 0..sys.n {
+    let b = basis(sys.x0[i]);
 
     for k in 0..R {
-        sys.z[k] *= inv_n;
+        let p = phi(sys, k, &b);
+
+        // local "importance" (energy proxy)
+        let w = (p * p + 1e-6).sqrt();
+
+        sys.z[k] += w * p;
+        weight_sum[k] += w;
     }
+}
+
+// normalize = THIS is first explicit R operator
+for k in 0..R {
+    sys.z[k] /= weight_sum[k] + 1e-6;
+}
 
     /*
     ----------------------------------------------------
@@ -130,13 +138,35 @@ pub fn step(sys: &mut System) {
 
             let diff = p - psi;
 
-            sys.z_shear[k] =
-                ALPHA * sys.z_shear[k]
-                + (1.0 - ALPHA) * diff;
+            let adapt_rate = (1.0 - ALPHA) * (1.0 + sys.z[k].abs());
+
+sys.z_shear[k] =
+    ALPHA * sys.z_shear[k]
+    + adapt_rate * diff;
         }
     }
 
     /*
+    /*
+----------------------------------------------------
+PASS 2.5: RESAMPLING OPERATOR (R)
+----------------------------------------------------
+*/
+
+for k in 0..R {
+
+    let mean = sys.z[k];
+    let shear = sys.z_shear[k];
+
+    let energy = (mean * mean + shear * shear).sqrt();
+
+    // soft spectral temperature
+    let temp = 1.0 / (1.0 + energy);
+
+    // R operator: redistributes mode weight
+    sys.z[k] *= temp;
+    sys.z_shear[k] *= temp;
+}
     ----------------------------------------------------
     PASS 3: FORCE + INTEGRATION
     ----------------------------------------------------
