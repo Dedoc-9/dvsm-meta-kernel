@@ -124,7 +124,69 @@ fn retract_stiefel(&mut self, z: &DVector<f64>) {
 
     self.layer.w = w_new.qr().q();
 }
-
+// ============================================================
+// AIR GAP GOVERNED OPERATOR SEMANTICS (LEGAL × ARITHMETIC LAYER)
+// ============================================================
+//
+// This system defines a constrained interpretation layer in which
+// deployment context and mathematical behavior are coupled.
+//
+// Let:
+//   X(t) ∈ ℝⁿ         geometric telemetry state
+//   W ∈ St(n,r)       Stiefel frame (orthonormal basis)
+//   S ∈ Sⁿ⁻¹          contractive state vector
+//   Z(t)              external excitation stream
+//
+// Define:
+//
+//   Φ(D) → {0,1}      deployment predicate function
+//   Φ(D) = 1 if system operates under Zero-Trust Perception regime
+//
+// ------------------------------------------------------------
+// ARITHMETIC CONSTRAINTS
+// ------------------------------------------------------------
+//
+// If Φ(D) = 1, then system MUST satisfy:
+//
+//   (1) Geometric validation constraint:
+//       B(t) = 1 - ⟨ Ŝ, (P_W Z)̂ ⟩ ≤ ε_b
+//
+//   (2) Bounded divergence constraint:
+//       ||WᵀW - I|| ≤ ε_w
+//
+//   (3) Contractive stability constraint:
+//       ||S|| = 1 (via normalization retraction)
+//
+//   (4) Projection integrity constraint:
+//       P_W(Z) = W Wᵀ Z must remain idempotent under drift tolerance
+//
+// ------------------------------------------------------------
+// GOVERNANCE INTERPRETATION
+// ------------------------------------------------------------
+//
+// The predicate Φ(D) does not impose external legal force.
+// Instead, it activates a *restricted dynamical regime* in which:
+//
+//   - All inputs are treated as untrusted geometries
+//   - All outputs are conditioned on manifold consistency checks
+//   - All deviations are interpreted as stress B(t)
+//
+// ------------------------------------------------------------
+// STRUCTURAL MEANING
+// ------------------------------------------------------------
+//
+// "Legal definition" is reinterpreted as:
+//
+//   → a conditional constraint system over dynamical operators
+//   → not an external enforcement mechanism
+//
+// Thus:
+//
+//   legality ≈ invariance constraints under deployment predicate Φ(D)
+//
+// ------------------------------------------------------------
+// END GOVERNED SEMANTIC LAYER
+// ============================================================
 // ============================================================
 // USER CONFIGURATION MODES:
 //
