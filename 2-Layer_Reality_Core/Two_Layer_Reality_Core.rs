@@ -857,3 +857,163 @@ impl DVSMRuntime {
     "backpressure": "Prevents memory leaks/stale drift during signal bursts"
   }
 }
+// ============================================================
+// DVSM-DFE · ADDENDUM PATCH LAYER (NUMERICAL + SEMANTIC HARDENING)
+// Author: Daniel J. Dillberg
+// Purpose: Correctness + RF stability augmentation (non-invasive)
+// ============================================================
+//
+// DESIGN RULE:
+// This module does NOT redefine DVSM.
+// It only corrects numerical edge cases and runtime semantics.
+//
+// ============================================================
+
+use nalgebra::{DMatrix, DVector};
+use std::collections::VecDeque;
+use std::time::{Duration, Instant};
+
+// ============================================================
+// ADDENDUM 1: SAFE FIFO GUARANTEE (REPLACES VECTOR BUFFER RULE)
+// ============================================================
+//
+// ISSUE FIXED:
+//   Vec::remove(0) → O(n) + cache-inefficient + RF unstable
+//
+// PATCH:
+//   enforce VecDeque everywhere for causal correctness
+//
+// ============================================================
+
+pub struct SafeBuffer {
+    pub q: VecDeque<DVector<f64>>,
+    pub max: usize,
+}
+
+impl SafeBuffer {
+    pub fn new(max: usize) -> Self {
+        Self {
+            q: VecDeque::new(),
+            max,
+        }
+    }
+
+    pub fn push(&mut self, z: DVector<f64>) {
+        if self.q.len() >= self.max {
+            self.q.pop_front(); // FIFO eviction
+        }
+        self.q.push_back(z);
+    }
+
+    pub fn pop(&mut self) -> Option<DVector<f64>> {
+        self.q.pop_front()
+    }
+}
+
+// ============================================================
+// ADDENDUM 2: NUMERIC NORMALIZATION SAFETY (RF HARDENING)
+// ============================================================
+//
+// ISSUE FIXED:
+//   normalize() instability when ||x|| → 0
+//
+// PATCH:
+//   guarded normalization with epsilon floor
+//
+// ============================================================
+
+#[inline]
+pub fn safe_normalize(v: &DVector<f64>, eps: f64) -> DVector<f64> {
+    let n = v.norm();
+    if n <= eps {
+        return DVector::from_element(v.len(), 0.0);
+    }
+    v / n
+}
+
+// ============================================================
+// ADDENDUM 3: STIEFEL DRIFT DETECTOR (DIAGNOSTIC ONLY)
+// ============================================================
+//
+// PURPOSE:
+//   detects WᵀW deviation from identity in RF regimes
+//
+// ============================================================
+
+pub fn stiefel_drift(w: &DMatrix<f64>) -> f64 {
+    let gram = w.transpose() * w;
+    let mut err = 0.0;
+
+    for i in 0..gram.nrows() {
+        for j in 0..gram.ncols() {
+            let target = if i == j { 1.0 } else { 0.0 };
+            err += (gram[(i, j)] - target).abs();
+        }
+    }
+
+    err
+}
+
+// ============================================================
+// ADDENDUM 4: STRESS STABILIZER (POST-PROCESS VIEW ONLY)
+// ============================================================
+//
+// NOTE:
+// This does NOT modify DVSM stress.
+// It only stabilizes telemetry interpretation.
+//
+// ============================================================
+
+pub fn stabilize_stress(b: f64) -> f64 {
+    // clamps numerical spikes from near-singular projections
+    if b.is_nan() {
+        return 0.0;
+    }
+    if b > 2.0 {
+        return 2.0;
+    }
+    if b < 0.0 {
+        return 0.0;
+    }
+    b
+}
+
+// ============================================================
+// ADDENDUM 5: MODE-SAFE TIMING GUARD
+// ============================================================
+//
+// Prevents RF burst starvation in hybrid mode.
+//
+// ============================================================
+
+pub fn should_force_step(
+    last: Instant,
+    dt_rf: Duration,
+    buffer_len: usize,
+) -> bool {
+    last.elapsed() >= dt_rf && buffer_len > 0
+}
+
+// ============================================================
+// ADDENDUM SUMMARY (ARCHITECTURAL EFFECT)
+// ============================================================
+//
+// This patch introduces:
+//
+//   1. O(1) FIFO correctness (VecDeque enforcement)
+//   2. RF-safe normalization (no divide-by-zero drift)
+//   3. Stiefel orthogonality monitoring (diagnostics)
+//   4. Stress telemetry stabilization (non-invasive)
+//   5. Hybrid timing robustness (burst protection)
+//
+// It DOES NOT modify:
+//   - DVSM geometry equations
+//   - projection operator Π_W
+//   - manifold constraints
+//
+// It ONLY stabilizes:
+//   - runtime behavior
+//   - numerical edge cases
+//   - RF streaming robustness
+//
+// ============================================================
