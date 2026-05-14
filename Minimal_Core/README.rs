@@ -1,6 +1,8 @@
 // ============================================================================
 // DVSM-π — DEEP DEV NOTES (FULL CONSOLIDATED README MODULE)
 // ============================================================================
+// Author: Daniel J. Dillberg
+// Contact: BigDilly95@gmaiil.com
 //
 // STRUCTURE:
 //   A — Core Architecture Semantics (what each layer *means*)
