@@ -252,3 +252,111 @@ fn main() {
         0.4,   // sigma (noise level)
     );
 }
+
+===============================================================================
+DVSM-π+++ INTELLECTUAL PROPERTY NOTICE
+===============================================================================
+
+System Name:
+    DVSM-π+++ (Projected Stochastic Dynamics on Implicit Free-Energy Manifolds)
+
+Author/Origin:
+    Conceptual framework and implementation by contributor(s) of this repository.
+
+-------------------------------------------------------------------------------
+SCOPE OF PROTECTION
+-------------------------------------------------------------------------------
+
+This work includes:
+
+1. Computational Framework
+   - Stochastic discrete-time dynamical system in ℝⁿ
+   - Projection operators onto implicit constraint manifolds
+   - Symmetric / rotational vector field decomposition
+   - Jet-based observational lifting of trajectories
+   - Regime classification via geometric and dynamical metrics
+
+2. Mathematical Architecture
+   - Implicit manifold projection via constraint minimization
+   - Free-energy inspired drift structure (formal, not physical claim)
+   - Non-equilibrium stochastic update rules
+   - Multi-timescale trajectory reconstruction via finite differences
+
+3. Semantic / Ontology Layer (DVSM-π+++ system specification)
+   - Biological interpretation mapping (enzymes, allostery, cancer, etc.)
+   - Noise / projection / rotational field correspondence to biological processes
+   - Domain-level interpretation of geometric dynamics
+
+-------------------------------------------------------------------------------
+WHAT IS PROTECTED
+-------------------------------------------------------------------------------
+
+The following are considered part of the protected intellectual structure:
+
+- The DVSM-π+++ system architecture as a unified projection-closed dynamical model
+- The combination of:
+    (i) implicit manifold projection dynamics
+    (ii) symmetric/rotational vector decomposition
+    (iii) jet-based observability framework
+- The ontology-to-dynamics coupling methodology (semantic layer → simulation layer mapping)
+- The specific formulation of regime classification based on geometric motion + jet energy
+- The modular separation of:
+    (a) core dynamical engine
+    (b) interpretive biological ontology layer
+
+-------------------------------------------------------------------------------
+WHAT IS NOT CLAIMED AS EXCLUSIVE PROPERTY
+-------------------------------------------------------------------------------
+
+This work does NOT claim exclusive ownership over:
+
+- General stochastic differential equations
+- Standard projection methods or proximal operators
+- Free-energy landscape modeling (as a general concept)
+- Known biological mechanisms (enzymes, metabolic cycles, protein folding)
+- Established physical laws or mathematical techniques
+
+-------------------------------------------------------------------------------
+SCIENTIFIC POSITIONING
+-------------------------------------------------------------------------------
+
+DVSM-π+++ is a:
+
+    "Computational geometric dynamics framework for modeling constrained
+     stochastic systems with interpretive ontology layering"
+
+It is:
+- a modeling framework, not a physical law
+- a simulation architecture, not a biological theory
+- a representational system, not a validated biomedical model
+
+-------------------------------------------------------------------------------
+USAGE TERMS (RESEARCH CONTEXT)
+-------------------------------------------------------------------------------
+
+Permitted:
+- Academic research and publication with attribution
+- Non-commercial experimentation and simulation
+- Extension and modification with proper citation of DVSM-π+++
+
+Not permitted without explicit authorization:
+- Commercial redistribution of the DVSM-π+++ framework as proprietary software
+- Removal of attribution in derivative systems that reuse core architecture
+- Misrepresentation as an empirically validated biological model
+
+-------------------------------------------------------------------------------
+ATTRIBUTION REQUIREMENT
+-------------------------------------------------------------------------------
+
+Any derived work should cite:
+
+    DVSM-π+++ Projected Stochastic Manifold Dynamics Framework
+
+and acknowledge:
+
+    "Built upon a projection-closed stochastic geometric dynamics architecture
+     with implicit manifold and jet-observability structure."
+
+-------------------------------------------------------------------------------
+END OF NOTICE
+===============================================================================
