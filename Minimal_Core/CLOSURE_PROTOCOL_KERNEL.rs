@@ -1,30 +1,34 @@
 // ============================================================================
-// DVSM-π — ADDENDUM 8: CLOSURE PROTOCOL KERNEL (GOODHART RESIDUAL ELIMINATION)
+// DVSM-π — CLOSURE PROTOCOL KERNEL
+//        (GOODHART RESIDUAL ELIMINATION / STRUCTURAL SEPARATION MODEL)
 // ============================================================================
-// Author: Daniel J. Dillberg
-// Purpose:
-//   Structural elimination of Goodhart leakage via architectural separation:
-//     (1) generation layer
-//     (2) observation layer
-//     (3) feasibility layer (Π_M)
-// =============// DVSM-π+++ CORE UPDATE LAW
 //
-// The system evolves by unconstrained generation followed by geometric closure:
+// Author: Daniel J. Dillberg
+//
+// PURPOSE
+// ---------------------------------------------------------------------------
+// Structural elimination of Goodhart leakage via strict separation:
+//
+//   (1) Generation Layer   → F(x, σ)
+//   (2) Observation Layer  → jets / metrics (non-causal)
+//   (3) Feasibility Layer  → Π_M projection closure
+//
+// CORE EVOLUTION LAW
+// ---------------------------------------------------------------------------
 //
 //     x_{t+1} = Π_M( F(x_t, σ_t) )
 //
 // where:
-//   F      : unconstrained graph-coupled evolution operator
-//   Π_M    : stratified projection onto feasible jet-manifold M
-//   x_t    : current state on or near M
-//   σ_t    : external excitation signal
+//   F     : unconstrained graph-coupled evolution operator
+//   Π_M   : stratified projection onto feasible manifold M
+//   σ_t   : external excitation (non-objective, non-reward)
 //
 // Interpretation:
-//   - F proposes a candidate transition in ambient space
-//   - Π_M enforces manifold consistency and feasibility closure
-//   - only projected states are admitted into system trajectory
-// ===============================================================
-
+//   - F proposes ambient-space transitions
+//   - Π_M enforces geometric closure
+//   - only projected states enter trajectory
+//
+// ============================================================================
 
 use std::f64;
 
@@ -45,7 +49,7 @@ pub struct Jet {
 }
 
 // ============================================================================
-// GRAPH (STATIC, NON-LEARNED)
+// GRAPH (STATIC STRUCTURE)
 // ============================================================================
 
 #[derive(Clone, Debug)]
@@ -78,7 +82,7 @@ pub struct Bounds {
 }
 
 // ============================================================================
-// LAYER (1): GENERATION KERNEL (NO CONSTRAINTS)
+// LAYER 1 — GENERATION KERNEL (UNCONSTRAINED DYNAMICS)
 // ============================================================================
 
 #[inline(always)]
@@ -97,7 +101,7 @@ fn evolve_raw(x: f64, sigma: f64, p: &Params) -> f64 {
 }
 
 // ============================================================================
-// LAYER (2): OBSERVATION ONLY (NO FEEDBACK)
+// LAYER 2 — OBSERVATION (NON-CAUSAL DIAGNOSTICS)
 // ============================================================================
 
 #[inline(always)]
@@ -111,13 +115,13 @@ fn jet(prev2: f64, prev1: f64, curr: f64) -> Jet {
     Jet { v, a, j }
 }
 
-// Diagnostic only (NEVER feeds control)
+// Diagnostic-only (NO CONTROL ROLE)
 fn jet_energy(x: f64, j: &Jet) -> f64 {
     x * x + j.v * j.v + j.a * j.a + j.j * j.j
 }
 
 // ============================================================================
-// LAYER (3): FEASIBILITY PROJECTION Π_M
+// LAYER 3 — FEASIBILITY PROJECTION Π_M
 // ============================================================================
 
 #[inline(always)]
@@ -134,7 +138,6 @@ fn project_jet(j: Jet, b: &Bounds) -> Jet {
     }
 }
 
-// Hard constraint check (non-control)
 fn feasible(x: f64, j: &Jet, b: &Bounds) -> bool {
     x >= b.x_min
         && x <= b.x_max
@@ -143,13 +146,8 @@ fn feasible(x: f64, j: &Jet, b: &Bounds) -> bool {
         && j.j.abs() <= b.j_max
 }
 
-// Identity-on-manifold projection property
-fn project(x: f64, j: Jet, b: &Bounds) -> (f64, Jet) {
-    (project_state(x, b), project_jet(j, b))
-}
-
 // ============================================================================
-// GRAPH COUPLING (LINEAR ONLY — NO OPTIMIZATION SEMANTICS)
+// GRAPH COUPLING (STRUCTURAL ONLY)
 // ============================================================================
 
 fn coupling(graph: &Graph, states: &[State], i: usize, c: f64) -> f64 {
@@ -165,15 +163,17 @@ fn coupling(graph: &Graph, states: &[State], i: usize, c: f64) -> f64 {
 }
 
 // ============================================================================
-// EXCITATION CONSERVATION CHECK (DIAGNOSTIC ONLY)
+// EVOLUTION MAP
 // ============================================================================
 
-fn excitation_energy(states: &[State]) -> f64 {
-    states.iter().map(|s| s.x * s.x).sum()
+fn evolve(x: f64, sigma: f64, cx: f64, p: &Params) -> f64 {
+    let k = kernel(x, sigma + cx, p.eta);
+    let u = p.gamma * (sigma - x);
+    k + u
 }
 
 // ============================================================================
-// DVSM STEP (CLOSURE ARCHITECTURE)
+// DVSM SYSTEM
 // ============================================================================
 
 pub struct DVSM {
@@ -199,13 +199,13 @@ impl DVSM {
         // ----------------------------
         for i in 0..snapshot.len() {
             let cx = coupling(&self.graph, &snapshot, i, self.params.coupling);
-            let raw = evolve_raw(snapshot[i].x, sigma + cx, &self.params);
+            let raw = evolve(snapshot[i].x, sigma + cx, &self.params);
 
             next[i].x = project_state(raw, &self.bounds);
         }
 
         // ----------------------------
-        // OBSERVATION LAYER (NO FEEDBACK)
+        // OBSERVATION LAYER
         // ----------------------------
         let mut jets: Vec<Jet> = Vec::new();
         for i in 0..next.len() {
@@ -217,14 +217,11 @@ impl DVSM {
         // ----------------------------
         for i in 0..next.len() {
             let j = project_jet(jets[i], &self.bounds);
-            let _ok = feasible(next[i].x, &j, &self.bounds);
-
-            // IMPORTANT:
-            // no correction loops, no optimization feedback
+            let _ = feasible(next[i].x, &j, &self.bounds);
         }
 
         // ----------------------------
-        // COMMIT (STATE UPDATE ONLY)
+        // COMMIT
         // ----------------------------
         self.history.push(snapshot);
         self.states = next.clone();
@@ -234,7 +231,7 @@ impl DVSM {
 }
 
 // ============================================================================
-// ADVERSARY MODEL (NON-OPTIMIZING PERTURBATION)
+// ADVERSARY (NON-OPTIMIZING PERTURBATION)
 // ============================================================================
 
 pub struct Adversary {
@@ -248,7 +245,7 @@ impl Adversary {
 }
 
 // ============================================================================
-// STRESS TEST HARNESS
+// STRESS TEST
 // ============================================================================
 
 pub fn stress_test(system: &mut DVSM, adversary: Adversary, steps: usize, base: f64) {
@@ -258,177 +255,156 @@ pub fn stress_test(system: &mut DVSM, adversary: Adversary, steps: usize, base: 
 
         debug_assert!(
             out.iter().all(|s| s.x.is_finite()),
-            "DVSM closure violation: NaN/Inf detected"
+            "DVSM closure violation"
         );
     }
 }
+
 // ============================================================================
-// DVSM-π — FUNDAMENTAL INTRODUCTION BLOCK (GEOMETRIC CONTROL PRIMITIVE)
-// ============================================================================
-// Version: Closure Architecture Foundation (Post-Goodhart Separation Model)
-// ============================================================================
-// 1. FUNDAMENTAL OBJECT
+// FUNDAMENTAL INTRODUCTION BLOCK (DVSM-π GEOMETRIC PRIMITIVE)
 // ============================================================================
 //
-// We define a system evolving over discrete time:
-//
-//     t ∈ ℕ
-//
-// with state:
+// DVSM-π defines a constrained dynamical system:
 //
 //     x_t ∈ ℳ ⊂ ℝⁿ
 //
-// where ℳ is a constrained geometric manifold:
+// Evolution law:
 //
-//     ℳ = { x | C(x) = 0, B(x) ≤ 0 }
+//     x_{t+1} = Π_M(F(x_t, σ_t))
 //
-// The system is NOT defined by optimization.
-//
-// It is defined by:
-//
-//     constrained evolution + geometric projection
-//
-// ============================================================================
-// 2. FUNDAMENTAL INPUT STRUCTURE
-// ============================================================================
-//
-// External signal:
-//
-//     σ_t ∈ ℝ
-//
-// Interpretation:
-//
-//     σ_t is NOT a target
-//     σ_t is NOT a reward
-//     σ_t is NOT a loss signal
-//
-// It is only:
-//
-//     a perturbation field acting on dynamics
-//
-// ============================================================================
-// 3. CORE EVOLUTION PRINCIPLE
-// ============================================================================
-//
-// DVSM-π defines a two-stage update:
-//
-//     (A) Unconstrained evolution:
-//         x̃_{t+1} = F_A(x_t, σ_t)
-//
-//     (B) Geometric feasibility enforcement:
-//         x_{t+1} = Π_ℳ(x̃_{t+1})
-//
-// Where:
-//
-//     F_A      : causal update kernel (not an optimizer)
-//     Π_ℳ      : projection onto admissible state manifold
-//
-// ============================================================================
-// 4. KEY STRUCTURAL PRINCIPLE
-// ============================================================================
-//
-// Stability is NOT achieved via minimization.
+// Key principles:
+//   - no optimization exists
+//   - no reward/loss signals exist
+//   - projection enforces feasibility closure
+//   - observables are non-causal diagnostics
 //
 // Stability is defined as:
 //
-//     invariance of trajectories under projection closure
-//
-// i.e.
-//
-//     if x_t ∈ ℳ, then x_{t+1} ∈ ℳ for all t
-//
-// This is a *closure condition*, not an optimization result.
+//     closure under Π_M, not convergence or minimization
 //
 // ============================================================================
-// 5. JET STRUCTURE (DERIVED OBSERVABLES ONLY)
+// DVSM-π — ENVIRONMENT PROTOCOL LAYER (EXOGENOUS SIGNAL CONTRACT)
+// ============================================================================
+// Purpose:
+//   Formal separation between:
+//     (1) environment generation
+//     (2) system dynamics
+//     (3) internal observability
+//
+// Key principle:
+//   Environment is NOT part of the system.
+//   It is a read-only causal input stream.
+// ============================================================================
+
+// ============================================================================
+// ENVIRONMENT SIGNAL SPACE
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct EnvSignal {
+    pub sigma: f64,
+    pub noise: f64,
+    pub drift: f64,
+}
+
+// ============================================================================
+// ENVIRONMENT INTERFACE (READ-ONLY SOURCE)
+// ============================================================================
+
+pub trait Environment {
+    fn sample(&self, t: usize, x: f64) -> EnvSignal;
+}
+
+// ============================================================================
+// STATIC ENVIRONMENT (NON-ADAPTIVE BASELINE)
+// ============================================================================
+
+pub struct StaticEnvironment {
+    pub base_sigma: f64,
+    pub amplitude: f64,
+}
+
+impl Environment for StaticEnvironment {
+    fn sample(&self, t: usize, _x: f64) -> EnvSignal {
+        let sigma = self.base_sigma + self.amplitude * (t as f64).sin();
+
+        EnvSignal {
+            sigma,
+            noise: 0.0,
+            drift: 0.0,
+        }
+    }
+}
+
+// ============================================================================
+// STOCHASTIC ENVIRONMENT (EXOGENOUS NOISE ONLY)
+// ============================================================================
+
+pub struct NoisyEnvironment {
+    pub base_sigma: f64,
+    pub noise_scale: f64,
+}
+
+impl NoisyEnvironment for NoisyEnvironment {
+    fn sample(&self, t: usize, _x: f64) -> EnvSignal {
+        let sigma = self.base_sigma;
+
+        // NOTE:
+        // This is NOT learning noise, NOT adversarial optimization.
+        // It is purely exogenous perturbation.
+        let noise = self.noise_scale * ((t as f64).cos());
+
+        EnvSignal {
+            sigma,
+            noise,
+            drift: 0.0,
+        }
+    }
+}
+
+// ============================================================================
+// ENVIRONMENT COMPOSITION (STRUCTURAL SUM ONLY)
+// ============================================================================
+
+pub struct CompositeEnvironment<E1: Environment, E2: Environment> {
+    pub a: E1,
+    pub b: E2,
+}
+
+impl<E1: Environment, E2: Environment> Environment for CompositeEnvironment<E1, E2> {
+    fn sample(&self, t: usize, x: f64) -> EnvSignal {
+        let ea = self.a.sample(t, x);
+        let eb = self.b.sample(t, x);
+
+        EnvSignal {
+            sigma: ea.sigma + eb.sigma,
+            noise: ea.noise + eb.noise,
+            drift: ea.drift + eb.drift,
+        }
+    }
+}
+
+// ============================================================================
+// ENVIRONMENT COUPLING RULE (IMPORTANT CONSTRAINT)
 // ============================================================================
 //
-// Higher-order structure:
+// Allowed:
+//   σ_t = EnvSignal → scalar extraction into kernel
 //
-//     v_t = Δx_t
-//     a_t = Δ²x_t
-//     j_t = Δ³x_t
+// Forbidden:
+//   - using system state x_t to modify environment
+//   - adaptive environments responding to jet statistics
+//   - reward-shaped σ_t
 //
-// These form a discrete jet:
-//
-//     J_t = (x_t, v_t, a_t, j_t)
-//
-// IMPORTANT:
-//
-//     Jets are NOT state variables.
-//     Jets are NOT used in control.
-//
-// They are purely observational geometry.
-//
+// Rationale:
+//   prevents hidden optimization loops via environment feedback
 // ============================================================================
-// 6. GOODHART SEPARATION PRINCIPLE
+
 // ============================================================================
-//
-// The system enforces strict causal separation:
-//
-//     generation layer  → produces x̃_{t+1}
-//     projection layer  → enforces ℳ constraints
-//     observation layer → computes jets, metrics, energies
-//
-// CRITICAL RULE:
-//
-//     Observables NEVER feed back into generation.
-//
-// This prevents:
-//
-//     metric → control coupling
-//     optimization leakage
-//     Goodhart collapse pathways
-//
+// SAFE EXTERNAL SIGNAL EXTRACTION
 // ============================================================================
-// 7. FUNDAMENTAL INVARIANT (CLOSURE PROPERTY)
-// ============================================================================
-//
-// The defining property of DVSM-π:
-//
-//     Π_ℳ(Π_ℳ(x)) = Π_ℳ(x)
-//
-// and system evolution satisfies:
-//
-//     x_{t+1} ∈ ℳ  ∀ t
-//
-// This is the system’s stability definition.
-//
-// NOT:
-//
-//     convergence
-//     minimization
-//     equilibrium seeking
-//
-// ============================================================================
-// 8. INTERPRETATION SUMMARY
-// ============================================================================
-//
-// DVSM-π is:
-//
-//     a constrained dynamical system on a stratified manifold
-//
-// where:
-//
-//     dynamics = unconstrained generation
-//     stability = geometric closure
-//     metrics   = non-causal observables
-//
-// ============================================================================
-// 9. CORE INTENT (IMPORTANT)
-// ============================================================================
-//
-// The system explicitly avoids:
-//
-//     - scalar objectives
-//     - reward functions
-//     - loss minimization
-//     - gradient alignment
-//
-// Instead it enforces:
-//
-//     structural feasibility + projection closure
-//
-// ============================================================================
-// END OF FUNDAMENTAL BLOCK
-// ============================================================================
+
+#[inline(always)]
+pub fn extract_sigma(env: &EnvSignal) -> f64 {
+    env.sigma + env.noise
+}
