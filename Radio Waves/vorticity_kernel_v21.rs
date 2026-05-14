@@ -1263,4 +1263,37 @@ impl RuntimeCalibrationProfile {
 ///     → stability-constrained feedback loops
 ///     → observable B(t) manifold deformation
 ///
-/// ============================================================
+/// ======================================================================
+/// IP ANNOTATION: B(t) FINGERPRINT INSTRUMENTATION
+/// ======================================================================
+///
+/// This layer defines the transformation of the B(t) stability metric 
+/// from a scalar threshold into a hardware-specific anomaly signature.
+///
+/// DEFENSIBLE CORE:
+///
+///   1. DEVICE-INVARIANT EMBEDDING DISTORTION:
+///      The B(t) trajectory is treated as a "stress curve" of the 
+///      embedding geometry. Even if raw signal levels vary, the 
+///      deformation profile of the S-Z manifold is a device-invariant 
+///      signature of the underlying physical state.
+///
+///   2. ANOMALY FEATURE VECTOR (Ξ):
+///      We instrument the B(t) manifold via its differential geometry:
+///      Ξ = { dB/dt, d²B/dt², entropy(B), κ-flux_divergence }
+///
+///      The novelty is mapping this vector to specific hardware states 
+///      (fatigue, thermal drift, or adversarial spoofing) rather than 
+///      simple energy detection.
+///
+///   3. PERTURBATION STABILITY SIGNATURE:
+///      The system's IP is located in the **stability profile**:
+///      How the (Z, S, W) manifold recovers from a controlled impulse.
+///      The "recovery curve" in B-space is the defensible system fingerprint.
+///
+/// THESIS: 
+///   I do not claim the B(t) metric; I claim the use of the **B(t) 
+///   distortion manifold** as a high-fidelity diagnostic for 
+///   hardware-level structural changes.
+///
+/// ======================================================================
