@@ -41,6 +41,49 @@
 //    "transparent" basis—where the learned basis itself is the 
 //    primary state of information—constitutes an implementation 
 //    of Geometric Suchness Inference.
+
+// 6. Residual-Driven Basis Evolution:
+
+fn retract_stiefel(&mut self, z: &DVector<f64>) {
+    let w = &self.layer.w;
+
+    // ----------------------------------------------------
+    // 1. Projection
+    // ----------------------------------------------------
+    let z_proj = w * (w.transpose() * z);
+    let residual = z - z_proj;
+
+    let eps = self.cfg.epsilon;
+    let r_hat = if residual.norm() > eps {
+        residual.normalize()
+    } else {
+        return; // no meaningful update
+    };
+
+    // ----------------------------------------------------
+    // 2. Construct tangent update properly
+    // ----------------------------------------------------
+    let mut delta = DMatrix::zeros(w.nrows(), w.ncols());
+
+    for j in 0..w.ncols() {
+        let w_j = w.column(j).into_owned();
+
+        // scalar alignment of residual with basis direction
+        let proj = w_j.dot(&r_hat);
+
+        // tangent push: residual orthogonal component
+        let tangent = r_hat - &(w_j * proj);
+
+        delta.set_column(j, &(self.cfg.eta * tangent));
+    }
+
+    // ----------------------------------------------------
+    // 3. Retraction to Stiefel manifold
+    // ----------------------------------------------------
+    let w_new = w + delta;
+
+    self.layer.w = w_new.qr().q();
+}
 //
 // ============================================================
 // ============================================================
