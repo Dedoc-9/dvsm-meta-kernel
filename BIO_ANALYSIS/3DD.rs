@@ -1683,6 +1683,198 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>,
 
 // in-kernel operator evolution of a non-normal manifold b
 
+// 🧠 V5 — OPERATOR-ONLY MANIFOLD ENGINE
+// (No particles, no W, no resampling, no state)
 
+// 🔻 Conceptual Collapse
+
+// You are removing:
+
+// particles ❌
+// velocities ❌
+// basis weights ❌
+// fitness / selection ❌
+// explicit sampling ❌
+
+// and keeping only:
+
+// ✔ Z(x, k, t)
+
+// A rank-limited spectral field evolving in time.
+
+// 🧬 What replaces “particles”?
+
+//Instead of tracking xi, you evolve: Zk(x,t)
+
+// a distributed operator field over space.
+
+// So dynamics become:
+
+// “How does the field deform itself under its own induced flow?”
+
+// ⚙️ V5 RUST — SINGLE FILE CORE
+
+// This is now a field simulator, not a particle engine.
+
+/*
+===========================================================
+V5 — OPERATOR-ONLY NON-NORMAL MANIFOLD ENGINE
+No particles. No basis. No resampling.
+Pure evolving spectral field dynamics.
+===========================================================
+*/
+
+const R: usize = 8;
+const NX: usize = 256; // spatial grid resolution (1D/2D/flattened)
+
+const DT: f32 = 0.0041666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+pub struct FieldSystem {
+    // Z[k][x] — spectral field only
+    pub z: [[f32; NX]; R],
+    pub z_shear: [[f32; NX]; R],
+    pub temp: [[f32; NX]; R],
+}
+
+impl FieldSystem {
+    pub fn new() -> Self {
+        Self {
+            z: [[0.0; NX]; R],
+            z_shear: [[0.0; NX]; R],
+            temp: [[0.0; NX]; R],
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// SPATIAL OPERATOR (no particles)
+// ------------------------------------------------------------
+#[inline(always)]
+fn laplace(x: &[f32; NX], i: usize) -> f32 {
+    let left = if i > 0 { x[i - 1] } else { x[i] };
+    let right = if i < NX - 1 { x[i + 1] } else { x[i] };
+    left + right - 2.0 * x[i]
+}
+
+// ------------------------------------------------------------
+// NONLINEAR LIE-OPERATOR (self-coupling)
+// ------------------------------------------------------------
+#[inline(always)]
+fn interaction(z: f32, s: f32, k: usize) -> f32 {
+    let phase = k as f32 * 1.73;
+    (z.sin() * s.cos()) * phase.sin()
+}
+
+// ------------------------------------------------------------
+// MAIN EVOLUTION STEP
+// ------------------------------------------------------------
+pub fn step(sys: &mut FieldSystem) {
+
+    // ========================================================
+    // PASS 1 — FIELD SELF-INTERACTION (NON-NORMAL GENERATOR)
+    // ========================================================
+    for k in 0..R {
+        for i in 0..NX {
+            let z = sys.z[k][i];
+            let s = sys.z_shear[k][i];
+
+            let diffusion = laplace(&sys.z[k], i);
+
+            let nonlinear =
+                interaction(z, s, k)
+                + 0.1 * diffusion;
+
+            sys.temp[k][i] =
+                z
+                + DT * (nonlinear - LAMBDA * z);
+        }
+    }
+
+    // ========================================================
+    // PASS 2 — EMA SHEAR (TEMPORAL NON-NORMALITY)
+    // ========================================================
+    for k in 0..R {
+        for i in 0..NX {
+            let z = sys.temp[k][i];
+
+            sys.z_shear[k][i] =
+                ALPHA * sys.z_shear[k][i]
+                + (1.0 - ALPHA) * z;
+        }
+    }
+
+    // ========================================================
+    // PASS 3 — COMMIT FIELD
+    // ========================================================
+    for k in 0..R {
+        sys.z[k].copy_from_slice(&sys.temp[k]);
+    }
+}
+
+// 🧠 WHAT V5 ACTUALLY IS
+
+// This is no longer:
+
+// a particle system
+// a Monte Carlo method
+// a learning system
+// a resampling filter
+
+// It is:
+// ✔ A rank-R non-normal operator PDE
+
+// where:
+
+// Component	Meaning
+// z[k][x]	spectral modes
+// z_shear	temporal non-normal memory
+// laplace()	spatial smoothing operator
+// ALPHA	hysteresis (time asymmetry)
+
+// 🧬 THE KEY SHIFT
+
+// Before (V4 and earlier):
+
+// particles generate the field
+
+// Now (V5):
+
+// the field generates itself
+
+// No external agents exist anymore.
+// No sampling exists anymore.
+// No selection exists anymore.
+
+// 🌪 INTERPRETATION (STRICT FORM)
+
+// You now have: ∂tZ=L(Z)+N(Z,Zshear)−λZ
+
+// where:
+// L = discrete Laplacian
+// N = non-commutative Lie interaction
+// Zshear = EMA time-lag operator
+
+// ⚠️ WHAT WAS LOST (INTENTIONALLY)
+// No trajectory space
+// No probability measure
+// No particle interpretation
+// No resampling operator R
+// No basis learning loop
+
+// Because:
+
+// selection is now embedded in operator instability itself
+
+// 🚀 FINAL REALITY CHECK
+
+// V5 is:
+
+// “a self-exciting, rank-limited non-normal field PDE with memory”
+
+// Nothing more.
+
+// Nothing less.
 
 */
