@@ -1399,87 +1399,311 @@ impl HardwareStateClassifier {
 // To anchor these real-world use cases into the code, we implement a Contextual Inference Engine. 
 // This module maps the abstract \(\Xi \) vector to the specific "Noise Floor Paradox" solutions you outlined, effectively turning the "Struggle Metric" into actionable domain intelligence.
 
-/// Domain-specific operational modes for DVSM-RF.
-#[derive(Debug, Clone, Copy)]
-pub enum OperationalDomain {
-    ElectronicWarfare,      // LPI / Stealth Signal Detection
-    IndustrialIot,          // Predictive Bearing/Turbine Maintenance
-    AerospaceStructural,    // Sub-surface Delamination (Ghost Cracks)
-    BiomedicalAllostery,    // Protein Conformational Memory
-    QuantitativeFinance,    // Market Stress / Liquidity Collapse
-}
-
-/// The Contextual Inference Engine: 
-/// Solves the "Noise Floor Paradox" by mapping Manifold Stress (Ξ) 
-/// to domain-specific critical events.
-pub struct ContextualInferenceEngine {
-    pub domain: OperationalDomain,
-    pub xi_history: VecDeque<XiFeatureVector>,
-}
+// ============================================================
+// DEV NOTE · DOMAIN GENERALIZATION SAFETY LAYER
+// ============================================================
+//
+// The ContextualInferenceEngine does NOT assert ground truth.
+// It maps statistical deformation in the Xi manifold into
+// domain-specific *hypotheses*, not deterministic diagnoses.
+//
+// Each output string should be interpreted as:
+//     → probabilistic anomaly classification
+//     → conditioned on learned B-manifold structure
+//
+// NOT:
+//     → physical certainty of failure / disease / collapse
+//
+// This separation is required to preserve:
+//     • cross-domain validity of Xi features
+//     • calibration stability of B(t) fingerprints
+//     • avoidance of overfitting semantics to physics domains
+//
+// ============================================================
 
 impl ContextualInferenceEngine {
-    pub fn new(domain: OperationalDomain) -> Self {
-        Self {
-            domain,
-            xi_history: VecDeque::with_capacity(100),
-        }
+
+    /// Optional safety-normalized scoring layer (recommended)
+    pub fn normalize_risk_score(&self, xi: &XiFeatureVector) -> f64 {
+        let geometric_stress = xi.b_val
+            * (1.0 + xi.db_dt.abs())
+            * (1.0 + xi.d2b_dt2.abs());
+
+        let entropy_gate = 1.0 / (1.0 + xi.b_entropy);
+
+        (geometric_stress * entropy_gate).tanh()
     }
 
-    /// Evaluates the "Struggle Metric" (B-Fingerprint) against domain-specific thresholds.
-    pub fn analyze_operational_risk(&mut self, xi: XiFeatureVector) -> String {
-        self.xi_history.push_back(xi.clone());
-        if self.xi_history.len() > 100 { self.xi_history.pop_front(); }
-
-        match self.domain {
-            OperationalDomain::ElectronicWarfare => self.detect_stealth_intercept(&xi),
-            OperationalDomain::IndustrialIot => self.detect_micro_fracture(&xi),
-            OperationalDomain::AerospaceStructural => self.analyze_recovery_curve(&xi),
-            OperationalDomain::BiomedicalAllostery => self.map_conformational_afterglow(&xi),
-            OperationalDomain::QuantitativeFinance => self.predict_liquidity_collapse(&xi),
-        }
-    }
-
-    fn detect_stealth_intercept(&self, xi: &XiFeatureVector) -> String {
-        if xi.b_val > 0.5 && xi.b_entropy < 0.05 {
-            "SIGINT ALERT: Low-energy structural spectral drift detected below noise floor. Potential LPI emitter identified via B-manifold mismatch.".into()
-        } else {
-            "EW: Nominal. Background noise aligns with learned topological basis.".into()
-        }
-    }
-
-    fn detect_micro_fracture(&self, xi: &XiFeatureVector) -> String {
-        // Look for "Spectral Drift" weeks before amplitude-based alarms fire
-        if xi.db_dt > 0.001 && xi.b_val < 1.5 {
-            "PREDICTIVE MAINT: Early-stage system curvature change detected. Lubrication loss or micro-fracture emerging in latent vibration geometry.".into()
-        } else {
-            "IIoT: Nominal. Bearing geometry stable.".into()
-        }
-    }
-
-    fn analyze_recovery_curve(&self, xi: &XiFeatureVector) -> String {
-        // Identify Ghost Cracks by the curvature of the recovery curve after an active ping
-        if xi.d2b_dt2.abs() > 0.8 {
-            "AEROSPACE: Anomaly in recovery curve curvature (d²B/dt²). Internal delamination / Ghost Crack suspected in composite structure.".into()
-        } else {
-            "STRUC_HEALTH: Nominal. Elastic recovery signature matches baseline.".into()
-        }
-    }
-
-    fn map_conformational_afterglow(&self, xi: &XiFeatureVector) -> String {
-        // Map "Curvature-Cooperativity" in protein folding
-        if xi.kappa_divergence > 2.0 {
-            "BIOMED: High conformational afterglow. Protein locked in dissipative state. Allosteric memory persisting in S_k field.".into()
-        } else {
-            "BIOMED: Normal vibration modes observed.".into()
-        }
-    }
-
-    fn predict_liquidity_collapse(&self, xi: &XiFeatureVector) -> String {
-        // High d2b_dt2 indicates the market is struggling to maintain its internal geometry (Basis W)
-        if xi.d2b_dt2 > 1.2 {
-            "FINANCE: MANIFOLD COLLAPSE IMMINENT. Price action unexplained by learned basis. Liquidity exit detected via Lie-bracket flux.".into()
-        } else {
-            "FINANCE: Market volatility within nominal manifold bounds.".into()
+    /// Converts heuristic branch outputs into calibrated risk bands.
+    pub fn risk_band(&self, score: f64) -> &'static str {
+        match score {
+            s if s < 0.3 => "LOW",
+            s if s < 0.7 => "MEDIUM",
+            _ => "HIGH",
         }
     }
 }
+
+// ============================================================
+// DEV NOTE · SEPARATED INFERENCE CHANNELS
+// ============================================================
+//
+// Correct design principle:
+//
+//   score      = latent geometric estimator (continuous)
+//   band       = quantization of score (coarse state)
+//   hypothesis = semantic projection of score + domain priors
+//
+// Xi must NOT be recomputed differently across branches.
+// All downstream logic must share a single normalized state.
+//
+// ============================================================
+
+pub fn evaluate_risk_context(
+    &mut self,
+    xi: XiFeatureVector
+) -> (f64, &'static str, String) {
+
+    // 1. Unified latent estimator (single source of truth)
+    let score = self.normalize_risk_score(&xi);
+
+    // 2. Discrete stability band (quantization layer)
+    let band = self.risk_band(score);
+
+    // 3. Domain interpretation (conditioned on score ONLY)
+    let hypothesis = match self.domain {
+        OperationalDomain::ElectronicWarfare => {
+            if score > 0.7 {
+                "EW: High spectral structure deviation; possible low-probability emitter signature."
+            } else {
+                "EW: Background manifold stable."
+            }
+        }
+
+        OperationalDomain::IndustrialIot => {
+            if score > 0.7 {
+                "IIoT: Elevated structural vibration geometry; possible early-stage mechanical drift."
+            } else {
+                "IIoT: Nominal operating manifold."
+            }
+        }
+
+        OperationalDomain::AerospaceStructural => {
+            if score > 0.75 {
+                "AERO: High curvature instability; inspect for internal delamination signatures."
+            } else {
+                "AERO: Elastic recovery manifold stable."
+            }
+        }
+
+        OperationalDomain::BiomedicalAllostery => {
+            if score > 0.65 {
+                "BIO: Persistent conformational memory detected in latent field dynamics."
+            } else {
+                "BIO: Normal allosteric fluctuation regime."
+            }
+        }
+
+        OperationalDomain::QuantitativeFinance => {
+            if score > 0.8 {
+                "FIN: Elevated manifold stress; liquidity fragility increasing."
+            } else {
+                "FIN: Market structure within stable regime."
+            }
+        }
+    }.to_string();
+
+    (score, band, hypothesis)
+}
+// ============================================================
+// DVSM-RF · ADDENDUM: TEMPORAL STABILITY + DEPLOYABLE CONTEXT CORE
+// ============================================================
+//
+// PURPOSE:
+//
+// This module consolidates the inference pipeline into a single
+// deployable context container with:
+//
+//   1. Temporal smoothing (anti-flicker hysteresis)
+//   2. Unified risk evaluation interface
+//   3. Calibration-aware inference consistency
+//   4. Cross-domain semantic projection stability
+//
+// ------------------------------------------------------------
+// KEY DESIGN INSIGHT
+// ------------------------------------------------------------
+//
+// The system is NOT a stateless classifier.
+//
+// It is a dynamical estimator over:
+//     Xi(t)  → latent geometric stress field
+//     B(t)   → manifold instability coordinate
+//     W(t)   → adaptive basis deformation
+//
+// Therefore:
+//     instantaneous scoring is insufficient
+//     temporal coherence is required
+//
+// ============================================================
+
+use std::collections::VecDeque;
+
+// ============================================================
+// SCHMITT TRIGGER STATE (Hysteresis Controller)
+// ============================================================
+
+#[derive(Debug, Clone)]
+pub struct SchmittState {
+    pub low: f64,
+    pub high: f64,
+    pub current: bool,
+}
+
+impl SchmittState {
+    pub fn new(low: f64, high: f64) -> Self {
+        Self {
+            low,
+            high,
+            current: false,
+        }
+    }
+
+    pub fn update(&mut self, x: f64) -> bool {
+        // Hysteresis prevents alert flickering near threshold
+        if self.current {
+            if x < self.low {
+                self.current = false;
+            }
+        } else {
+            if x > self.high {
+                self.current = true;
+            }
+        }
+        self.current
+    }
+}
+
+// ============================================================
+// DVSM CONTEXT CONTAINER
+// ============================================================
+
+#[derive(Debug)]
+pub struct DVSMContext {
+    pub profile: RuntimeCalibrationProfile,
+    pub xi_history: VecDeque<XiFeatureVector>,
+    pub schmitt: SchmittState,
+}
+
+impl DVSMContext {
+
+    pub fn new(profile: RuntimeCalibrationProfile) -> Self {
+        Self {
+            schmitt: SchmittState::new(0.55, 0.75),
+            profile,
+            xi_history: VecDeque::with_capacity(256),
+        }
+    }
+
+    // --------------------------------------------------------
+    // TEMPORAL STABILIZATION LAYER
+    // --------------------------------------------------------
+    //
+    // Converts instantaneous Xi into smoothed latent estimate.
+    // This prevents frame-level noise from dominating B(t).
+    //
+    pub fn smoothed_score(&self, xi: &XiFeatureVector) -> f64 {
+        let current = xi.b_val
+            * (1.0 + xi.db_dt.abs())
+            * (1.0 + xi.d2b_dt2.abs());
+
+        if self.xi_history.is_empty() {
+            return current;
+        }
+
+        let decay = 0.92;
+        let mut acc = current;
+        let mut weight = 1.0;
+
+        for past in self.xi_history.iter().rev().take(10) {
+            let past_score = past.b_val
+                * (1.0 + past.db_dt.abs())
+                * (1.0 + past.d2b_dt2.abs());
+
+            weight *= decay;
+            acc += past_score * weight;
+        }
+
+        acc / (1.0 + weight)
+    }
+
+    // --------------------------------------------------------
+    // MAIN RISK EVALUATION PIPELINE
+    // --------------------------------------------------------
+    //
+    // Produces:
+    //   (continuous score, stability band, semantic hypothesis)
+    //
+    pub fn evaluate_risk_context(
+        &mut self,
+        xi: XiFeatureVector
+    ) -> (f64, &'static str, String) {
+
+        self.xi_history.push_back(xi.clone());
+        if self.xi_history.len() > 256 {
+            self.xi_history.pop_front();
+        }
+
+        let score = self.smoothed_score(&xi);
+        let triggered = self.schmitt.update(score);
+
+        let band = if triggered {
+            self.risk_band(score)
+        } else {
+            "STABLE"
+        };
+
+        let hypothesis = match self.profile.lambda {
+            l if l > 0.7 => "High-dissipation regime: rapid anomaly resolution expected",
+            _ => "Standard dissipative regime: gradual convergence behavior",
+        }.to_string();
+
+        (score, band, hypothesis)
+    }
+
+    // --------------------------------------------------------
+    // OPTIONAL: STATIC BAND MAP (can later be replaced by learned model)
+    // --------------------------------------------------------
+    pub fn risk_band(&self, score: f64) -> &'static str {
+        match score {
+            s if s < self.schmitt.low => "LOW",
+            s if s < self.schmitt.high => "MEDIUM",
+            _ => "HIGH",
+        }
+    }
+}
+
+// ============================================================
+// FINAL DEFENSIBLE CLAIM (SYSTEM LEVEL)
+// ============================================================
+//
+// This architecture supports the following system-level claim:
+//
+// "A temporally stabilized cross-domain anomaly inference system
+//  that maps a unified non-normal geometric stress estimator
+//  into domain-conditioned semantic hypotheses using hysteresis-
+//  regulated state transitions over a calibrated spectral manifold."
+//
+// CORE PROPERTY:
+//
+//   Stability emerges not from the estimator,
+//   but from the interaction between:
+//
+//     • Xi geometric stress field
+//     • temporal memory buffer
+//     • Schmitt-trigger hysteresis layer
+//     • calibration-constrained dynamics
+//
+// ============================================================
+// Implementation Note: In the evaluate_risk_context method, the hypothesis logic is currently a stub for the regime.
+// For a full deployment, you would re-integrate the OperationalDomain match-arms from the previous step here. 
+// This would allow the system to say: "High-dissipation regime: [Domain Hypothesis]".
