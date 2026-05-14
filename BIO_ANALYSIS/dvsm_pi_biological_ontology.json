@@ -1,0 +1,254 @@
+// ============================================================================
+// DVSM-π+++ — BIOLOGICALLY INTERPRETED CONSTRAINED STOCHASTIC DYNAMICS (SINGLE FILE)
+// Author: Daniel J. Dillberg
+// ============================================================================
+// Interpretation:
+// Geometry-first model of biological systems as constrained stochastic flows on
+// latent energy landscapes with non-equilibrium rotational currents and projection
+// (homeostatic correction).
+//
+// Core idea:
+// X_{t+1} = Π_M(X_t + dt·F(X_t) + √dt·ξ_t)
+// where:
+// - F = -∇E (drift) + R (rotational biological flux)
+// - ξ = biological stochasticity
+// - Π_M = homeostatic / viability constraint correction
+// ============================================================================
+
+use std::f64;
+
+// ============================================================================
+// STATE (latent biological coordinates)
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct State {
+    pub x: f64,
+    pub y: f64,
+}
+
+// ============================================================================
+// ENERGY LANDSCAPE (toy free-energy surrogate)
+// ============================================================================
+
+pub struct Energy {
+    pub stiffness: f64,
+}
+
+impl Energy {
+    #[inline(always)]
+    pub fn eval(&self, x: f64, y: f64) -> f64 {
+        // toy Waddington-like landscape: wells + coupling
+        let r2 = x * x + y * y;
+        (r2 - 1.0).powi(2) + self.stiffness * x * y
+    }
+}
+
+// ============================================================================
+// GRADIENT (drift = -∇E)
+// ============================================================================
+
+#[inline(always)]
+fn grad_e(e: &Energy, x: f64, y: f64) -> (f64, f64) {
+    let eps = 1e-6;
+
+    let ex = (e.eval(x + eps, y) - e.eval(x - eps, y)) / (2.0 * eps);
+    let ey = (e.eval(x, y + eps) - e.eval(x, y - eps)) / (2.0 * eps);
+
+    (ex, ey)
+}
+
+// ============================================================================
+// ROTATIONAL FIELD (NON-EQUILIBRIUM BIOLOGICAL CYCLES)
+// ============================================================================
+
+#[inline(always)]
+fn rotational(x: f64, y: f64, omega: f64) -> (f64, f64) {
+    // cyclic flux (metabolic / oscillatory interpretation)
+    (-omega * y, omega * x)
+}
+
+// ============================================================================
+// STOCHASTICITY (BIOLOGICAL NOISE)
+// ============================================================================
+
+#[inline(always)]
+fn noise(seed: f64, sigma: f64) -> (f64, f64) {
+    let base = ((seed * 12.9898).sin() * 43758.5453).fract() * 2.0 - 1.0;
+    (base * sigma, base * sigma)
+}
+
+// ============================================================================
+// PROJECTION (HOMEOSTATIC / VIABILITY CORRECTION)
+// ============================================================================
+
+#[inline(always)]
+fn project(mut s: State) -> State {
+    // soft constraint: keep system near viable region (bounded energy basin)
+    for _ in 0..3 {
+        let r2 = s.x * s.x + s.y * s.y;
+        let violation = (r2 - 1.0);
+
+        let norm = (r2.sqrt()).max(1e-12);
+
+        s.x -= violation * s.x / norm;
+        s.y -= violation * s.y / norm;
+    }
+
+    s
+}
+
+// ============================================================================
+// JET (DERIVATIVE OBSERVATION OF BIOLOGICAL TRAJECTORY)
+// ============================================================================
+
+#[derive(Debug, Clone, Copy)]
+pub struct Jet {
+    pub vx: f64,
+    pub vy: f64,
+    pub ax: f64,
+    pub ay: f64,
+}
+
+#[inline(always)]
+fn jet(x2: State, x1: State, x0: State) -> Jet {
+    let vx = x0.x - x1.x;
+    let vy = x0.y - x1.y;
+
+    let vx_p = x1.x - x2.x;
+    let vy_p = x1.y - x2.y;
+
+    Jet {
+        vx,
+        vy,
+        ax: vx - vx_p,
+        ay: vy - vy_p,
+    }
+}
+
+// ============================================================================
+// REGIMES (BIOLOGICAL PHASES)
+// ============================================================================
+
+#[derive(Debug)]
+pub enum Regime {
+    Homeostasis,
+    Drift,
+    Oscillatory,
+    HighNoise,
+    BoundaryStress,
+}
+
+// ============================================================================
+// CLASSIFIER (BIOLOGICAL INTERPRETATION LAYER)
+// ============================================================================
+
+fn classify(s: State, j: Jet, omega: f64, sigma: f64) -> Regime {
+    let energy_proxy = s.x * s.x + s.y * s.y;
+
+    let motion = (j.vx * j.vx + j.vy * j.vy).sqrt();
+    let accel = (j.ax * j.ax + j.ay * j.ay).sqrt();
+
+    if sigma > 1.2 {
+        return Regime::HighNoise;
+    }
+
+    if energy_proxy > 2.0 {
+        return Regime::BoundaryStress;
+    }
+
+    if omega > 0.8 && motion > 0.4 {
+        return Regime::Oscillatory;
+    }
+
+    if motion < 1e-3 {
+        return Regime::Homeostasis;
+    }
+
+    if accel > 1.0 {
+        return Regime::Drift;
+    }
+
+    Regime::Homeostasis
+}
+
+// ============================================================================
+// CORE STEP (DVSM-π+++ BIOLOGICAL DYNAMICS)
+// ============================================================================
+
+pub fn step(
+    x2: State,
+    x1: State,
+    x0: State,
+    energy: &Energy,
+    dt: f64,
+    omega: f64,
+    sigma: f64,
+    seed: f64,
+) -> (State, Jet, Regime) {
+    // drift (−∇E)
+    let (gx, gy) = grad_e(energy, x0.x, x0.y);
+    let drift_x = -gx;
+    let drift_y = -gy;
+
+    // rotational biological flux
+    let (rx, ry) = rotational(x0.x, x0.y, omega);
+
+    // stochastic biological noise
+    let (nx, ny) = noise(seed, sigma);
+
+    // unconstrained evolution (stochastic biological update)
+    let raw = State {
+        x: x0.x + dt * (drift_x + rx) + (dt.sqrt() * nx),
+        y: x0.y + dt * (drift_y + ry) + (dt.sqrt() * ny),
+    };
+
+    // homeostatic projection (viability enforcement)
+    let next = project(raw);
+
+    // jet observables (derivative-level biological signal)
+    let j = jet(x2, x1, next);
+
+    // regime classification
+    let r = classify(next, j, omega, sigma);
+
+    (next, j, r)
+}
+
+// ============================================================================
+// RUN LOOP
+// ============================================================================
+
+pub fn run(steps: usize, mut s: State, energy: Energy, dt: f64, omega: f64, sigma: f64) {
+    let mut s1 = s;
+    let mut s2 = s;
+
+    for t in 0..steps {
+        let seed = t as f64;
+
+        let (nx, _j, r) = step(s2, s1, s, &energy, dt, omega, sigma, seed);
+
+        s2 = s1;
+        s1 = s;
+        s = nx;
+
+        println!("{:?}", r);
+    }
+}
+
+// ============================================================================
+// ENTRY POINT
+// ============================================================================
+
+fn main() {
+    let energy = Energy { stiffness: 0.2 };
+
+    run(
+        200,
+        State { x: 0.2, y: -0.1 },
+        energy,
+        0.05,  // dt
+        0.7,   // omega (biological oscillation strength)
+        0.4,   // sigma (noise level)
+    );
+}
