@@ -188,6 +188,72 @@ fn retract_stiefel(&mut self, z: &DVector<f64>) {
 // END GOVERNED SEMANTIC LAYER
 // ============================================================
 // ============================================================
+// DVSM-DFE · STIEFEL AIR-GAP OPERATOR (FINAL FORM)
+// ============================================================
+
+impl DVSMCore {
+    /// Residual-driven Stiefel manifold evolution operator.
+    ///
+    /// CORE IDEA:
+    /// The system evolves by aligning its basis (W) with the
+    /// orthogonal complement of its current representational error.
+    fn retract_stiefel(&mut self, z: &DVector<f64>) {
+        let w = &self.layer.w;
+
+        // ----------------------------------------------------
+        // 1. PROJECTION OPERATOR (W Wᵀ z)
+        // ----------------------------------------------------
+        let z_proj = w * (w.transpose() * z);
+        let residual = z - z_proj;
+
+        let eps = self.cfg.epsilon;
+
+        let r_hat = match residual.norm() {
+            n if n > eps => residual / n,
+            _ => return, // no excitation outside current span
+        };
+
+        // ----------------------------------------------------
+        // 2. TANGENT FIELD CONSTRUCTION
+        // ----------------------------------------------------
+        let mut delta = DMatrix::zeros(w.nrows(), w.ncols());
+
+        for j in 0..w.ncols() {
+            let w_j = w.column(j).into_owned();
+
+            let proj = w_j.dot(&r_hat);
+
+            // Remove component already explained by basis vector
+            let tangent = r_hat - &(w_j * proj);
+
+            delta.set_column(j, &(self.cfg.eta * tangent));
+        }
+
+        // ----------------------------------------------------
+        // 3. RETRACTION TO STIEFEL MANIFOLD
+        // ----------------------------------------------------
+        let w_new = w + delta;
+
+        self.layer.w = w_new.qr().q();
+
+        // ----------------------------------------------------
+        // 4. INVARIANT CHECK (SOFT FAIL MODE)
+        // ----------------------------------------------------
+        let gram = &self.layer.w.transpose() * &self.layer.w;
+
+        let identity = DMatrix::<f64>::identity(w.ncols(), w.ncols());
+        let drift = (&gram - identity).norm();
+
+        // Instead of panic → signal geometric instability
+        if drift > eps {
+            self.layer.stiefel_drift = drift; // optional telemetry hook
+            self.layer.is_degraded = true;    // system enters safe mode
+        } else {
+            self.layer.is_degraded = false;
+        }
+    }
+}
+// ============================================================
 // USER CONFIGURATION MODES:
 //
 //   Mode A → "Pure Geometry (Persistent Manifold)"
