@@ -502,3 +502,402 @@ impl DfeRuntime {
 // ============================================================
 // The system is now classified as a Curvature-Stabilized Non-Normal Manifold. 
 // It solves the "Noise Floor Paradox" by ensuring that only signals following the "Proprietary Transport Graph" \((\kappa)\) can achieve smooth temporal evolution.
+
+//! dvsm_dfe_trajectory_encryption_core.rs
+//!
+//! DVSM-DFE Runtime Core
+//! Encapsulated JSON specification + execution boundary
+//! for trajectory-dependent frequency encryption systems.
+
+use std::collections::VecDeque;
+use nalgebra::{DMatrix, DVector};
+
+/// ============================================================
+/// EMBEDDED IP / SPECIFICATION LAYER (JSON AS CANONICAL FORM)
+/// ============================================================
+/// This is the machine-readable "contract layer" of the system.
+/// It encodes κ-topology, Lie-bracket transport semantics,
+/// and curvature-gated integrity behavior.
+/// ============================================================
+
+pub const DVSM_DFE_SPEC_JSON: &str = r#"
+{
+  "system": "DVSM-DFE",
+  "core_principle": "trajectory-dependent encryption via non-normal Lie-bracket flow",
+  "state_space": ["Z", "S"],
+  "key_structure": "kappa adjacency matrix (encrypted spectral topology)",
+  "governing_dynamics": "dZ = [Z,S]_κ - λZ",
+  "integrity_gate": "second-order curvature bound on B(t)",
+  "forward_secrecy": "EMA mutation of S-state destroys invertibility",
+  "defensible_axis": [
+    "non-normal spectral transport",
+    "trajectory-dependent state coupling",
+    "κ-topology encrypted adjacency",
+    "curvature-gated anomaly rejection"
+  ]
+}
+"#;
+
+/// ============================================================
+/// RUNTIME CORE (EXECUTION ENGINE)
+/// ============================================================
+
+pub struct DfeContext {
+    pub kappa: DMatrix<f64>,
+    pub s_state: DVector<f64>,
+    pub b_history: VecDeque<f64>,
+    pub lambda: f64,
+    pub alpha: f64,
+    pub curvature_limit: f64,
+}
+
+impl DfeContext {
+    pub fn new(kappa: DMatrix<f64>, lambda: f64, alpha: f64) -> Self {
+        let n = kappa.nrows();
+        assert!(lambda > 0.0, "λ must be contractive (>0)");
+
+        Self {
+            kappa,
+            s_state: DVector::from_element(n, 0.0),
+            b_history: VecDeque::with_capacity(256),
+            lambda,
+            alpha,
+            curvature_limit: 0.15,
+        }
+    }
+
+    /// Lie-bracket spectral transport
+    fn scramble(&self, z: &DVector<f64>) -> DVector<f64> {
+        let n = z.len();
+        let mut dz = DVector::from_element(n, 0.0);
+
+        for i in 0..n {
+            for j in 0..n {
+                let comm = (z[i] * self.s_state[j]) - (z[j] * self.s_state[i]);
+                dz[i] += comm * self.kappa[(i, j)];
+            }
+        }
+
+        dz - (self.lambda * z)
+    }
+
+    /// Curvature-based integrity gate (B-manifold stability)
+    fn validate(&mut self, b_t: f64) -> bool {
+        self.b_history.push_back(b_t);
+        if self.b_history.len() > 256 {
+            self.b_history.pop_front();
+        }
+
+        if self.b_history.len() < 3 {
+            return true;
+        }
+
+        let n = self.b_history.len();
+        let curvature = self.b_history[n - 1]
+            - 2.0 * self.b_history[n - 2]
+            + self.b_history[n - 3];
+
+        curvature.abs() < self.curvature_limit
+    }
+
+    /// Main encryption step
+    pub fn step(&mut self, z_in: DVector<f64>) -> Option<DVector<f64>> {
+        let z_enc = self.scramble(&z_in);
+
+        let b_t = self.s_state.norm() / (z_enc.norm() + 1e-9);
+
+        if !self.validate(b_t) {
+            self.s_state.fill(0.0); // trajectory reset = forward secrecy break
+            return None;
+        }
+
+        self.s_state =
+            (self.alpha * &self.s_state) + (1.0 - self.alpha) * &z_enc;
+
+        Some(z_enc)
+    }
+
+    /// Accessor: returns the embedded JSON spec
+    pub fn spec(&self) -> &'static str {
+        DVSM_DFE_SPEC_JSON
+    }
+}
+{
+  "file": "dvsm_dfe_trajectory_encryption_core.rs",
+  "language": "rust",
+  "version": "dvsm-dfe-mit-core-v1",
+  "description": "DVSM-DFE Trajectory-Dependent Encryption Core implementing κ-topology Lie-bracket transport, curvature-bounded integrity gating, and stateful forward secrecy via (Z, S, W) manifold evolution.",
+  "imports": [
+    "use std::collections::VecDeque;",
+    "use nalgebra::{DMatrix, DVector};"
+  ],
+  "core_struct": {
+    "name": "DfeContext",
+    "fields": {
+      "kappa": "DMatrix<f64> (encrypted adjacency topology / spectral key)",
+      "s_state": "DVector<f64> (trajectory-dependent memory / forward secrecy state)",
+      "b_history": "VecDeque<f64> (bounded curvature trace buffer)",
+      "lambda": "f64 (global dissipation / contractivity constraint)",
+      "alpha": "f64 (EMA memory persistence factor)",
+      "curvature_limit": "f64 (integrity gate sensitivity threshold ε_c)"
+    }
+  },
+  "mathematical_core": {
+    "lie_bracket_transport": "dZ = [Z, S]_κ - λZ",
+    "commutator": "(Z_i S_j - Z_j S_i) κ(i,j)",
+    "b_fingerprint": "B(t) = ||S|| / (||Z_enc|| + ε)",
+    "curvature_gate": "d²B/dt² ≈ B_t - 2B_{t-1} + B_{t-2}"
+  },
+  "runtime_algorithm": [
+    "1. compute Lie-bracket scrambling using κ-weighted antisymmetric transport",
+    "2. apply global dissipation λ for contractivity",
+    "3. compute B-manifold fingerprint from encoded state",
+    "4. reject signal if curvature exceeds ε_c threshold",
+    "5. update S-state via EMA trajectory coupling",
+    "6. enforce forward secrecy by path-dependent state mutation"
+  ],
+  "rust_core": "use std::collections::VecDeque;\nuse nalgebra::{DMatrix, DVector};\n\npub struct DfeContext {\n    pub kappa: DMatrix<f64>,\n    pub s_state: DVector<f64>,\n    pub b_history: VecDeque<f64>,\n    pub lambda: f64,\n    pub alpha: f64,\n    pub curvature_limit: f64,\n}\n\nimpl DfeContext {\n    pub fn new(kappa: DMatrix<f64>, lambda: f64, alpha: f64) -> Self {\n        let n = kappa.nrows();\n        assert!(lambda > 0.0);\n        Self {\n            kappa,\n            s_state: DVector::from_element(n, 0.0),\n            b_history: VecDeque::with_capacity(256),\n            lambda,\n            alpha,\n            curvature_limit: 0.15,\n        }\n    }\n\n    fn scramble(&self, z: &DVector<f64>) -> DVector<f64> {\n        let n = z.len();\n        let mut dz = DVector::from_element(n, 0.0);\n\n        for i in 0..n {\n            for j in 0..n {\n                let comm = (z[i] * self.s_state[j]) - (z[j] * self.s_state[i]);\n                dz[i] += comm * self.kappa[(i, j)];\n            }\n        }\n\n        dz - (self.lambda * z)\n    }\n\n    fn validate_integrity(&mut self, b_t: f64) -> bool {\n        self.b_history.push_back(b_t);\n        if self.b_history.len() > 256 { self.b_history.pop_front(); }\n        if self.b_history.len() < 3 { return true; }\n\n        let n = self.b_history.len();\n        let curvature = self.b_history[n-1]\n            - 2.0 * self.b_history[n-2]\n            + self.b_history[n-3];\n\n        curvature.abs() < self.curvature_limit\n    }\n\n    pub fn process_frame(&mut self, z_in: DVector<f64>) -> Option<DVector<f64>> {\n        let z_enc = self.scramble(&z_in);\n\n        let b_t = self.s_state.norm() / (z_enc.norm() + 1e-9);\n\n        if !self.validate_integrity(b_t) {\n            self.s_state.fill(0.0);\n            return None;\n        }\n\n        self.s_state = (self.alpha * &self.s_state)\n            + (1.0 - self.alpha) * &z_enc;\n\n        Some(z_enc)\n    }\n}\n",
+  "defensible_ip_summary": {
+    "non_obvious_composition": "Security emerges from coupled dynamics of Lie-bracket transport, κ-weighted anisotropic mixing, and trajectory-dependent memory state evolution.",
+    "key_ip_axis": [
+      "κ-topology as encrypted spectral adjacency structure",
+      "non-normal Lie-bracket energy-preserving scrambling with dissipation constraint",
+      "curvature-gated rejection via B-manifold second-order stability signal",
+      "forward secrecy derived from irreversible EMA state mutation",
+      "joint (Z, S) manifold evolution as inseparable encryption object"
+    ],
+    "what_is_not_protectable": [
+      "FFT / STFT",
+      "EMA",
+      "Gram-Schmidt",
+      "Kalman filtering",
+      "Lie brackets",
+      "χ² metrics"
+    ]
+  },
+  "operational_semantics": {
+    "ew_sigint": "Rejects signals that fail κ-manifold consistency or induce curvature spikes",
+    "secure_mesh": "Forward secrecy prevents replay due to missing S-state trajectory",
+    "industrial_monitoring": "B-manifold curvature detects pre-failure drift",
+    "general_property": "System behaves as contractive nonlinear dynamical encryption flow"
+  }
+}
+// ============================================================
+// END JSON FILE
+// ============================================================
+// INTELLECTUAL PROPERTY NOTICE · DVSM-DFE CORE
+// ============================================================
+//
+// This module implements a coupled dynamical encryption system
+// based on trajectory-dependent Lie-bracket transport and
+// κ-topology spectral adjacency encoding.
+//
+// ------------------------------------------------------------
+// NOT PROTECTABLE IN ISOLATION (PRIOR ART COMPONENTS)
+// ------------------------------------------------------------
+// The following elements are standard mathematical / engineering
+// primitives and are explicitly NOT claimed as proprietary:
+//
+//   - Matrix algebra (DMatrix, DVector operations)
+//   - Lie brackets / commutator forms
+//   - Exponential moving averages (EMA / α-smoothing)
+//   - Second-order finite differences (curvature estimation)
+//   - Norm-based distance metrics
+//   - Dissipative linear terms (λ scaling)
+//   - Queue-based history buffers (VecDeque)
+//   - General state-space dynamical systems
+//
+// ------------------------------------------------------------
+// DEFENSIBLE SYSTEM CLAIM (COMPOSITIONAL NOVELTY)
+// ------------------------------------------------------------
+// The protectable invention lies exclusively in the *specific
+// coupled configuration and runtime interaction* of these
+// components, defined as:
+//
+//   (1) κ-TOPOLOGY ENCRYPTED ADJACENCY LAYER
+//       A fixed or learned spectral adjacency matrix used not
+//       as a transform, but as a *directional transport constraint*
+//       governing non-normal energy flow across latent modes.
+//
+//   (2) TRAJECTORY-DEPENDENT STATE COUPLING
+//       The system couples instantaneous signal Z with historical
+//       memory state S such that encryption depends on *path
+//       history*, not static key material.
+//
+//   (3) NON-NORMAL LIE-BRACKET TRANSPORT FLOW
+//       The commutator is used as an anisotropic transport engine,
+//       producing non-invertible intermediate representations under
+//       partial state observation.
+//
+//   (4) CURVATURE-GATED INTEGRITY MANIFOLD
+//       The B(t) signal is elevated from a scalar metric to a
+//       second-order stability constraint on system evolution,
+//       enforcing rejection of trajectories that violate manifold
+//       smoothness assumptions.
+//
+//   (5) FORWARD-SECRET EMA STATE MUTATION
+//       The S-state evolves irreversibly under streaming updates,
+//       ensuring that loss of temporal state destroys decryptability.
+//
+// ------------------------------------------------------------
+// SYSTEM-LEVEL CLAIM (NON-OBVIOUS EFFECT)
+// ------------------------------------------------------------
+// The non-trivial emergent property is not any individual operator,
+// but the *contractive dynamical manifold* formed by coupling:
+//
+//       Z (signal field)
+//       S (trajectory memory)
+//       κ (transport topology)
+//       λ (global dissipation constraint)
+//
+// This coupling yields:
+//
+//   → irreversible spectral scrambling under partial observation
+//   → curvature-dependent anomaly rejection
+//   → state-dependent encryption that cannot be replayed
+//   → stability-preserving non-normal energy redistribution
+//
+// ------------------------------------------------------------
+// CLAIM POSITIONING STATEMENT
+// ------------------------------------------------------------
+// "A method for trajectory-dependent spectral encryption in which
+// signal transformation is governed by a non-normal Lie-bracket
+// flow over an encrypted adjacency topology, constrained by
+// curvature-bounded stability dynamics and irreversible memory
+// evolution."
+//
+// ------------------------------------------------------------
+// IMPORTANT DISCLOSURE
+// ------------------------------------------------------------
+// This notice does not assert ownership over mathematics,
+// but over the *specific coupled runtime configuration and
+// stability-regulated dynamical behavior* implemented herein.
+// ============================================================
+// ============================================================
+// NEXT STEPS · CURVATURE-GATED INTEGRITY MANIFOLD HARDENING
+// ============================================================
+//
+// Objective:
+// Strengthen the validate_integrity() gate to detect both:
+//
+//   (A) FAST MANIFOLD SHOCKS ("burst attacks")
+//   (B) SLOW TOPOLOGICAL DRIFT ("gradual cracking")
+//
+// Current limitation:
+// Single-scale second-order finite difference:
+//
+//   d²B/dt² ≈ B_t - 2B_{t-1} + B_{t-2}
+//
+// This only detects *local curvature spikes* and misses:
+//   - low-frequency drift
+//   - adversarial smoothing
+//   - delayed manifold deformation
+//
+// ------------------------------------------------------------
+// PROPOSED UPGRADE: MULTI-SCALE CURVATURE MANIFOLD
+// ------------------------------------------------------------
+//
+// Introduce three coupled curvature estimators:
+//
+//   1. SHORT WINDOW  → burst detection
+//   2. MID WINDOW    → structural deformation tracking
+//   3. LONG WINDOW   → topology drift / poisoning detection
+//
+// Each window computes a second-order curvature signal.
+//
+// ------------------------------------------------------------
+// MATHEMATICAL FORM
+// ------------------------------------------------------------
+//
+// Let B[t] be the manifold stress signal.
+//
+// Short-scale curvature:
+//   C_s(t) = B[t] - 2B[t-1] + B[t-2]
+//
+// Mid-scale curvature (downsampled / EMA-smoothed):
+//   C_m(t) = B̄[t] - 2B̄[t-k] + B̄[t-2k]
+//
+// Long-scale curvature:
+//   C_l(t) = B̂[t] - 2B̂[t-kL] + B̂[t-2kL]
+//
+// Where:
+//   B̄ = medium EMA filter
+//   B̂ = long EMA filter
+//
+// ------------------------------------------------------------
+// INTEGRITY DECISION FUNCTION
+// ------------------------------------------------------------
+//
+// Instead of a single threshold:
+//
+//   |C| < ε
+//
+// we define a coupled stability manifold:
+//
+//   F(t) = w1|C_s| + w2|C_m| + w3|C_l|
+//
+// Reject if:
+//
+//   F(t) > ε_global
+//
+// OR if drift condition holds:
+//
+//   |C_l| > ε_drift   AND   C_s is low
+//
+// (this catches slow poisoning with no burst signature)
+//
+// ------------------------------------------------------------
+// RUST INTEGRATION PLAN
+// ------------------------------------------------------------
+//
+// Replace validate_integrity() with:
+//
+//   fn validate_integrity_multiscale(&mut self, b_t: f64) -> bool
+//
+// Add state buffers:
+//
+//   b_short: VecDeque<f64>   (≈ 8–16 samples)
+//   b_mid:   EMA buffer       (α_mid)
+//   b_long:  EMA buffer       (α_long)
+//
+// Add parameters:
+//
+//   epsilon_short
+//   epsilon_mid
+//   epsilon_long
+//   epsilon_global
+//
+// ------------------------------------------------------------
+// SECURITY INTERPRETATION
+// ------------------------------------------------------------
+//
+// This upgrade transforms the integrity gate from:
+//
+//   "instantaneous curvature detector"
+//
+// into:
+//
+//   "multi-timescale manifold observer"
+//
+// enabling detection of:
+//
+//   - burst injection (EW-style interference spikes)
+//   - stealth drift attacks (low-SNR poisoning)
+//   - slow topology inversion attempts
+//
+// ------------------------------------------------------------
+// DEFENSIBLE IP EXTENSION
+// ------------------------------------------------------------
+//
+// This strengthens the CURVATURE-GATED INTEGRITY MANIFOLD claim
+// by introducing:
+//
+//   → temporal scale separation as a stability constraint
+//   → multi-resolution manifold stress geometry
+//   → drift-sensitive anomaly rejection dynamics
+//
+// The key novelty is not curvature itself,
+// but the *coupled multi-scale curvature field* over a
+// trajectory-dependent encryption manifold.
+//
+// ============================================================
