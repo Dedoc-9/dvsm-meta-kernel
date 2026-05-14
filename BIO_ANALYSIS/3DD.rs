@@ -1877,4 +1877,172 @@ pub fn step(sys: &mut FieldSystem) {
 
 // Nothing less.
 
+/*
+===========================================================
+V6 — PURE OPERATOR SPECTRUM ENGINE
+No space. No particles. No grid.
+Only interacting spectral modes.
+===========================================================
+*/
+
+const R: usize = 8;
+const DT: f32 = 0.0041666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+/// ---------------------------------------------------------
+/// STATE: pure spectral manifold
+/// ---------------------------------------------------------
+pub struct SpectrumSystem {
+    pub z: [f32; R],        // mode amplitudes
+    pub z_shear: [f32; R],  // non-normal memory
+    pub temp: [f32; R],
+}
+
+impl SpectrumSystem {
+    pub fn new() -> Self {
+        Self {
+            z: [0.0; R],
+            z_shear: [0.0; R],
+            temp: [0.0; R],
+        }
+    }
+}
+
+/// ---------------------------------------------------------
+/// FULLY COUPLED NON-NORMAL INTERACTION KERNEL
+/// ---------------------------------------------------------
+#[inline(always)]
+fn interaction(zi: f32, zj: f32, si: f32, sj: f32, i: usize, j: usize) -> f32 {
+    let phase_i = (i as f32) * 1.37;
+    let phase_j = (j as f32) * 1.73;
+
+    // antisymmetric coupling (Lie-like generator)
+    (zi * sj - zj * si)
+        * (phase_i - phase_j).sin()
+}
+
+/// ---------------------------------------------------------
+/// ONE STEP EVOLUTION
+/// ---------------------------------------------------------
+pub fn step(sys: &mut SpectrumSystem) {
+
+    // ========================================================
+    // PASS 1 — NON-NORMAL SPECTRAL INTERACTION
+    // ========================================================
+    for i in 0..R {
+        let mut dz = 0.0;
+
+        for j in 0..R {
+            if i == j { continue; }
+
+            dz += interaction(
+                sys.z[i],
+                sys.z[j],
+                sys.z_shear[i],
+                sys.z_shear[j],
+                i,
+                j,
+            );
+        }
+
+        // spectral sink (stability boundary)
+        dz -= LAMBDA * sys.z[i];
+
+        sys.temp[i] = sys.z[i] + DT * dz;
+    }
+
+    // ========================================================
+    // PASS 2 — NON-NORMAL MEMORY (EMA SHEAR)
+    // ========================================================
+    for i in 0..R {
+        sys.z_shear[i] =
+            ALPHA * sys.z_shear[i]
+            + (1.0 - ALPHA) * sys.temp[i];
+    }
+
+    // ========================================================
+    // PASS 3 — COMMIT
+    // ========================================================
+    sys.z = sys.temp;
+}
+
+🧠 WHAT V6 ACTUALLY IS
+
+This is no longer:
+
+a simulation
+a discretization
+a field
+a PDE
+a particle system
+It is:
+✔ A closed non-normal dynamical system in spectral coefficient space
+
+Mathematically:
+
+/*
+===========================================================
+V6 — PURE SPECTRAL OPERATOR SYSTEM (SHORT FORM)
+z_i evolves via antisymmetric coupling + EMA memory
+===========================================================
+*/
+
+const R: usize = 8;
+const DT: f32 = 0.0041666;
+const ALPHA: f32 = 0.98;
+const LAMBDA: f32 = 0.05;
+
+pub struct System {
+    pub z: [f32; R],
+    pub s: [f32; R],      // EMA memory (z_shear)
+    pub tmp: [f32; R],
+}
+
+/// antisymmetric interaction kernel (Lie-like form)
+#[inline(always)]
+fn kappa(i: usize, j: usize) -> f32 {
+    let pi = (i as f32) * 1.37;
+    let pj = (j as f32) * 1.73;
+    (pi - pj).sin()
+}
+
+pub fn step(sys: &mut System) {
+
+    // =====================================================
+    // PASS 1 — spectral interaction (non-normal generator)
+    // dz_i = sum_j (z_i * s_j - z_j * s_i) * κ(i,j) - λ z_i
+    // =====================================================
+    for i in 0..R {
+        let mut dz = 0.0;
+
+        for j in 0..R {
+            if i == j { continue; }
+
+            let term = (sys.z[i] * sys.s[j] - sys.z[j] * sys.s[i])
+                * kappa(i, j);
+
+            dz += term;
+        }
+
+        dz -= LAMBDA * sys.z[i];
+        sys.tmp[i] = sys.z[i] + DT * dz;
+    }
+
+    // =====================================================
+    // PASS 2 — EMA memory (non-normal hysteresis)
+    // s_i ← α s_i + (1-α) z_i
+    // =====================================================
+    for i in 0..R {
+        sys.s[i] = ALPHA * sys.s[i] + (1.0 - ALPHA) * sys.tmp[i];
+    }
+
+    // =====================================================
+    // PASS 3 — commit
+    // =====================================================
+    sys.z = sys.tmp;
+}
+
+
+
 */
