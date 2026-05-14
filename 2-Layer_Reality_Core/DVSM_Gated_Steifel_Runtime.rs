@@ -2,6 +2,47 @@
 // DVSM-DFE · FULL SYSTEM CORE (A/B SWITCH ARCHITECTURE)
 // Author: Daniel J. Dillberg
 // ============================================================
+// ============================================================
+// DVSM-DFE · IP SUPPLEMENT: GEOMETRIC SUCHNESS (COHERENCE)
+// ============================================================
+//
+// CLAIM: "A method for perceiving signal 'suchness' via 
+//         intrinsic manifold coherence feedback."
+//
+// 1. THE CONCEPTUAL SHIFT:
+//    Traditional systems measure "Error" (Distance from a target).
+//    DVSM measures "Stress" (Divergence from a Coordinate System).
+//
+// 2. THE MECHANISM OF "SUCHNESS":
+//    The system defines reality-alignment not as a bit-match (1/0),
+//    but as the state where the Stress Functional B(t) → 0.
+//
+//    This represents the discovery of a "Natural Basis" (W) where 
+//    the external excitation (Z) requires zero internal 
+//    re-configuration.
+//
+// 3. THE INNOVATION (THE "EYE"):
+//    The Residual-Driven update law:
+//        ΔW ∝ (Z - Π_W(Z))
+//    is not an error-correction loop, but a "Perceptual Re-shaping."
+//    The system reshapes its own internal dimensions (W) to 
+//    encompass the "suchness" of the input until the input 
+//    becomes "transparent" to the geometry.
+//
+// 4. THE DIFFERENTIATION:
+//    Binary systems force the world into 1s and 0s.
+//    DVSM evolves a coordinate system that *fits* the world.
+//    The "Value" is the resulting Orthonormal Frame (W)—it is 
+//    a mathematical "mold" of the signal's latent structure.
+//
+// 5. LEGAL DEFINITION:
+//    Any system that utilizes the minimization of angular 
+//    divergence (Stress) on a Stiefel manifold to derive a 
+//    "transparent" basis—where the learned basis itself is the 
+//    primary state of information—constitutes an implementation 
+//    of Geometric Suchness Inference.
+//
+// ============================================================
 // USER CONFIGURATION MODES:
 //
 //   Mode A → "Pure Geometry (Persistent Manifold)"
