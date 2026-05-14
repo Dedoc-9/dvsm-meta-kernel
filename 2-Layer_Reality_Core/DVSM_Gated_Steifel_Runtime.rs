@@ -254,6 +254,123 @@ impl DVSMCore {
     }
 }
 // ============================================================
+// DVSM-DFE · OPERATOR MAP (RUST IMPLEMENTATION)
+// ============================================================
+
+use nalgebra::{DMatrix, DVector};
+
+/// ============================================================
+/// CONFIG
+/// ============================================================
+#[derive(Clone, Copy)]
+pub struct Config {
+    pub eta: f64,
+    pub epsilon: f64,
+}
+
+/// ============================================================
+/// CORE STATE
+/// ============================================================
+pub struct DVSMCore {
+    pub w: DMatrix<f64>, // Stiefel frame W ∈ St(n,r)
+}
+
+/// ============================================================
+/// 1. PROJECTION: z_proj = W Wᵀ z
+/// ============================================================
+impl DVSMCore {
+    pub fn project(&self, z: &DVector<f64>) -> DVector<f64> {
+        let wt_z = self.w.transpose() * z;
+        &self.w * wt_z
+    }
+
+    /// ========================================================
+    /// 2. RESIDUAL: r = z - z_proj
+    /// ========================================================
+    pub fn residual(&self, z: &DVector<f64>) -> DVector<f64> {
+        let z_proj = self.project(z);
+        z - z_proj
+    }
+
+    /// ========================================================
+    /// 3. NORMALIZED RESIDUAL ("Suchness Signal")
+    /// ========================================================
+    pub fn normalize_residual(&self, r: &DVector<f64>, eps: f64) -> Option<DVector<f64>> {
+        let norm = r.norm();
+
+        if norm <= eps {
+            return None;
+        }
+
+        Some(r / norm)
+    }
+
+    /// ========================================================
+    /// 4. TANGENT FLOW (Stiefel update direction)
+    /// ========================================================
+    pub fn tangent_flow(&self, r_hat: &DVector<f64>) -> DMatrix<f64> {
+        let mut delta = DMatrix::zeros(self.w.nrows(), self.w.ncols());
+
+        for j in 0..self.w.ncols() {
+            let w_j = self.w.column(j).into_owned();
+
+            let proj = w_j.dot(r_hat);
+
+            let tangent = r_hat - &(w_j * proj);
+
+            delta.set_column(j, &tangent);
+        }
+
+        delta
+    }
+
+    /// ========================================================
+    /// 5. RETRACTION: W ← QR(W + ΔW)
+    /// ========================================================
+    pub fn retract(&mut self, delta: &DMatrix<f64>, eta: f64) {
+        let w_new = &self.w + eta * delta;
+        self.w = w_new.qr().q();
+    }
+
+    /// ========================================================
+    /// 6. GOVERNANCE / AIR-GAP PREDICATE
+    ///    ||WᵀW - I||_F ≤ ε
+    /// ========================================================
+    pub fn stiefel_drift(&self) -> f64 {
+        let gram = &self.w.transpose() * &self.w;
+        let identity = DMatrix::<f64>::identity(self.w.ncols(), self.w.ncols());
+
+        (&gram - identity).norm()
+    }
+
+    /// ========================================================
+    /// 7. SYSTEM HEALTH STATE
+    /// ========================================================
+    pub fn is_degraded(&self, epsilon: f64) -> bool {
+        self.stiefel_drift() > epsilon
+    }
+
+    /// ========================================================
+    /// FULL OPERATOR STEP
+    /// ========================================================
+    pub fn step(&mut self, z: &DVector<f64>, cfg: Config) -> Option<f64> {
+        // 1. Projection
+        let r = self.residual(z);
+
+        // 2. Normalize residual
+        let r_hat = self.normalize_residual(&r, cfg.epsilon)?;
+
+        // 3. Tangent flow
+        let delta = self.tangent_flow(&r_hat);
+
+        // 4. Retraction
+        self.retract(&delta, cfg.eta);
+
+        // 5. Return drift (governance signal)
+        Some(self.stiefel_drift())
+    }
+}
+// ============================================================
 // USER CONFIGURATION MODES:
 //
 //   Mode A → "Pure Geometry (Persistent Manifold)"
