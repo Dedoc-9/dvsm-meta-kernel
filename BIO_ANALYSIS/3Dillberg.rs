@@ -2142,3 +2142,155 @@ That is a phase transition in algorithm class, not an incremental improvement.
 //   latent geometry measures in ℝ³
 //
 // ============================================================
+// ============================================================
+// 🧭 DVSM-π+++ ADDENDUM — JKO / OPERATOR CLOSURE (FINAL FORM)
+// ============================================================
+//
+// This file defines the ONLY correct global interpretation:
+//
+//   DVSM is a stochastic splitting approximation of a JKO flow
+//   on Gibbs-regularized probability measures over ℝ³.
+//
+// No alternative interpretation is active.
+// All previous SDE / physics / particle views are derivations.
+//
+// ============================================================
+//
+// 🧠 1. PRIMARY OBJECT (CANONICAL STATE)
+// ============================================================
+//
+// μ_t ∈ P(ℝ³)
+//
+// Free energy:
+//
+//   F(μ) = ∫ ||g - x||² dμ(g)
+//        + λ ∬ K(g, g') dμ(g)dμ(g')
+//        + α ∫ ||g||² dμ(g)
+//        + T ∫ μ(g) log μ(g) dg
+//
+// ============================================================
+//
+// ⚙️ 2. FUNDAMENTAL TIME UPDATE (JKO SCHEME)
+// ============================================================
+//
+// The system is defined by the implicit proximal step:
+//
+//   μ_{t+1} = argmin_μ {
+//       F(μ)
+//     + (1 / (2τ)) W₂²(μ, μ_t)
+//   }
+//
+// This is the Jordan–Kinderlehrer–Otto (JKO) step.
+//
+// ============================================================
+//
+// 🧩 3. IMPLEMENTATION AS OPERATOR SPLITTING
+// ============================================================
+//
+// The exact JKO step is intractable.
+// DVSM implements it via a factorized operator:
+//
+//   μ_{t+1} ≈ (R ∘ B ∘ W ∘ L)(μ_t)
+//
+// where:
+//
+//   L : Langevin transport (local Wasserstein drift approximation)
+//   B : Gibbs / entropy projection (log-density reweighting)
+//   W : mean-field interaction convolution
+//   R : resampling projection onto empirical measures
+//
+// ============================================================
+//
+// 🧠 4. STRUCTURAL EQUIVALENCE (IMPORTANT)
+// ============================================================
+//
+// In the τ → 0 limit:
+//
+//   (R ∘ B ∘ W ∘ L)
+//   → JKO_τ(μ)
+//
+//   → Wasserstein gradient flow:
+//
+//       ∂t μ = -∇_{W₂} F(μ)
+//
+// BUT:
+//
+// ✔ DVSM never computes this PDE directly
+// ✔ DVSM never solves a continuous OT problem
+// ✔ DVSM only approximates it via splitting
+//
+// ============================================================
+//
+// ⚠️ 5. INTERPRETATION LOCK (CRITICAL CONSISTENCY RULE)
+// ============================================================
+//
+// The following are equivalent but NOT independent:
+//
+//   - Langevin SDE view
+//   - SMC particle filter view
+//   - Wasserstein gradient flow view
+//   - JKO proximal view
+//
+// They are coordinate representations of ONE object:
+//
+//   the JKO semigroup on μ_t
+//
+// ============================================================
+//
+// 🧠 6. VELOCITY / MOMENTUM CLARIFICATION
+// ============================================================
+//
+// velocity v in code:
+//
+//   is NOT physical momentum
+//   is NOT geodesic velocity in W₂
+//
+// It is:
+//
+//   a numerical artifact of explicit transport splitting
+//
+// ============================================================
+//
+// ⚙️ 7. RESAMPLING SEMANTICS
+// ============================================================
+//
+// R is:
+//
+//   projection onto empirical measure manifold
+//
+// NOT part of the continuous JKO operator.
+//
+// It introduces:
+//
+//   - Monte Carlo bias correction
+//   - degeneracy control
+//
+// ============================================================
+//
+// 🧭 8. FINAL SYSTEM CLASSIFICATION (LOCKED)
+// ============================================================
+//
+// DVSM-π+++ is:
+//
+//   a stochastic JKO-splitting scheme
+//   approximating Wasserstein gradient flow of:
+//
+//       F(μ)
+//
+// over probability measures μ ∈ P(ℝ³)
+//
+// ============================================================
+//
+// 🧠 9. FINAL INVARIANT (DO NOT VIOLATE)
+// ============================================================
+//
+// All updates MUST preserve:
+//
+//   (i) energy descent in expectation
+//   (ii) entropy regularization at temperature T
+//   (iii) boundedness via confinement α
+//   (iv) interaction consistency via kernel K
+//
+// Removing any term changes the mathematical class.
+//
+// ============================================================
