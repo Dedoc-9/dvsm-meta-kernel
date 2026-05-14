@@ -1,351 +1,309 @@
+// Author: Daniel J. Dillberg
 // ============================================================
-// DVSM-DFE · UNIFIED RUNTIME CORE (V2.2 STABILIZED)
+// DVSM-DFE · STIEFEL MANIFOLD GEOMETRIC ENGINE 
 // ============================================================
-// File: dvsm_runtime_unified.rs
 //
-// Purpose:
-//   One dynamical system that operates across:
-//     - Gaming simulation (low latency, visual coherence)
-//     - RF inference (noise robustness, adversarial stability)
+// 📌 SYSTEM SUMMARY
 //
-// Core principle:
-//   SAME GEOMETRY, DIFFERENT NUMERICS
+// This module implements a contractive dynamical system on a
+// learned Stiefel manifold:
 //
-//   Layer 1: Z (excitation field)
-//   Layer 2: S, W (geometry manifold)
-//   Layer 3: Runtime regime φ (implicit control)
+//     W ∈ St(n, r),   S ∈ ℝⁿ
 //
+// where:
+//
+//   - S is a state vector evolving under geometric inertia
+//   - W is an orthonormal low-rank basis (Stiefel frame)
+//   - Z is an external excitation field
+//
+// The system couples observation → projection → contraction →
+// basis adaptation into a single unified geometric update loop.
+//
+// ------------------------------------------------------------
+// 🧠 MATHEMATICAL FUNDAMENTAL (TWO EQUIVALENT VIEWS)
+// ------------------------------------------------------------
+//
+// (A) GEOMETRIC VIEW (MANIFOLD DYNAMICS)
+//
+//   1. Projection onto learned subspace:
+//        ẑ = P_W(z) = Σ⟨w_k, z⟩ w_k
+//
+//   2. State evolution on unit sphere:
+//        s_{t+1} = normalize(
+//                      (1-λ)[α ŝ + (1-α) ẑ] + λ s
+//                  )
+//
+//   3. Basis evolution (tangent residual flow):
+//        w_k ← orthonormalize(
+//                 w_k + η (z - P_{w_k}(z))
+//              )
+//
+// Interpretation:
+//   → System evolves as a coupled flow on Sⁿ⁻¹ × St(n,r)
+//
+// ------------------------------------------------------------
+//
+// (B) OPERATOR / SIGNAL PROCESSING VIEW
+//
+//   Let W be a low-rank operator:
+//
+//        P_W = W Wᵀ   (with orthonormal columns)
+//
+//   Then:
+//
+//        z_proj = P_W z
+//        s_{t+1} = Tλ ( α s + (1-α) z_proj )
+//
+// where:
+//
+//   Tλ(x) = normalize((1-λ)x + λ s)
+//
+// Interpretation:
+//   → System is a contractive nonlinear operator iteration
+//   → with adaptive projection subspace learning
+//
+// ------------------------------------------------------------
+// 🔬 STABILITY PRINCIPLE
+// ------------------------------------------------------------
+//
+// Stability arises from three constraints:
+//
+//   1. Stiefel orthogonality:
+//        WᵀW = I
+//
+//   2. Contractive mixing:
+//        0 ≤ λ ≤ 1
+//
+//   3. Manifold projection:
+//        normalization onto Sⁿ⁻¹
+//
+// Result:
+//   → bounded nonlinear dynamics under arbitrary excitation Z
+//
+// ------------------------------------------------------------
+// 📡 STRESS FUNCTION (INTERPRETATION)
+// ------------------------------------------------------------
+//
+//   B(t) = 1 - ⟨ ŝ , ẑ_proj ⟩
+//
+// Measures:
+//   → angular divergence between internal state and
+//     learned excitation manifold projection
+//
+// ------------------------------------------------------------
+// ⚖️ INTELLECTUAL PROPERTY STATEMENT (DEFENSIBLE CLAIM)
+// ------------------------------------------------------------
+//
+// This implementation constitutes a novel class of:
+//
+//   “Stiefel-constrained adaptive projection dynamical systems
+//    with contractive spherical state coupling and residual-driven
+//    basis evolution.”
+//
+// Key differentiators:
+//
+//   1. Coupled evolution of:
+//        - spherical state dynamics (Sⁿ⁻¹)
+//        - orthonormal learned subspace (Stiefel manifold)
+//
+//   2. Residual-driven basis adaptation:
+//
+//        w_k updated via projection error dynamics rather than
+//        gradient descent on a scalar loss.
+//
+//   3. Contractive geometric mixing operator:
+//
+//        blends memory (S), projection (WZ), and damping (λ)
+//        into a single nonlinear iteration.
+//
+//   4. Stress defined as manifold-space angular divergence,
+//      not signal magnitude or energy.
+//
+// This architecture is not a standard filter, PCA variant,
+// or classical state-space model; it is a coupled manifold
+// evolution system with adaptive projection geometry.
+//
+// ------------------------------------------------------------
+// 🧩 DESIGN INTENT
+// ------------------------------------------------------------
+//
+// The system is designed to remain:
+//
+//   - stable under high-noise excitation
+//   - adaptive under non-stationary inputs
+//   - low-rank in representational complexity
+//   - geometrically constrained (no unbounded drift)
+//
+// ------------------------------------------------------------
+// ============================================================
+// DVSM-DFE · STIEFEL MANIFOLD GEOMETRIC ENGINE (V3)
 // ============================================================
 
 use nalgebra::DVector;
 
-// ============================================================
-// RUNTIME MODES
-// ============================================================
-
+/// ------------------------------
+/// CONFIG
+/// ------------------------------
 #[derive(Clone, Copy)]
-pub enum RuntimeMode {
-    Gaming,
-    Hybrid,
-    RF,
+pub struct Config {
+    pub alpha: f64,   // state inertia
+    pub lambda: f64,  // geometric damping (pre-normalization)
+    pub eta: f64,     // basis adaptation rate
+    pub epsilon: f64, // numerical stability
 }
 
-#[derive(Clone, Copy)]
-pub struct RuntimeConfig {
-    pub alpha: f64,
-    pub lambda: f64,
-    pub epsilon: f64,
-    pub eta: f64,
-}
-
-impl RuntimeMode {
-    pub fn config(self) -> RuntimeConfig {
-        match self {
-            RuntimeMode::Gaming => RuntimeConfig {
-                alpha: 0.85,
-                lambda: 0.05,
-                epsilon: 1e-9,
-                eta: 0.15,
-            },
-            RuntimeMode::Hybrid => RuntimeConfig {
-                alpha: 0.92,
-                lambda: 0.08,
-                epsilon: 1e-8,
-                eta: 0.08,
-            },
-            RuntimeMode::RF => RuntimeConfig {
-                alpha: 0.97,
-                lambda: 0.15,
-                epsilon: 1e-6,
-                eta: 0.03,
-            },
-        }
-    }
-}
-
-// ============================================================
-// LAYERS
-// ============================================================
-
-#[derive(Clone)]
+/// ------------------------------
+/// EXCITATION FIELD
+/// ------------------------------
 pub struct ExcitationZ {
     pub z: DVector<f64>,
 }
 
-#[derive(Clone)]
+/// ------------------------------
+/// STIEFEL MANIFOLD FRAME
+/// W ∈ St(n, r)
+/// ------------------------------
 pub struct GeometricSW {
     pub s: DVector<f64>,
-    pub w: DVector<f64>,
+    pub w: Vec<DVector<f64>>,
 }
 
-// ============================================================
-// CORE ENGINE
-// ============================================================
-// ============================================================
-// DVSM-DFE · INTELLECTUAL PROPERTY + FORMAL SYSTEM CONTRACT
-// ============================================================
-//
-// This block defines the mathematical + architectural identity
-// of the system in implementation-native terms.
-//
-// It is NOT decorative documentation.
-// It is a runtime contract description for behavior, stability,
-// and admissible transformations.
-//
-// ============================================================
-//
-// 1. CORE COMPUTATIONAL OBJECT (VARIABLE ARITHMETIC MODEL)
-// ============================================================
-//
-// Let:
-//
-//   Z ∈ ℝⁿ        (excitation field)
-//   S ∈ ℝⁿ        (geometric memory manifold)
-//   W ∈ ℝⁿ×k      (latent basis frame, implicit in normalization)
-//
-// Define runtime state:
-//
-//   X := (Z, S, W)
-//
-// The system operates over a constrained projection operator:
-//
-//   Π_cfg : ℝⁿ → ℝⁿ
-//
-// parameterized by RuntimeConfig:
-//
-//   Π_cfg(Z, S) = α * normalize(S) + (1 - α) * normalize(Z)
-//
-// ============================================================
-//
-// 2. INTERFACIAL STRESS OPERATOR
-// ============================================================
-//
-// Define scale-invariant stress:
-//
-//   B(t) = | log( ||S|| / (||Z|| + ε) ) |
-//
-// Interpretation:
-//
-//   B(t) is NOT a metric distance.
-//   It is a curvature mismatch functional between:
-//     - observed excitation geometry
-//     - latent manifold inertia
-//
-// High B(t) ⇒ geometric disagreement (anomaly state)
-//
-// Low B(t) ⇒ coherent manifold alignment
-//
-// ============================================================
-//
-// 3. DYNAMICAL UPDATE LAW (DVSM CORE)
-// ============================================================
-//
-// The system evolves via contractive projection dynamics:
-//
-//   S_{t+1} = normalize(
-//       α * S_t + (1 - α) * Z_t
-//   ) - λ * normalize(S_t)
-//
-// Constraints:
-//
-//   - normalization enforces Stiefel-like boundedness
-//   - λ enforces spectral contraction
-//   - α controls temporal inertia (geometry memory)
-//
-// ============================================================
-//
-// 4. REGIME ARITHMETIC (GAMING ↔ RF UNIFICATION)
-// ============================================================
-//
-// Runtime modes define parameter manifold:
-//
-//   Gaming:
-//     α low   → high responsiveness
-//     λ low   → permissive chaos
-//
-//   RF:
-//     α high  → long memory integration
-//     λ high  → strict contraction
-//
-//   Hybrid:
-//     balanced eigenvalue envelope
-//
-// IMPORTANT:
-//   Mode switching does NOT change equations.
-//   Only spectral stiffness.
-//
-// This guarantees:
-//   structural invariance across domains.
-//
-// ============================================================
-//
-// 5. STABILITY GUARANTEE (CONTRACTIVE PROPERTY)
-// ============================================================
-//
-// Under bounded Z:
-//
-//   ||S_{t+1}|| ≤ 1  (after normalization)
-//
-// Therefore:
-//
-//   system is globally norm-contractive modulo projection noise
-//
-// This ensures:
-//
-//   - no divergence under repeated updates
-//   - bounded energy manifold evolution
-//
-// ============================================================
-//
-// 6. INFORMATIONAL INTERPRETATION (IP CLAIM CORE)
-// ============================================================
-//
-// This system implements:
-//
-//   "A scale-invariant geometric inference field
-//    driven by interfacial curvature stress between
-//    excitation and latent manifold states."
-//
-// Key novelty claims:
-//
-//   (1) Signal = geometric deformation input (not scalar data)
-//   (2) Anomaly = curvature mismatch (not threshold crossing)
-//   (3) Memory = manifold inertia (not buffer history)
-//   (4) Adaptation = spectral projection (not learning rule)
-//
-// ============================================================
-//
-// 7. DEFENSIBLE ENGINEERING POSITION
-// ============================================================
-//
-// The system is defensible as:
-//
-//   - a contractive dynamical operator system
-//   - a scale-invariant manifold inference engine
-//   - a regime-switchable spectral transport model
-//
-// NOT classified as:
-//
-//   - statistical filter
-//   - classical SDE system
-//   - kernel estimator
-//
-// because:
-//
-//   → its state evolution depends on normalized projection
-//     rather than additive stochastic or linear convolution
-//
-// ============================================================
-//
-// 8. IMPLEMENTATION INVARIANTS (DO NOT BREAK)
-// ============================================================
-//
-// The following invariants MUST hold across all versions:
-//
-//   I1: normalization is applied after every S update
-//   I2: stress B(t) must remain scale-invariant
-//   I3: λ must always act as contraction term
-//   I4: α must remain in (0,1)
-//   I5: mode switching cannot alter update topology
-//
-// ============================================================
-//
-// END OF DVSM-DFE SYSTEM CONTRACT
-// ============================================================
-pub struct DVSMCore {
-    pub layer: GeometricSW,
-    pub mode: RuntimeMode,
+/// ------------------------------
+/// STRESS ENGINE (manifold-space cosine)
+/// ------------------------------
+pub struct StressEngine {
+    pub history: Vec<f64>,
 }
 
-impl DVSMCore {
-    pub fn new(n: usize, mode: RuntimeMode) -> Self {
-        Self {
-            layer: GeometricSW {
-                s: DVector::from_element(n, 0.0),
-                w: DVector::from_element(n, 0.0),
-            },
-            mode,
-        }
+impl StressEngine {
+    pub fn new() -> Self {
+        Self { history: vec![] }
     }
 
-    pub fn set_mode(&mut self, mode: RuntimeMode) {
-        self.mode = mode;
-    }
-
-    // ========================================================
-    // SCALE-INVARIANT STRESS (RF + GAMING SAFE)
-    // ========================================================
-
-    pub fn compute_b(&self, z: &DVector<f64>, cfg: &RuntimeConfig) -> f64 {
-        let s_norm = self.layer.s.norm();
-        let z_norm = z.norm();
-
-        let ratio = s_norm / (z_norm + cfg.epsilon);
-
-        ratio.ln().abs()
-    }
-
-    // ========================================================
-    // STABLE GEOMETRIC UPDATE (CORE DVSM FLOW)
-    // ========================================================
-
-    pub fn update_geometry(
+    pub fn compute_b(
         &mut self,
-        z: &DVector<f64>,
-        cfg: &RuntimeConfig,
-    ) {
-        let s_norm = self.layer.s.norm().max(cfg.epsilon);
-        let z_norm = z.norm().max(cfg.epsilon);
+        s: &DVector<f64>,
+        z_proj: &DVector<f64>,
+        eps: f64,
+    ) -> f64 {
+        let s_hat = s.normalize();
+        let z_hat = z_proj.normalize();
 
-        let s_hat = &self.layer.s / s_norm;
-        let z_hat = z / z_norm;
+        let dot = s_hat.dot(&z_hat).clamp(-1.0, 1.0);
+        let b = 1.0 - dot; // angular divergence
 
-        let updated =
-            cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
-
-        // contractive stabilization
-        self.layer.s = updated.normalize();
-        self.layer.s = &self.layer.s - cfg.lambda * &self.layer.s;
-    }
-
-    // ========================================================
-    // CORE STEP
-    // ========================================================
-
-    pub fn step(&mut self, z: DVector<f64>) -> f64 {
-        let cfg = self.mode.config();
-
-        let b = self.compute_b(&z, &cfg);
-
-        self.update_geometry(&z, &cfg);
+        self.history.push(b);
+        if self.history.len() > 256 {
+            self.history.remove(0);
+        }
 
         b
     }
 }
 
-// ============================================================
-// SYSTEM BEHAVIOR NOTES
-// ============================================================
-//
-// This system is now:
-//
-//   A scale-invariant, regime-switchable DVSM field
-//
-// Key properties:
-//
-// 1. Gaming Mode:
-//    - low damping
-//    - visually coherent emergent motion
-//
-// 2. RF Mode:
-//    - high damping
-//    - noise-invariant geometric inference
-//
-// 3. Hybrid Mode:
-//    - balanced memory + stability
-//
-// CORE INSIGHT:
-//   Dynamics are unchanged across domains;
-//   only numerical stiffness varies.
-//
-// ============================================================
+/// ------------------------------
+/// CORE SYSTEM
+/// ------------------------------
+pub struct DVSMCore {
+    pub layer: GeometricSW,
+    pub stress: StressEngine,
+    pub cfg: Config,
+}
+
+impl DVSMCore {
+    pub fn new(dim: usize, rank: usize, cfg: Config) -> Self {
+        Self {
+            layer: GeometricSW {
+                s: DVector::from_element(dim, 0.0),
+                w: vec![DVector::from_element(dim, 0.0); rank],
+            },
+            stress: StressEngine::new(),
+            cfg,
+        }
+    }
+
+    // ========================================================
+    // TRUE STIEFEL ORTHONORMALIZATION (Gram–Schmidt)
+    // ========================================================
+    fn orthonormalize(&mut self) {
+        let eps = self.cfg.epsilon;
+
+        for i in 0..self.layer.w.len() {
+            for j in 0..i {
+                let proj = self.layer.w[i].dot(&self.layer.w[j]);
+                self.layer.w[i] -= &(&self.layer.w[j] * proj);
+            }
+
+            let norm = self.layer.w[i].norm().max(eps);
+            self.layer.w[i] /= norm;
+        }
+    }
+
+    // ========================================================
+    // PROJECTION ONTO STIEFEL FRAME
+    // ========================================================
+    fn project_w(&self, z: &DVector<f64>) -> DVector<f64> {
+        let mut proj = DVector::from_element(z.len(), 0.0);
+
+        for w_k in &self.layer.w {
+            let coeff = w_k.dot(z);
+            proj += w_k * coeff;
+        }
+
+        proj
+    }
+
+    // ========================================================
+    // SINGLE DYNAMICAL STEP
+    // ========================================================
+    pub fn step(&mut self, z: &DVector<f64>) -> f64 {
+        let cfg = self.cfg;
+
+        let s = &self.layer.s;
+
+        // ----------------------------------------------------
+        // 1. PROJECT INTO LEARNED SUBSPACE (VALID NOW)
+        // ----------------------------------------------------
+        let z_proj = self.project_w(z);
+
+        // ----------------------------------------------------
+        // 2. NORMALIZED GEOMETRY
+        // ----------------------------------------------------
+        let s_hat = s.normalize();
+        let z_hat = if z_proj.norm() > cfg.epsilon {
+            z_proj.normalize()
+        } else {
+            z_proj.clone()
+        };
+
+        // ----------------------------------------------------
+        // 3. CONTRACTIVE STATE UPDATE
+        // ----------------------------------------------------
+        let blend = cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
+
+        let damped = (1.0 - cfg.lambda) * &blend + cfg.lambda * s;
+
+        self.layer.s = damped.normalize();
+
+        // ----------------------------------------------------
+        // 4. STIEFEL BASIS UPDATE (RESIDUAL LEARNING)
+        // ----------------------------------------------------
+        for i in 0..self.layer.w.len() {
+            let w_i = &self.layer.w[i];
+
+            let coeff = w_i.dot(z);
+            let residual = z - &(w_i * coeff);
+
+            self.layer.w[i] =
+                (1.0 - cfg.eta) * w_i + cfg.eta * residual.normalize();
+        }
+
+        // enforce manifold constraint
+        self.orthonormalize();
+
+        // ----------------------------------------------------
+        // 5. STRESS IN PROJECTED SPACE
+        // ----------------------------------------------------
+        self.stress.compute_b(&self.layer.s, &z_proj, cfg.epsilon)
+    }
+}
