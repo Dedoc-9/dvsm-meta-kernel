@@ -1218,4 +1218,165 @@ fn main() {
 //
 // ============================================================================
 // END TOOLING MAP
-// ============================================================================```
+// ============================================================================
+// JSON DEEP DIVE
+// ============================================================================
+{
+  "system_name": "DVSM-π (Distributed Variable-State Manifold Dynamics - Projection Closed)",
+  "core_identity": {
+    "class": "constraint_closed_dynamical_system",
+    "non_classifications": [
+      "not an optimizer",
+      "not a learning system",
+      "not a reward model",
+      "not a probabilistic predictor"
+    ],
+    "fundamental_principle": "state evolves in ambient space then is projected onto a feasibility manifold"
+  },
+
+  "global_update_law": {
+    "primary_form": "x_{t+1} = Π_M(F(x_t, σ_t, G_t))",
+    "expanded_form": "x_{t+1} = Π_M(x_t + η(σ_t - x_t) + γ(σ_t - x_t) + C(G_t, x_t))",
+    "interpretation": "unconstrained evolution + coupling perturbation + geometric closure"
+  },
+
+  "multi_perspective_views": {
+
+    "1_geometric_view": {
+      "space_definition": "x_t ∈ ℳ ⊂ ℝⁿ",
+      "manifold_constraint": "C(x) = 0, B(x) ≤ 0",
+      "projection_operator": "Π_M: ℝⁿ → ℳ",
+      "idempotence": "Π_M(Π_M(x)) = Π_M(x)",
+      "geometry_intuition": "trajectory is forced to remain inside a constrained subset of ambient space",
+      "failure_mode": "manifold boundary chattering or drift leakage"
+    },
+
+    "2_dynamical_system_view": {
+      "state_equation": "x_{t+1} = f(x_t, σ_t) then projected",
+      "kernel": "F(x_t, σ_t) = x_t + η(σ_t - x_t) + γ(σ_t - x_t)",
+      "coupling_term": "G_t induces additive perturbation Δx",
+      "system_type": "nonlinear constrained discrete-time system",
+      "stability_condition": "boundedness under repeated projection closure"
+    },
+
+    "3_measure_theoretic_view": {
+      "density_form": "ρ_{t+1} = (Π_M ∘ F)_# ρ_t",
+      "pushforward_operator": "(T)_# μ(A) = μ(T^{-1}(A))",
+      "interpretation": "distribution evolves via transport + projection",
+      "invariant_measure_condition": "ρ* = (Π_M ∘ F)_# ρ*",
+      "failure_modes": [
+        "measure collapse (δ-concentration)",
+        "support leakage",
+        "entropy divergence under diffusion dominance"
+      ]
+    },
+
+    "4_graph_coupled_view": {
+      "structure": "G = (V, E)",
+      "node_dynamics": "x_i^{t+1} = Π_M(F(x_i^t, σ_t + Σ_j A_ij(x_j - x_i)))",
+      "adjacency_role": "pure structural influence",
+      "laplacian_form": "Δx = Lx",
+      "interpretation": "system behaves like constrained diffusion on graph manifold",
+      "constraint": "graph does not encode objective, only topology"
+    },
+
+    "5_jet_observation_view": {
+      "definitions": {
+        "v_t": "x_t - x_{t-1}",
+        "a_t": "v_t - v_{t-1}",
+        "j_t": "a_t - a_{t-1}"
+      },
+      "vector_form": "J_t = (v_t, a_t, j_t)",
+      "role": "derived diagnostic coordinates only",
+      "non_interaction_rule": "J_t ∉ control input space",
+      "energy_proxy": "E_t = ||x_t||^2 + ||J_t||^2"
+    },
+
+    "6_control_theoretic_view": {
+      "open_loop_stage": "F(x_t, σ_t)",
+      "closure_stage": "Π_M(·)",
+      "system_class": "projected control system (not optimal control)",
+      "control_law": "u_t = η(σ_t - x_t)",
+      "constraint_handling": "hard projection, not penalty methods",
+      "stability": "Lyapunov-like boundedness is emergent, not optimized"
+    },
+
+    "7_stochastic_interpretation_view": {
+      "stochastic_extension": "x_{t+1} = Π_M(F(x_t, σ_t) + ξ_t)",
+      "noise_term": "ξ_t ~ distribution (Gaussian / OU / external)",
+      "interpretation": "random forcing inside constrained geometry",
+      "diffusion_operator": "D ∇² ρ (conceptual)",
+      "regime_types": [
+        "drift-dominated",
+        "diffusion-dominated",
+        "projection-dominated"
+      ]
+    },
+
+    "8_information_flow_view": {
+      "causal_chain": [
+        "σ_t → F",
+        "F → x̃_{t+1}",
+        "x̃_{t+1} → Π_M",
+        "Π_M → x_{t+1}",
+        "x_{t+1} → observation only (no feedback)"
+      ],
+      "information_constraint": "I(observation → control) = 0",
+      "goodhart_resistance_condition": "no scalar feedback loop exists",
+      "interpretation": "system is feedforward-only in control topology"
+    },
+
+    "9_failure_geometry_view": {
+      "drift_leakage": "x_t leaves bounded region despite projection",
+      "jet_inflation": "derivative explosion without state explosion",
+      "coupling_resonance": "graph eigenmodes amplify oscillations",
+      "projection_chatter": "non-convergent boundary projection sequence",
+      "unified_cause": "discretization + coupling + projection mismatch"
+    },
+
+    "10_computational_realization_view": {
+      "execution_model": "timestep loop with projection boundary",
+      "pipeline": [
+        "read σ_t",
+        "compute F(x_t, σ_t, G_t)",
+        "apply Π_M",
+        "commit x_{t+1}",
+        "compute jets (optional)"
+      ],
+      "parallelization": "node-wise graph partitioning",
+      "storage_model": "trajectory logs only (no learned weights)"
+    }
+  },
+
+  "stage_transition_chain": {
+    "S0_environment_input": "σ_t ∈ ℝ",
+    "S1_generation": "x̃_{t+1} = F(x_t, σ_t, G_t)",
+    "S2_coupling": "x̃'_{t+1} = x̃_{t+1} + C(G_t, x_t)",
+    "S3_projection": "x_{t+1} = Π_M(x̃'_{t+1})",
+    "S4_commit": "state stored as trajectory point",
+    "S5_observation": "J_t = D(x_{t}, x_{t-1}, x_{t-2})",
+    "S6_no_return_path": "O_t ∉ F or Π_M input space"
+  },
+
+  "mathematical_core_variants": {
+    "discrete": "x_{t+1} = Π_M(x_t + η(σ_t - x_t) + γ(σ_t - x_t) + Lx_t)",
+    "continuous_limit": "dx/dt = Π_M(F(x, σ)) - x",
+    "measure_form": "∂ρ/∂t + ∇·(ρF) = 0 then projected",
+    "operator_form": "T = Π_M ∘ F, x_{t+1} = T(x_t)"
+  },
+
+  "key_invariants": {
+    "closure": "x_t ∈ ℳ ∀ t",
+    "idempotence": "Π_M(Π_M(x)) = Π_M(x)",
+    "causal_separation": "observations do not affect evolution",
+    "structural_coupling_only": "graph affects motion, not objective",
+    "no_scalar_objective": "∀ J(x) ∉ control loop"
+  },
+
+  "interpretation_summary": {
+    "one_line": "a projection-closed dynamical system over a constrained manifold with strict separation of generation and observation",
+    "emphasis": "geometry replaces optimization",
+    "behavior": "flow + constraint + closure",
+    "emergence": "stability arises from structure, not loss minimization"
+  }
+}
