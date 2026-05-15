@@ -689,3 +689,133 @@ impl ComputeResidueContract {
 // ============================================================================
 // END NOTE BLOCK
 // ============================================================================
+
+# ============================================================================
+# DVSM-π+++ / DQSDv2 · FINAL BUILD CONFIGURATION
+# File: Cargo.toml
+#
+# PURPOSE:
+#   Cross-platform deterministic build configuration for:
+#     → libdvsm_core.so   (Linux)
+#     → dvsm_core.dll     (Windows)
+#     → libdvsm_core.dylib (macOS)
+#
+# NOTE:
+#   This is a binary ABI artifact generator, not a Rust application.
+#   It produces a C-compatible spectral runtime library.
+# ============================================================================
+
+[package]
+name = "dvsm_core"
+version = "1.0.0"
+edition = "2021"
+build = "build.rs"
+
+# --------------------------------------------------------------------------
+# LIBRARY TARGET (C ABI EXPORT)
+# --------------------------------------------------------------------------
+[lib]
+name = "dvsm_core"
+crate-type = ["cdylib"]
+
+# --------------------------------------------------------------------------
+# PERFORMANCE PROFILE (HOT PATH RUNTIME)
+# --------------------------------------------------------------------------
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# --------------------------------------------------------------------------
+# DEPENDENCIES (MINIMAL RUNTIME SURFACE)
+# --------------------------------------------------------------------------
+[dependencies]
+
+# no external dependencies allowed in frozen-core build
+# guarantees deterministic ABI + reproducible spectral behavior
+
+# --------------------------------------------------------------------------
+# FEATURE FLAGS (OPTIONAL EXTENSIONS)
+# --------------------------------------------------------------------------
+[features]
+default = ["simd"]
+simd = []
+gpu = []
+audit = []
+
+# --------------------------------------------------------------------------
+# PLATFORM-SPECIFIC NOTES
+# --------------------------------------------------------------------------
+# Linux:
+#   cargo build --release → libdvsm_core.so
+#
+# Windows:
+#   cargo build --release → dvsm_core.dll
+#
+# macOS:
+#   cargo build --release → libdvsm_core.dylib
+# ============================================================================
+
+# ============================================================================
+# DVSM-π+++ / DQSDv2 · FINAL BINARY BUILD MAKEFILE
+# File: Makefile
+#
+# PURPOSE:
+#   Deterministic cross-platform build automation for DVSM core runtime.
+#
+# OUTPUTS:
+#   → libdvsm_core.so
+#   → dvsm_core.dll
+#   → libdvsm_core.dylib
+# ============================================================================
+
+CARGO := cargo
+TARGET := release
+
+all: build
+
+# --------------------------------------------------------------------------
+# PRIMARY BUILD (RELEASE ABI ARTIFACT)
+# --------------------------------------------------------------------------
+build:
+	$(CARGO) build --$(TARGET)
+
+# --------------------------------------------------------------------------
+# LINUX SHARED OBJECT
+# --------------------------------------------------------------------------
+linux:
+	cargo build --release
+	cp target/release/libdvsm_core.so .
+
+# --------------------------------------------------------------------------
+# WINDOWS DLL
+# --------------------------------------------------------------------------
+windows:
+	cargo build --release
+	cp target/release/dvsm_core.dll .
+
+# --------------------------------------------------------------------------
+# MACOS DYLIB
+# --------------------------------------------------------------------------
+mac:
+	cargo build --release
+	cp target/release/libdvsm_core.dylib .
+
+# --------------------------------------------------------------------------
+# CLEAN
+# --------------------------------------------------------------------------
+clean:
+	cargo clean
+
+# --------------------------------------------------------------------------
+# FULL REPRODUCIBLE RESET
+# --------------------------------------------------------------------------
+reset:
+	cargo clean
+	rm -rf target
+
+# ============================================================================
+# END MAKEFILE
+# ============================================================================
