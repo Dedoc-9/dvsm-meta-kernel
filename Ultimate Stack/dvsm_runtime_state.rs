@@ -1107,3 +1107,125 @@ pub fn dvsm_lifecycle_step(
 // ===============================================================
 // END OF 240 FPS EXECUTION ADDENDUM
 // ===============================================================
+// ===============================================================
+// DVSM-π+++ · FUSED WGSL KERNEL (ALL-IN-ONE)
+// Target: 240 FPS GPU FRAME GRAPH
+// Stage: Z + S + CLT + KILL + VR OUTPUT
+// ===============================================================
+//
+// STORAGE LAYOUT (conceptual bindings):
+//
+// @group(0) @binding(0) var<storage, read_write> Z : array<f32>;
+// @group(0) @binding(1) var<storage, read_write> S : array<f32>;
+// @group(0) @binding(2) var<storage, read_write> W : array<f32>; // optional slow basis
+// @group(0) @binding(3) var<storage, read_write> OUT_VTX : array<vec4<f32>>;
+// @group(0) @binding(4) var<storage, read_write> REDUCTION : array<f32>;
+// @group(0) @binding(5) var<storage, read_write> KILL_FLAG : atomic<u32>;
+//
+// CONSTANTS
+// ---------------------------------------------------------------
+
+const R : u32 = 8u;
+const U_MAX : f32 = 10.0;        // spectral energy ceiling
+const ALPHA : f32 = 0.97;         // EMA memory
+const LAMBDA : f32 = 0.15;        // dissipation
+const THRESHOLD : f32 = 1.25;    // per-mode gain clamp
+
+// ===============================================================
+// HASHED / PROCEDURAL LIE-BRACKET KERNEL (κ(i,j))
+// ===============================================================
+
+fn kappa(i: u32, j: u32) -> f32 {
+    let x = f32(i) * 1.37 - f32(j) * 1.73;
+    return sin(x);
+}
+
+// ===============================================================
+// DVSM FUSED COMPUTE
+// ===============================================================
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+
+    let i = gid.x;
+    if (i >= R) { return; }
+
+    var z_i : f32 = Z[i];
+    var s_i : f32 = S[i];
+
+    var dz : f32 = 0.0;
+
+    // -----------------------------------------------------------
+    // 1. LIE-BRACKET FIELD UPDATE (NON-NORMAL CORE)
+    // -----------------------------------------------------------
+    for (var j : u32 = 0u; j < R; j = j + 1u) {
+        if (i == j) { continue; }
+
+        let z_j = Z[j];
+        let s_j = S[j];
+
+        let kij = kappa(i, j);
+
+        dz = dz + (z_i * s_j - z_j * s_i) * kij;
+    }
+
+    dz = dz - LAMBDA * z_i;
+
+    var z_next = z_i + dz;
+
+    // -----------------------------------------------------------
+    // 2. PER-MODE GAIN COMPRESSION (V2.2 STABILITY LAYER)
+    // -----------------------------------------------------------
+    let gain = select(
+        1.0,
+        THRESHOLD / abs(z_next + 1e-6),
+        abs(z_next) > THRESHOLD
+    );
+
+    z_next = z_next * gain;
+
+    // -----------------------------------------------------------
+    // 3. KILL-SWITCH (INLINE GPU CONTAINMENT)
+    // -----------------------------------------------------------
+    let energy = z_next * z_next;
+
+    if (energy > U_MAX) {
+        z_next = 0.0;
+        atomicStore(&KILL_FLAG, 1u);
+    }
+
+    // commit Z
+    Z[i] = z_next;
+
+    // -----------------------------------------------------------
+    // 4. EMA MEMORY UPDATE (S FIELD)
+    // -----------------------------------------------------------
+    S[i] = ALPHA * s_i + (1.0 - ALPHA) * z_next;
+
+    // -----------------------------------------------------------
+    // 5. CLT LOCAL CONTRIBUTION (REDUCTION BUFFER)
+    // -----------------------------------------------------------
+    REDUCTION[i] = energy;
+
+    // -----------------------------------------------------------
+    // 6. OPTIONAL W-SPACE PROJECTION (SLOW MANIFOLD HOOK)
+    // -----------------------------------------------------------
+    // NOTE: W is NOT evolved here (decimated elsewhere)
+    let w_i = W[i];
+    let ghost_projection = z_next * w_i;
+
+    // -----------------------------------------------------------
+    // 7. VR MANIFOLD OUTPUT (Z → 3D FIELD EMBEDDING)
+    // -----------------------------------------------------------
+    let pos = vec3<f32>(
+        f32(i) * 0.01,
+        z_next,
+        sin(z_next + w_i)
+    );
+
+    OUT_VTX[i] = vec4<f32>(pos, 1.0);
+}
+
+// ===============================================================
+// END FUSED DVSM KERNEL
+// ===============================================================
