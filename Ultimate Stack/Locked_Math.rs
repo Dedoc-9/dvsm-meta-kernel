@@ -632,3 +632,209 @@ pub fn mul_q64(a: Fixed128, b: Fixed128) -> Fixed128 {
   },
   "final_axiom": "DVSM-π+++ is a causal-forward spectral execution system with post-hoc interpretive evaluation only."
 }
+{
+  "project": "DVSM-π+++ / DQSDv2",
+  "profile": "Final Binary Build Profile",
+  "status": "Production Compile Contract",
+  "crate": {
+    "name": "dvsm_core",
+    "type": [
+      "cdylib",
+      "staticlib",
+      "rlib"
+    ],
+    "edition": "2021",
+    "license": "Proprietary",
+    "authors": [
+      "Daniel J. Dillberg"
+    ]
+  },
+  "binary_targets": {
+    "windows": {
+      "shared": "dvsm_core.dll",
+      "static": "dvsm_core.lib"
+    },
+    "linux": {
+      "shared": "libdvsm_core.so",
+      "static": "libdvsm_core.a"
+    },
+    "macos": {
+      "shared": "libdvsm_core.dylib",
+      "static": "libdvsm_core.a"
+    }
+  },
+  "build_modes": {
+    "debug": {
+      "opt_level": 1,
+      "debug_symbols": true,
+      "overflow_checks": true,
+      "panic": "abort"
+    },
+    "release": {
+      "opt_level": 3,
+      "lto": "fat",
+      "codegen_units": 1,
+      "strip": true,
+      "panic": "abort",
+      "incremental": false
+    },
+    "audit": {
+      "opt_level": 2,
+      "fixed128_enabled": true,
+      "deterministic_replay": true,
+      "debug_symbols": true,
+      "panic": "abort"
+    }
+  },
+  "compiler_flags": {
+    "rustflags": [
+      "-C target-cpu=native",
+      "-C opt-level=3",
+      "-C lto=fat",
+      "-C codegen-units=1",
+      "-C panic=abort",
+      "-C overflow-checks=no"
+    ],
+    "cfg": [
+      "dvsm_hot_path",
+      "dvsm_stability_layer",
+      "dvsm_fixed128_audit"
+    ]
+  },
+  "runtime_features": {
+    "spectral_execution": true,
+    "vacuum_latching": true,
+    "ghost_telemetry": true,
+    "retrocausal_scoring": true,
+    "stiefel_monitoring": true,
+    "double_buffered_params": true,
+    "cross_industry_projection": true
+  },
+  "disabled_features": {
+    "runtime_learning": true,
+    "dynamic_allocation_growth": true,
+    "retrocausal_mutation": true,
+    "trace_feedback": true,
+    "ontic_backfeed": true
+  },
+  "precision_tiers": {
+    "hot_path": {
+      "type": "FP32",
+      "usage": [
+        "graphics",
+        "audio",
+        "real_time_projection"
+      ]
+    },
+    "stable_path": {
+      "type": "FP64",
+      "usage": [
+        "spectral_evaluation",
+        "ghost_analysis"
+      ]
+    },
+    "audit_path": {
+      "type": "Fixed128",
+      "usage": [
+        "replay",
+        "verification",
+        "deterministic_export"
+      ]
+    }
+  },
+  "threading_model": {
+    "state_model": "thread_local",
+    "kill_switch": "atomic_bool",
+    "job_system": "lock_free",
+    "audio_thread_safe": true,
+    "gpu_async_safe": true
+  },
+  "memory_contract": {
+    "post_init_heap_growth": false,
+    "allocator": "system",
+    "arena_mode": "preallocated",
+    "zero_copy_trace_export": true
+  },
+  "timing_constraints": {
+    "target_fps": 240,
+    "frame_budget_ms": 4.16,
+    "vacuum_latch_frames": 3,
+    "thermal_decimation_enabled": true
+  },
+  "stability_guards": {
+    "u_max_killswitch": true,
+    "ghost_hysteresis": true,
+    "stiefel_drift_check": {
+      "enabled": true,
+      "threshold": 0.0001
+    },
+    "param_swap_buffering": true
+  },
+  "ffi_exports": {
+    "header": "dvsm.h",
+    "calling_convention": "C",
+    "opaque_handles": true,
+    "exception_free": true,
+    "export_macros": {
+      "windows": "__declspec(dllexport)",
+      "unix": "__attribute__((visibility(\"default\")))"
+    }
+  },
+  "required_api": [
+    "dvsm_init",
+    "dvsm_step",
+    "dvsm_audio_out",
+    "dvsm_export_trace",
+    "dvsm_is_vacuum",
+    "dvsm_shutdown"
+  ],
+  "dlss_compatibility": {
+    "enabled": true,
+    "projection_buffers": [
+      "motion_vectors",
+      "depth_field",
+      "ghost_mask",
+      "stability_field",
+      "vacuum_mask"
+    ],
+    "rule": "AI reconstruction may not modify ontic state"
+  },
+  "platform_matrix": {
+    "x86_64": true,
+    "aarch64": true,
+    "windows": true,
+    "linux": true,
+    "macos": true,
+    "wasm": false
+  },
+  "security_contract": {
+    "air_gap_enforced": true,
+    "deterministic_replay": true,
+    "no_network_dependency": true,
+    "no_hidden_telemetry": true
+  },
+  "cargo_profile_example": {
+    "Cargo.toml": {
+      "lib": {
+        "crate-type": [
+          "cdylib",
+          "staticlib",
+          "rlib"
+        ]
+      },
+      "profile.release": {
+        "opt-level": 3,
+        "lto": "fat",
+        "codegen-units": 1,
+        "panic": "abort",
+        "strip": true
+      }
+    }
+  },
+  "build_commands": {
+    "debug": "cargo build",
+    "release": "cargo build --release",
+    "audit": "RUSTFLAGS='--cfg dvsm_fixed128_audit' cargo build --release"
+  },
+  "final_axiom": "The DVSM core binary is a deterministic causal-forward spectral runtime with post-hoc evaluation layers only. No interpretive layer may mutate ontic execution state."
+}
