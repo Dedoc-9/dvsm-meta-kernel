@@ -1,5 +1,5 @@
 // ============================================================================
-// DVSM-DFE · ALG-P3 REALITY CORE
+// DVSM-DFE · REALITY CORE
 // Copyright © 2026 · All Rights Reserved
 //
 // MANIFOLD-NATIVE STREAMING COGNITION ENGINE
@@ -277,8 +277,10 @@ impl DVSMRealityCore {
         self.w = q;
     }
 }
+
+// ------------------------------------------------------------
 // MANIFOLD GOVERNANCE LAYER
-// -------------------------
+// ------------------------------------------------------------
 // Integrates:
 //   • Drift-Calibrated Stability Thresholding
 //   • Adaptive Throttling Control (η_eff)
