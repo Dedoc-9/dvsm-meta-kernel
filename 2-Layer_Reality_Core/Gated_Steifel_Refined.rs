@@ -1,103 +1,446 @@
 // ============================================================================
-// DVSM-DFE · REALITY CORE
+// DVSM-DFE · REALITY CORE · REFINED ARCHITECTURE
 // Copyright © 2026 · All Rights Reserved
 //
 // MANIFOLD-NATIVE STREAMING COGNITION ENGINE
 //
-// The DVSM-DFE Reality Core implements a geometric telemetry architecture
-// for adaptive signal interpretation under zero-trust constraints.
+// REFINED AFTER STRUCTURAL AUDIT:
+//
+// RESOLVED:
+//   • State/Basis conflation
+//   • Ghost-energy feedback
+//   • Drift-gating deadlock
+//   • Undefined tangent semantics
+//   • Unbounded state evolution
+//   • Static anomaly heuristics
+//
+// CORE AXIOM:
+//   Identity state S evolves on the sphere.
+//   Basis W evolves on the Stiefel manifold.
+//   Residual memory tracks EXTERNAL novelty only.
+//   Telemetry crosses the Air Gap.
+//   Reconstruction never does.
 //
 // ============================================================================
-// DVSM-DFE · OPERATIONAL DIAGNOSTICS & DEPLOYMENT
-// ----------------------------------------------------------------------------
-// This formalizes high-order runtime interpretation enabled by the
-// Drift-Calibrated Governance Layer within the ALG-P3 architecture.
+
+use nalgebra::{DMatrix, DVector};
+use std::time::Instant;
+
 // ============================================================================
-// ------------------------------------------------------------
-// OPERATIONAL STATE INTERPRETATION
-// ------------------------------------------------------------
-//
-// 1. SYSTEM HEALTHY
-//    drift < eps_drift
-//    → Orthogonal basis stable
-//    → Air Gap projection integrity preserved
-//    → Telemetry fully reliable
-//
-// 2. SYSTEM STRAINED
-//    drift > eps_drift
-//    → Stability Brake active
-//    → η_eff throttled
-//    → Manifold adaptation reduced to preserve orthogonality
-//
-// 3. ONTOLOGICAL DRIFT
-//    stress ↑, novelty ↓
-//    → Identity state S misaligned with current excitation
-//    → Basis W still stable but semantic tracking degraded
-//
-// 4. ONTOLOGICAL RUPTURE
-//    stress ↑, novelty ↑
-//    → Both identity (S) and basis (W) insufficient
-//    → Maximum adaptive pressure (bounded by stability brake)
-//    → High reconfiguration demand detected
-//
-// ------------------------------------------------------------
-// FINAL INTEGRATED ARCHETYPE
-// ------------------------------------------------------------
-// DVSM-DFE Reality Core functions as a Trusted Kernel in a
-// Zero-Trust telemetry architecture:
-//
-//    • Projection-isolated arithmetic boundary (Air Gap Geometry)
-//    • Non-reconstructive scalar telemetry export
-//    • Drift-governed numerical self-stabilization
-//    • Adaptive manifold cognition under constrained observability
-//    • RF/video stream-aware feature stability under drift control
-//      (preserving perceptual continuity during throttled adaptation)
-//    • VR/3D spatial stream support via manifold-aligned projection
-//      (enabling consistent scene geometry tracking across depth,
-//       motion parallax, and viewpoint changes)
-//    • Stress/Novelty dual-signal semantics for runtime diagnosis
-//      (stress = internal geometric contradiction,
-//       novelty = orthogonal residual structure / external innovation)
-//
-// OPERATIONAL SIGNAL MODEL
-// ------------------------
-//
-//    stress  → alignment failure between S and Π_W(Z)
-//    novelty → residual energy outside learned manifold W
-//
-//    combined interpretation:
-//
-//        low stress + low novelty
-//            → stable RF/video/VR/3D scene tracking
-//            → coherent spatial reconstruction under Air Gap constraints
-//
-//        high stress + low novelty
-//            → RF/video/VR/3D semantic misalignment
-//            → stable geometry, incorrect identity binding
-//
-//        low stress + high novelty
-//            → RF/video/VR/3D scene innovation
-//            → new spatial structure emerging in stream manifold
-//
-//        high stress + high novelty
-//            → RF/video/VR/3D ontological rupture
-//            → manifold re-alignment required across spatial domain
-//            → depth + viewpoint consistency degradation risk
-//
-// ------------------------------------------------------------
+// NUMERICAL CONSTITUTION
+// ============================================================================
+
+const EPS_RESIDUAL: f64 = 1e-8;
+const EPS_NORM: f64 = 1e-12;
+const MAX_STATE_NORM: f64 = 1.0;
+
+// ============================================================================
+// REGIME CLASSIFICATION
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub enum Regime {
+    Contractive,
+    ActiveSet,
+    Rupture,
+}
+
+// ============================================================================
+// TELEMETRY EXPORT
+// ============================================================================
+
+pub struct TelemetryFrame {
+    pub stress: f64,
+    pub novelty: f64,
+    pub drift: f64,
+    pub entropy: f64,
+    pub suspicious: bool,
+    pub regime: Regime,
+    pub timestamp: Instant,
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+#[derive(Clone, Copy)]
+pub struct Config {
+    pub alpha: f64,         // Identity smoothing
+    pub eta: f64,           // Basis adaptation rate
+    pub tau: f64,           // Confidence gate
+    pub novelty_alpha: f64, // Residual EMA
+    pub entropy_drop: f64,  // Security threshold
+    pub drift_frames: usize,
+}
+
+// ============================================================================
+// SECURITY MEMORY
+// ============================================================================
+
+pub struct SecurityState {
+    pub prev_entropy: f64,
+    pub consecutive_drift_rise: usize,
+    pub prev_drift: f64,
+}
+
+// ============================================================================
+// DVSM REALITY CORE
+// ============================================================================
+
+pub struct DVSMRealityCore {
+    // ------------------------------------------------------------------------
+    // S ∈ S^(n−1)
+    // Identity / Suchness state
+    // ------------------------------------------------------------------------
+    pub s: DVector<f64>,
+
+    // ------------------------------------------------------------------------
+    // W ∈ St(n,r)
+    // Perceptual basis
+    // ------------------------------------------------------------------------
+    pub w: DMatrix<f64>,
+
+    // ------------------------------------------------------------------------
+    // Residual memory:
+    // EMA of EXTERNAL novelty only
+    // NEVER fed into S
+    // ------------------------------------------------------------------------
+    pub residual_memory: DVector<f64>,
+
+    pub cfg: Config,
+    pub security: SecurityState,
+}
+
+// ============================================================================
+// CONSTRUCTION
+// ============================================================================
 
 impl DVSMRealityCore {
 
-    /// Structural health check of the Stiefel manifold
-    pub fn is_healthy(&self) -> bool {
+    pub fn new(n: usize, r: usize, cfg: Config) -> Self {
+
+        Self {
+            s: DVector::from_element(n, 0.0),
+
+            w: DMatrix::identity(n, r),
+
+            residual_memory:
+                DVector::from_element(n, 0.0),
+
+            cfg,
+
+            security: SecurityState {
+                prev_entropy: 0.0,
+                consecutive_drift_rise: 0,
+                prev_drift: 0.0,
+            },
+        }
+    }
+}
+
+// ============================================================================
+// PRIMARY EXECUTION STEP
+// ============================================================================
+
+impl DVSMRealityCore {
+
+    pub fn step(
+        &mut self,
+        z: &DVector<f64>,
+    ) -> TelemetryFrame {
+
+        let w_old = self.w.clone();
+
+        // --------------------------------------------------------------------
+        // 1. PROJECTION (AIR GAP GEOMETRY)
+        // --------------------------------------------------------------------
+
+        let wt_z = self.w.transpose() * z;
+
+        let z_proj = &self.w * &wt_z;
+
+        let residual = z - &z_proj;
+
+        let z_norm = z.norm().max(EPS_NORM);
+
+        let r_norm = residual.norm();
+
+        let novelty = r_norm / z_norm;
+
+        // --------------------------------------------------------------------
+        // 2. RESIDUAL MEMORY
+        // Tracks ONLY external novelty
+        // --------------------------------------------------------------------
+
+        self.residual_memory =
+            self.cfg.novelty_alpha * &self.residual_memory
+            + (1.0 - self.cfg.novelty_alpha) * &residual;
+
+        // --------------------------------------------------------------------
+        // 3. BASIS EVOLUTION
+        // Verified tangent flow on St(n,r)
+        // --------------------------------------------------------------------
+
+        if r_norm > EPS_RESIDUAL
+            && z_proj.norm() > EPS_RESIDUAL {
+
+            let r_hat = &residual / r_norm;
+
+            let p_hat = z_proj.normalize();
+
+            // ----------------------------------------------------------------
+            // Rank-2 skew-symmetric tangent generator
+            // A = r pᵀ − p rᵀ
+            // ----------------------------------------------------------------
+
+            let a =
+                &r_hat * p_hat.transpose()
+                - &p_hat * r_hat.transpose();
+
+            let delta_w = &a * &w_old;
+
+            debug_assert!(
+                (
+                    &w_old.transpose() * &delta_w
+                    + delta_w.transpose() * &w_old
+                ).norm() < 1e-8,
+                "Tangent condition violated"
+            );
+
+            // ----------------------------------------------------------------
+            // RETRACT FIRST
+            // Never gate adaptation using drift itself
+            // ----------------------------------------------------------------
+
+            self.retract_stable(&w_old);
+
+            let w_new =
+                &self.w
+                + self.cfg.eta * delta_w;
+
+            self.retract_matrix(w_new, &w_old);
+        }
+
+        // --------------------------------------------------------------------
+        // 4. IDENTITY EVOLUTION
+        // S remains on sphere
+        // --------------------------------------------------------------------
+
+        let z_eff =
+            self.cfg.tau * &z_proj
+            + (1.0 - self.cfg.tau) * &self.s;
+
+        if z_eff.norm() > EPS_RESIDUAL {
+
+            let blend =
+                self.cfg.alpha * self.s.normalize()
+                + (1.0 - self.cfg.alpha)
+                    * z_eff.normalize();
+
+            self.s = blend.normalize();
+        }
+
+        // --------------------------------------------------------------------
+        // 5. EXPLICIT STATE BOUND
+        // --------------------------------------------------------------------
+
+        let s_norm = self.s.norm();
+
+        if s_norm > MAX_STATE_NORM {
+            self.s *= MAX_STATE_NORM / s_norm;
+        }
+
+        // --------------------------------------------------------------------
+        // 6. DRIFT
+        // --------------------------------------------------------------------
+
         let drift_matrix =
             &self.w.transpose() * &self.w
-            - DMatrix::identity(self.w.ncols(), self.w.ncols());
+            - DMatrix::identity(
+                self.w.ncols(),
+                self.w.ncols()
+            );
 
         let drift = drift_matrix.norm();
 
+        // --------------------------------------------------------------------
+        // 7. STRESS
+        // --------------------------------------------------------------------
+
+        let stress =
+            if z_proj.norm() > EPS_RESIDUAL {
+
+                1.0
+                - self.s.normalize()
+                    .dot(&z_proj.normalize())
+                    .clamp(-1.0, 1.0)
+
+            } else {
+                1.0
+            };
+
+        // --------------------------------------------------------------------
+        // 8. ENTROPY
+        // --------------------------------------------------------------------
+
+        let entropy = self.spectral_entropy();
+
+        // --------------------------------------------------------------------
+        // 9. SECURITY
+        // Detect CHANGE, not static low-rank structure
+        // --------------------------------------------------------------------
+
+        let entropy_drop =
+            self.security.prev_entropy - entropy;
+
+        if drift > self.security.prev_drift {
+            self.security.consecutive_drift_rise += 1;
+        } else {
+            self.security.consecutive_drift_rise = 0;
+        }
+
+        let suspicious =
+            entropy_drop > self.cfg.entropy_drop
+            && self.security.consecutive_drift_rise
+                > self.cfg.drift_frames
+            && stress < 0.1;
+
+        self.security.prev_entropy = entropy;
+        self.security.prev_drift = drift;
+
+        // --------------------------------------------------------------------
+        // 10. REGIME CLASSIFICATION
+        // Hysteretic-style stable thresholds
+        // --------------------------------------------------------------------
+
+        let regime =
+            if stress > 0.8 || novelty > 0.5 {
+                Regime::Rupture
+            } else if novelty > 0.2 {
+                Regime::ActiveSet
+            } else {
+                Regime::Contractive
+            };
+
+        // --------------------------------------------------------------------
+        // 11. EXPORT
+        // --------------------------------------------------------------------
+
+        TelemetryFrame {
+            stress,
+            novelty,
+            drift,
+            entropy,
+            suspicious,
+            regime,
+            timestamp: Instant::now(),
+        }
+    }
+}
+
+// ============================================================================
+// RETRACTION
+// ============================================================================
+
+impl DVSMRealityCore {
+
+    fn retract_stable(
+        &mut self,
+        w_old: &DMatrix<f64>,
+    ) {
+
+        let qr = self.w.clone().qr();
+
+        let mut q = qr.q();
+
+        for j in 0..q.ncols() {
+
+            if q.column(j)
+                .dot(&w_old.column(j)) < 0.0 {
+
+                q.column_mut(j).scale_mut(-1.0);
+            }
+        }
+
+        self.w = q;
+    }
+
+    fn retract_matrix(
+        &mut self,
+        w_new: DMatrix<f64>,
+        w_old: &DMatrix<f64>,
+    ) {
+
+        let qr = w_new.qr();
+
+        let mut q = qr.q();
+
+        for j in 0..q.ncols() {
+
+            if q.column(j)
+                .dot(&w_old.column(j)) < 0.0 {
+
+                q.column_mut(j).scale_mut(-1.0);
+            }
+        }
+
+        self.w = q;
+    }
+}
+
+// ============================================================================
+// ENTROPY
+// ============================================================================
+
+impl DVSMRealityCore {
+
+    fn spectral_entropy(&self) -> f64 {
+
+        let energies: Vec<f64> =
+            self.w.column_iter()
+                .map(|c| c.norm_squared())
+                .collect();
+
+        let total: f64 =
+            energies.iter().sum::<f64>()
+                .max(EPS_NORM);
+
+        energies.iter().map(|e| {
+
+            let p = e / total;
+
+            if p > EPS_NORM {
+                -p * p.log2()
+            } else {
+                0.0
+            }
+
+        }).sum()
+    }
+}
+
+// ============================================================================
+// HEALTH CHECK
+// ============================================================================
+
+impl DVSMRealityCore {
+
+    pub fn is_healthy(&self) -> bool {
+
+        let drift =
+            (
+                &self.w.transpose() * &self.w
+                - DMatrix::identity(
+                    self.w.ncols(),
+                    self.w.ncols()
+                )
+            ).norm();
+
         let eps_drift =
-            (self.w.nrows() * self.w.ncols()) as f64
+            (
+                self.w.nrows()
+                * self.w.ncols()
+            ) as f64
             * f64::EPSILON.sqrt();
 
         drift < eps_drift
@@ -105,406 +448,296 @@ impl DVSMRealityCore {
 }
 
 // ============================================================================
-// END OF ARCHITECTURAL SPECIFICATION
+// ARCHITECTURAL AXIOMS
 // ============================================================================
 //
-// CORE ARCHITECTURAL FEATURES
-// ---------------------------
-// • Projection-Isolated Telemetry Geometry ("Air Gap")
-// • Geometric Suchness Inference (GSI)
-// • Confidence-Gated Manifold Cognition
-// • Residual-Driven Perceptual Reshaping
-// • Stiefel-Manifold Basis Evolution
-// • Sign-Stable QR Retraction
+// AXIOM 1
+// Identity state S and perceptual basis W are distinct manifolds.
 //
-// CONCEPTUAL MODEL
-// ----------------
-// The system maintains:
+//     S ∈ S^(n−1)
+//     W ∈ St(n,r)
 //
-//     S ∈ S^(n−1)    -> identity state ("Suchness")
-//     W ∈ St(n,r)    -> perceptual basis ("Eyes")
+// They never evolve through the same additive law.
 //
-// Incoming excitation Z is projected into the learned manifold:
+// ---------------------------------------------------------------------------
 //
-//     Π_W(Z)
+// AXIOM 2
+// Residual structure drives basis evolution,
+// not identity evolution.
 //
-// while orthogonal residual structure is isolated from exported telemetry.
+//     residual = Z − Π_W(Z)
 //
-// EXPORTED TELEMETRY
-// ------------------
-// Only bounded semantic observables may cross the trust boundary:
+// ---------------------------------------------------------------------------
 //
-//     stress      -> internal geometric contradiction
-//     novelty     -> orthogonal residual energy
-//     drift       -> manifold integrity deviation
+// AXIOM 3
+// Residual memory may influence telemetry,
+// but never feeds back into S.
 //
-// Raw vectors, residual geometry, and reconstructive state remain internal.
+// ---------------------------------------------------------------------------
 //
-// GEOMETRIC SUCHNESS INFERENCE (GSI)
-// ----------------------------------
-// The framework evaluates informational coherence through reduction of
-// manifold stress rather than symbolic correctness or reconstruction error.
+// AXIOM 4
+// Drift is corrected through retraction,
+// not adaptation throttling.
 //
-// Representative stress functional:
+// ---------------------------------------------------------------------------
 //
-//     B(t) = 1 − Ŝ · Π̂_W(Z)
+// AXIOM 5
+// Exported telemetry is scalar semantic reduction only.
 //
-// Suchness is operationally defined as:
+// Raw vectors and reconstructive geometry remain internal.
 //
-//     B(t) → 0
+// ---------------------------------------------------------------------------
 //
-// indicating geometric coherence between:
+// AXIOM 6
+// Security detects structural transition rates,
+// not static low-rank structure.
 //
-//     identity state S,
-//     perceptual basis W,
-//     projected excitation Π_W(Z).
+// ---------------------------------------------------------------------------
 //
-// MANIFOLD EVOLUTION
-// ------------------
-// The perceptual basis evolves through residual-driven tangent flow:
+// AXIOM 7
+// All manifold evolution must preserve:
 //
-//     ΔW ∝ (Z − Π_W(Z))
+//     WᵀW = I
 //
-// using:
+// through verified tangent flow + retraction.
 //
-//     • skew-symmetric rank-2 tangent generators
-//     • QR-based Stiefel retraction
-//     • sign-consistent basis stabilization
-//
-// to preserve orthonormal integrity during streaming adaptation.
-//
+// ============================================================================
+
+// ============================================================================
 // SECURITY MODEL
-// --------------
-// The architecture implements a projection-isolated telemetry boundary
-// ("Air Gap Geometry") in which reconstructive signal information,
-// orthogonal residual structure, and latent excitation geometry are not
-// exported outside the trusted manifold runtime.
-//
-// Informational visibility is intentionally constrained through
-// irreversible geometric reduction:
-//
-//     Z
-//       -> Π_W(Z)
-//       -> semantic telemetry
-//
-// while residual structure:
-//
-//     R = Z − Π_W(Z)
-//
-// is isolated from external observability layers.
-//
-// AIR GAP ARITHMETIC
-// ------------------
-// Exported telemetry is derived from bounded scalar manifold relations
-// rather than reconstructive state persistence.
-//
-// Representative exports:
-//
-//     stress   := 1 − Ŝ · Π̂_W(Z)
-//     novelty  := ||Z − Π_W(Z)|| / ||Z||
-//     drift    := ||WᵀW − I||
-//
-// Because exported observables contain reduced scalar semantics rather
-// than high-dimensional excitation structure, deterministic recovery of
-// original signal geometry is intentionally constrained by design.
-//
-// The Air Gap therefore functions as:
-//
-//     a projection-isolated arithmetic boundary
-//
-// separating:
-//
-//     reconstructive manifold state
-//
-// from:
-//
-//     externally observable semantic telemetry.
-//
-// Intended deployment:
-//
-//     trusted enclave:
-//         raw vectors
-//         residual geometry
-//         manifold basis
-//         internal identity state
-//         adaptation dynamics
-//
-//     untrusted layer:
-//         scalar telemetry frames only
-//
-// INTELLECTUAL PROPERTY NOTICE
-// ----------------------------
-// This software contains proprietary runtime orchestration, telemetry
-// semantics, geometric cognition architecture, manifold adaptation
-// integration, and projection-isolated arithmetic workflows associated
-// with the DVSM-DFE / ALG-P3 framework.
-//
-// Claimed novelty applies to:
-//
-//     • projection-isolated telemetry workflows
-//     • Air Gap Geometry deployment architectures
-//     • projection-isolated arithmetic boundaries
-//     • geometric stress/coherence semantics
-//     • confidence-gated manifold adaptation
-//     • Suchness-alignment runtime architectures
-//     • secure scalar semantic export systems
-//     • residual-driven perceptual reshaping pipelines
-//     • manifold-native semantic telemetry reduction
-//     • bounded non-reconstructive observability layers
-//
-// The asserted protection concerns the specific runtime orchestration,
-// semantic telemetry model, geometric integration architecture,
-// projection-isolated export pipeline, and operational deployment pattern
-// embodied in this implementation.
-//
-// No claim is made over:
-//
-//     • linear algebra
-//     • projection operators generally
-//     • Stiefel manifolds
-//     • QR decomposition
-//     • PCA/GROUSE-family mathematics
-//     • abstract manifold optimization methods
-//
-// No license to reproduce, commercialize, derivative-train, or deploy
-// substantially similar runtime architectures is granted without explicit
-// written authorization.
-// ============================================================================ 
-
 // ============================================================================
-// DVSM-DFE · REALITY CORE
-// Copyright © 2026 · All Rights Reserved
 //
-// PROTECTED CONCEPTS:
-// - Projection-Isolated Telemetry Geometry (Air Gap)
-// - Geometric Suchness Inference (GSI)
-// - Confidence-Gated Manifold Cognition (Mode B)
-// - Suchness-Alignment Stress Formalism (B(t))
+// TRUSTED DOMAIN:
 //
-// No license to reproduce, commercialize, or derivative-train is granted
-// except under explicit written authorization.
+//     • identity state S
+//     • perceptual basis W
+//     • residual geometry
+//     • adaptation dynamics
+//
+// UNTRUSTED DOMAIN:
+//
+//     • stress
+//     • novelty
+//     • entropy
+//     • drift
+//     • regime labels
+//
 // ============================================================================
 
-use nalgebra::{DMatrix, DVector};
-use std::time::{Instant};
+// ============================================================================
+// END OF REFINED DVSM-DFE REALITY CORE
+// ============================================================================
+// AXIOM MATH (Json)
+// ============================================================================
+{
+  "axiom_1": {
+    "title": "Separation of Identity State and Perceptual Basis",
+    "statement": {
+      "identity_state": "S ∈ S^(n−1)",
+      "perceptual_basis": "W ∈ St(n,r)",
+      "rule": "S and W must not evolve through the same additive law"
+    },
 
-/// Bounded telemetry frame for Secure Export across the Air Gap.
-pub struct TelemetryFrame {
-    pub stress: f64,      // B(t): Internal contradiction
-    pub novelty: f64,     // Residual Ratio: External innovation
-    pub drift: f64,       // ||WᵀW - I||: Numerical integrity
-    pub timestamp: Instant,
-}
+    "core_principle": {
+      "summary": "Identity and perception are geometrically distinct objects and therefore require different evolution laws.",
+      "why": [
+        "A vector state and an orthonormal frame do not share the same tangent geometry.",
+        "Mixing them in a shared additive update destroys invariant structure.",
+        "Correct manifold evolution requires geometry-specific updates."
+      ]
+    },
 
-#[derive(Clone, Copy)]
-pub struct Config {
-    pub alpha: f64,             // Blend rate for S
-    pub eta: f64,               // Adaptation rate for W
-    pub tau: f64,               // Confidence gate (Mode B)
-    pub eps_residual: f64,      // Suchness gate
-}
+    "identity_geometry": {
+      "object": "S",
+      "manifold": "Sphere",
+      "notation": "S ∈ S^(n−1)",
+      "constraint": "||S|| = 1",
 
-pub struct DVSMRealityCore {
-    pub s: DVector<f64>,        // S ∈ Sⁿ⁻¹: Identity State
-    pub w: DMatrix<f64>,        // W ∈ St(n,r): Perceptual Basis
-    pub cfg: Config,
-}
+      "meaning": {
+        "semantic_role": "Identity / Suchness state",
+        "properties": [
+          "boundedness",
+          "directional semantics",
+          "scale invariance",
+          "stable stress geometry"
+        ]
+      },
 
-impl DVSMRealityCore {
-    pub fn new(n: usize, r: usize, cfg: Config) -> Self {
-        Self {
-            s: DVector::from_element(n, 0.0),
-            w: DMatrix::identity(n, r),
-            cfg,
-        }
+      "problem_without_constraint": {
+        "equation": "S' = S + Δ",
+        "failure_modes": [
+          "magnitude drift",
+          "unbounded energy accumulation",
+          "stress instability",
+          "loss of semantic interpretation"
+        ]
+      },
+
+      "correct_update": {
+        "equation": "S ← S / ||S||",
+        "effect": [
+          "projects state back onto sphere",
+          "maintains unit norm",
+          "preserves directional interpretation"
+        ]
+      },
+
+      "stress_semantics": {
+        "equation": "B(t) = 1 − Ŝ · Π̂_W(Z)",
+        "interpretation": "Stress measures angular contradiction between identity state and projected excitation."
+      },
+
+      "tangent_space": {
+        "definition": "T_S(S^(n−1)) = {v ∈ ℝ^n : Sᵀv = 0}",
+        "meaning": "Valid updates must be orthogonal to S."
+      }
+    },
+
+    "basis_geometry": {
+      "object": "W",
+      "manifold": "Stiefel manifold",
+      "notation": "W ∈ St(n,r)",
+      "constraint": "WᵀW = I_r",
+
+      "meaning": {
+        "semantic_role": "Perceptual basis / learned subspace",
+        "properties": [
+          "orthonormal columns",
+          "stable projection geometry",
+          "low-rank representation",
+          "subspace tracking"
+        ]
+      },
+
+      "column_structure": {
+        "basis_vectors": [
+          "w₁",
+          "w₂",
+          "…",
+          "w_r"
+        ],
+        "requirements": [
+          "||w_j|| = 1",
+          "w_iᵀ w_j = 0 for i ≠ j"
+        ]
+      },
+
+      "tangent_condition": {
+        "equation": "WᵀΔW + (ΔW)ᵀW = 0",
+        "meaning": "Updates must preserve orthogonality locally."
+      }
+    },
+
+    "failure_of_shared_additive_updates": {
+      "problem": "RP1 mixed x, W, and z_shear into one Euclidean additive update.",
+
+      "mixed_objects": {
+        "x": "vector state",
+        "W": "orthonormal frame",
+        "z_shear": "temporal residual memory"
+      },
+
+      "why_invalid": [
+        "They live in different geometric spaces.",
+        "They obey different tangent laws.",
+        "No common invariant exists under shared addition."
+      ],
+
+      "resulting_failures": [
+        "oscillation",
+        "rank instability",
+        "ghost-energy accumulation",
+        "non-convergent dynamics"
+      ]
+    },
+
+    "correct_basis_evolution": {
+      "generator": {
+        "equation": "A = r_hat pᵀ − p r_hatᵀ",
+        "property": "Aᵀ = −A",
+        "meaning": "Rank-2 skew-symmetric tangent generator"
+      },
+
+      "basis_update": {
+        "equation": "ΔW = AW",
+        "guarantee": "ΔW ∈ T_W St(n,r)"
+      },
+
+      "verification": {
+        "equation": "WᵀΔW + (ΔW)ᵀW = 0",
+        "purpose": "Confirms update lies in the Stiefel tangent space."
+      }
+    },
+
+    "retraction": {
+      "purpose": "Restore orthonormality after finite-step updates.",
+
+      "equation": "W' = QR",
+
+      "properties": [
+        "QᵀQ = I",
+        "removes numerical drift",
+        "preserves manifold validity"
+      ],
+
+      "implementation": {
+        "method": "QR decomposition",
+        "stabilization": "sign-consistent column alignment"
+      }
+    },
+
+    "architectural_separation": {
+      "identity_state": {
+        "object": "S",
+        "evolution": "spherical normalization"
+      },
+
+      "basis": {
+        "object": "W",
+        "evolution": "Stiefel tangent flow + QR retraction"
+      },
+
+      "residual_memory": {
+        "object": "external residual EMA",
+        "evolution": "temporal smoothing only"
+      },
+
+      "telemetry": {
+        "object": "scalar semantic observables",
+        "evolution": "projection-isolated reduction"
+      }
+    },
+
+    "deep_consequence": {
+      "without_separation": [
+        "no invariant structure",
+        "unstable adaptation",
+        "undefined geometry",
+        "non-interpretable telemetry"
+      ],
+
+      "with_separation": [
+        "bounded dynamics",
+        "orthogonality preservation",
+        "stable telemetry",
+        "interpretable stress",
+        "controlled adaptation",
+        "manifold coherence"
+      ]
+    },
+
+    "final_interpretation": {
+      "old_model": "vector system with additive heuristics",
+      "refined_model": "coupled manifold evolution system",
+
+      "coupled_manifolds": {
+        "identity": "sphere",
+        "perception": "Stiefel manifold",
+        "novelty": "residual space",
+        "telemetry": "scalar semantic space"
+      },
+
+      "result": "Each subsystem evolves according to its own mathematically coherent geometry."
     }
-
-    /// Primary execution cycle: Project -> Evolve -> Retract -> Export
-    pub fn step(&mut self, z: &DVector<f64>) -> TelemetryFrame {
-        let w_old = self.w.clone();
-        
-        // 1. PROJECTIVE OBSERVATION (The Air Gap)
-        // Discards reconstructive residual; creates the "Geometric Mirror"
-        let wt_z = self.w.transpose() * z;
-        let z_proj = &self.w * &wt_z;
-        let residual = z - &z_proj;
-        
-        let z_norm = z.norm();
-        let r_norm = residual.norm();
-        let novelty = if z_norm > self.cfg.eps_residual { r_norm / z_norm } else { 0.0 };
-
-        // 2. IDENTITY EVOLUTION (Suchness Tracking)
-        // Confidence-Gated (Mode B) modulation
-        let z_eff = self.cfg.tau * &z_proj + (1.0 - self.cfg.tau) * &self.s;
-        if z_eff.norm() > self.cfg.eps_residual {
-            let blend = self.cfg.alpha * self.s.normalize() + (1.0 - self.cfg.alpha) * z_eff.normalize();
-            self.s = blend.normalize(); // Contractive push to sphere
-        }
-
-        // 3. MANIFOLD RE-SHAPING (GROUSE Skew-Symmetric Flow)
-        // Rotates the "Eyes" toward the novelty without rank collapse
-        if r_norm > self.cfg.eps_residual && z_proj.norm() > self.cfg.eps_residual {
-            let r_hat = &residual / r_norm;
-            let p_hat = z_proj.normalize();
-            
-            // Rank-2 Skew-Symmetric Tangent Generator
-            let delta = &r_hat * p_hat.transpose() - &p_hat * r_hat.transpose();
-            self.retract_stable(&delta, &w_old);
-        }
-
-        // 4. TELEMETRY EXPORT
-        let stress = 1.0 - self.s.normalize().dot(&z_proj.normalize()).clamp(-1.0, 1.0);
-        let drift = (&self.w.transpose() * &self.w - DMatrix::identity(self.w.ncols(), self.w.ncols())).norm();
-
-        TelemetryFrame {
-            stress,
-            novelty,
-            drift,
-            timestamp: Instant::now(),
-        }
-    }
-
-    /// Manifold Retraction with Sign-Consistency (Fixes Issue 5)
-    fn retract_stable(&mut self, delta: &DMatrix<f64>, w_old: &DMatrix<f64>) {
-        let w_new = w_old + self.cfg.eta * (delta * w_old);
-        let qr = w_new.qr();
-        let mut q = qr.q();
-
-        for j in 0..q.ncols() {
-            if q.column(j).dot(&w_old.column(j)) < 0.0 {
-                q.column_mut(j).scale_mut(-1.0);
-            }
-        }
-        self.w = q;
-    }
-}
-
-// ------------------------------------------------------------
-// MANIFOLD GOVERNANCE LAYER
-// ------------------------------------------------------------
-// Integrates:
-//   • Drift-Calibrated Stability Thresholding
-//   • Adaptive Throttling Control (η_eff)
-//   • Air Gap Projection Integrity Protection
-//   • Confidence + Novelty Driven Adaptation
-
-impl DVSMRealityCore {
-
-    /// Integrated Adaptive Step with Drift-Calibrated Throttling
-    pub fn step_adaptive(&mut self, z: &DVector<f64>) -> TelemetryFrame {
-        let w_old = self.w.clone();
-
-        // ------------------------------------------------------------
-        // 1. AIR GAP PROJECTION (Reconstructive Isolation Layer)
-        // ------------------------------------------------------------
-        let wt_z = self.w.transpose() * z;
-        let z_proj = &self.w * &wt_z;
-        let residual = z - &z_proj;
-
-        let z_norm = z.norm();
-        let r_norm = residual.norm();
-
-        let novelty = if z_norm > self.cfg.eps_residual {
-            r_norm / z_norm
-        } else {
-            0.0
-        };
-
-        // ------------------------------------------------------------
-        // 2. MANIFOLD DRIFT (Orthogonality Integrity Signal)
-        // ------------------------------------------------------------
-        let drift_matrix =
-            &self.w.transpose() * &self.w
-            - DMatrix::identity(self.w.ncols(), self.w.ncols());
-
-        let drift = drift_matrix.norm();
-
-        // ------------------------------------------------------------
-        // 3. DRIFT-CALIBRATED STABILITY BOUND
-        // ------------------------------------------------------------
-        // Numerical tolerance scaled by manifold dimensionality.
-        //
-        // This defines when orthogonality loss is considered
-        // structurally significant (not floating-point noise).
-        let eps_drift =
-            (self.w.nrows() * self.w.ncols()) as f64
-            * f64::EPSILON.sqrt();
-
-        let stability_brake = if drift > eps_drift {
-            0.1
-        } else {
-            1.0
-        };
-
-        // ------------------------------------------------------------
-        // 4. ADAPTIVE LEARNING RATE (Throttled Geometry Update)
-        // ------------------------------------------------------------
-        let eta_eff =
-            self.cfg.eta
-            * (1.0 + novelty)
-            * stability_brake;
-
-        // ------------------------------------------------------------
-        // 5. MANIFOLD EVOLUTION (GROUSE-style Skew Flow)
-        // ------------------------------------------------------------
-        if r_norm > self.cfg.eps_residual && z_proj.norm() > self.cfg.eps_residual {
-            let r_hat = &residual / r_norm;
-            let p_hat = z_proj.normalize();
-
-            let delta =
-                &r_hat * p_hat.transpose()
-                - &p_hat * r_hat.transpose();
-
-            let w_new = &w_old + eta_eff * (delta * &w_old);
-            self.retract_stable(w_new, &w_old);
-        }
-
-        // ------------------------------------------------------------
-        // 6. IDENTITY UPDATE (Suchness Alignment)
-        // ------------------------------------------------------------
-        let z_eff =
-            self.cfg.tau * &z_proj
-            + (1.0 - self.cfg.tau) * &self.s;
-
-        if z_eff.norm() > self.cfg.eps_residual {
-            let blend =
-                self.cfg.alpha * self.s.normalize()
-                + (1.0 - self.cfg.alpha) * z_eff.normalize();
-
-            self.s = blend.normalize();
-        }
-
-        // ------------------------------------------------------------
-        // 7. TELEMETRY EXPORT (Air Gap Boundary)
-        // ------------------------------------------------------------
-        let stress =
-            1.0
-            - self.s.normalize()
-                .dot(&z_proj.normalize())
-                .clamp(-1.0, 1.0);
-
-        TelemetryFrame {
-            stress,
-            novelty,
-            drift,
-            timestamp: Instant::now(),
-        }
-    }
-
-    // ------------------------------------------------------------
-    // STABLE RETRACTION (Orthonormality Preservation)
-    // ------------------------------------------------------------
-    fn retract_stable(&mut self, w_new: DMatrix<f64>, w_old: &DMatrix<f64>) {
-        let qr = w_new.qr();
-        let mut q = qr.q();
-
-        // Sign consistency ensures stress continuity across frames
-        for j in 0..q.ncols() {
-            if q.column(j).dot(&w_old.column(j)) < 0.0 {
-                q.column_mut(j).scale_mut(-1.0);
-            }
-        }
-
-        self.w = q;
-    }
+  }
 }
