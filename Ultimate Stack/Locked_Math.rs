@@ -559,3 +559,76 @@ pub fn mul_q64(a: Fixed128, b: Fixed128) -> Fixed128 {
 //    → dynamic FP32/FP64/fixed runtime switching
 //
 // ===============================================================
+{
+  "project": "DVSM-π+++ / DQSDv2",
+  "version": "Spectral-1.0",
+  "core_math": {
+    "state_evolution": {
+      "symbolic": "dZ/dt = [Z,S]_A - λZ",
+      "code": "z_next = evolve(z, scaffold, lambda)"
+    },
+    "retrocausal_scoring": {
+      "symbolic": "Score = <B|A>",
+      "code": "score = future_constraint(trace)"
+    },
+    "vacuum_condition": {
+      "symbolic": "||Z|| > U_MAX",
+      "code": "if energy > u_max => vacuum_reset()"
+    },
+    "ghost_resonance": {
+      "symbolic": "G = resonance(Z,S)",
+      "code": "ghost = spectral_residue(z)"
+    },
+    "stability_hysteresis": {
+      "symbolic": "H_t = Σ(window_t)",
+      "code": "stable = rolling_window(ghost, 3)"
+    },
+    "stiefel_preservation": {
+      "symbolic": "WᵀW = I",
+      "code": "if drift > 1e-4 => reorthonormalize(W)"
+    },
+    "projection_layer": {
+      "symbolic": "Π : Z → M",
+      "code": "output = manifold_projection(z)"
+    },
+    "delta_measure": {
+      "symbolic": "Δ(Σ₁,Σ₂)",
+      "code": "delta = abs(len(a)-len(b))"
+    }
+  },
+  "runtime_pipeline": [
+    "step()",
+    "evolve(Z)",
+    "observe(trace)",
+    "ghost_check()",
+    "vacuum_check()",
+    "projection()",
+    "export_buffers()"
+  ],
+  "precision_tiers": {
+    "hot_path": "FP32",
+    "stable_path": "FP64",
+    "audit_path": "Fixed128"
+  },
+  "hard_invariants": [
+    "No Ω -> V feedback",
+    "No retrocausal drift",
+    "No runtime learning",
+    "Only W_t persists across vacuum",
+    "Ghosts are diagnostic only"
+  ],
+  "cross_industry_projection": {
+    "audio": "tanh spectral projection",
+    "graphics": "selection raster projection",
+    "crypto": "bit-slice manifold projection",
+    "ml": "feature embedding projection",
+    "robotics": "state-space projection"
+  },
+  "binary_api": {
+    "init": "dvsm_init(params)",
+    "step": "dvsm_step(handle, dt)",
+    "trace": "dvsm_export_trace(handle)",
+    "vacuum": "dvsm_is_vacuum(handle)"
+  },
+  "final_axiom": "DVSM-π+++ is a causal-forward spectral execution system with post-hoc interpretive evaluation only."
+}
