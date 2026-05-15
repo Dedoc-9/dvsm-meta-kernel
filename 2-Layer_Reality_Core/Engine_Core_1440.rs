@@ -258,3 +258,166 @@ pub fn rp1_tick(core: &mut RP1Core, sigma: DVector<f64>) {
 // This is not simulation.
 // This is a bounded geometric streaming system.
 // ============================================================================
+// ============================================================================
+// RP1 ADDENDUM · 2D PERCEPTION LAYER (SCREEN / UI / HUD PROJECTION)
+// ----------------------------------------------------------------------------
+// Purpose:
+//   Collapse 3D low-rank manifold Z(t), W(t) into a stable 2D observable field
+//   without destroying geometric consistency.
+//
+// Principle:
+//   2D is NOT a simplification of reality.
+//   It is a lossy projection of a higher-order manifold.
+// ============================================================================
+
+use nalgebra::DVector;
+
+// ============================================================================
+// 2D SCREEN SPACE REPRESENTATION
+// ============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Pixel2D {
+    pub x: f64,
+    pub y: f64,
+    pub intensity: f64,
+    pub stress: f64,   // projected B(t)
+}
+
+// ============================================================================
+// 2D PROJECTION PARAMETERS
+// ============================================================================
+
+pub struct Screen2D {
+    pub width: usize,
+    pub height: usize,
+    pub curvature: f64,   // κ_screen (flat = 0, convex = >0)
+    pub scale: f64,
+}
+
+// ============================================================================
+// PROJECTION KERNEL (3D → 2D REDUCTION)
+// ============================================================================
+
+pub struct Projection2D;
+
+impl Projection2D {
+
+    // ------------------------------------------------------------------------
+    // GEOMETRIC PROJECTION LAW
+    // ------------------------------------------------------------------------
+    // u = P(x, z) = (x / (1 + κ·z))
+    // v = P(y, z) = (y / (1 + κ·z))
+    //
+    // Interpretation:
+    //   Depth compresses lateral space under curvature κ.
+    //   This preserves motion coherence at high 240Hz update rates.
+    // ------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn project_point(
+        x: f64,
+        y: f64,
+        z: f64,
+        screen: &Screen2D,
+        stress: f64,
+    ) -> Pixel2D {
+
+        let denom = 1.0 + screen.curvature * z.max(0.0);
+
+        let u = (x / denom) * screen.scale;
+        let v = (y / denom) * screen.scale;
+
+        Pixel2D {
+            x: u,
+            y: v,
+            intensity: 1.0 / denom,
+            stress,
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // FRAME SYNTHESIS (LOW-RANK FIELD → 2D BUFFER)
+    // ------------------------------------------------------------------------
+
+    pub fn synthesize_frame(
+        x: &DVector<f64>,
+        z_shear: &DVector<f64>,
+        stress_field: &DVector<f64>,
+        screen: &Screen2D,
+    ) -> Vec<Pixel2D> {
+
+        let n = x.len();
+        let mut frame = Vec::with_capacity(n);
+
+        for i in 0..n {
+
+            let xi = x[i];
+            let zi = z_shear[i];
+
+            // synthetic spatial embedding (no full renderer dependency)
+            let x3 = xi;
+            let y3 = zi;
+            let z3 = (xi * zi).tanh(); // bounded depth proxy
+
+            let stress = stress_field[i];
+
+            frame.push(Self::project_point(
+                x3,
+                y3,
+                z3,
+                screen,
+                stress,
+            ));
+        }
+
+        frame
+    }
+
+    // ------------------------------------------------------------------------
+    // INTERFACIAL HUD STRESS OVERLAY
+    // ------------------------------------------------------------------------
+    // Converts B(t) into visible distortion field
+    // ------------------------------------------------------------------------
+
+    pub fn stress_overlay(pixel: &mut Pixel2D) {
+        let warp = pixel.stress * pixel.stress;
+
+        pixel.x += warp * 0.01;
+        pixel.y -= warp * 0.01;
+    }
+}
+
+// ============================================================================
+// 2D SYSTEM INTERPRETATION NOTES
+// ============================================================================
+//
+// 1. 2D IS NOT A REDUCTION OF TRUTH
+//    It is a projection operator Π₂ of a higher-dimensional manifold.
+//
+// 2. STRESS VISUALIZATION
+//    B(t) is not aesthetic noise — it is geometric misalignment feedback.
+//
+// 3. CURVATURE EFFECT
+//    κ_screen defines whether perception behaves like:
+//      - flat HUD (κ = 0)
+//      - convex AR lens (κ > 0)
+//      - spherical immersion shell (κ >> 0)
+//
+// 4. PERFORMANCE GOAL
+//    Must remain O(N) per frame to preserve 240Hz budget.
+//
+// ============================================================================
+
+// ============================================================================
+// OPTIONAL INTEGRATION HOOK INTO RP1 CORE
+// ============================================================================
+//
+// let frame_2d = Projection2D::synthesize_frame(
+//     &core.x,
+//     &core.z_shear,
+//     &telemetry_stress,
+//     &screen,
+// );
+//
+// ============================================================================
