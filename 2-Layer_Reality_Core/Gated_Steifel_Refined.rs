@@ -43,7 +43,6 @@
 // ------------------------------------------------------------
 // FINAL INTEGRATED ARCHETYPE
 // ------------------------------------------------------------
-//
 // DVSM-DFE Reality Core functions as a Trusted Kernel in a
 // Zero-Trust telemetry architecture:
 //
@@ -53,6 +52,9 @@
 //    • Adaptive manifold cognition under constrained observability
 //    • RF/video stream-aware feature stability under drift control
 //      (preserving perceptual continuity during throttled adaptation)
+//    • VR/3D spatial stream support via manifold-aligned projection
+//      (enabling consistent scene geometry tracking across depth,
+//       motion parallax, and viewpoint changes)
 //    • Stress/Novelty dual-signal semantics for runtime diagnosis
 //      (stress = internal geometric contradiction,
 //       novelty = orthogonal residual structure / external innovation)
@@ -65,10 +67,22 @@
 //
 //    combined interpretation:
 //
-//        low stress + low novelty   → stable RF/video scene tracking
-//        high stress + low novelty  → RF/video semantic misalignment
-//        low stress + high novelty  → RF/video scene innovation / new structure
-//        high stress + high novelty → RF/video ontological rupture / rebind required
+//        low stress + low novelty
+//            → stable RF/video/VR/3D scene tracking
+//            → coherent spatial reconstruction under Air Gap constraints
+//
+//        high stress + low novelty
+//            → RF/video/VR/3D semantic misalignment
+//            → stable geometry, incorrect identity binding
+//
+//        low stress + high novelty
+//            → RF/video/VR/3D scene innovation
+//            → new spatial structure emerging in stream manifold
+//
+//        high stress + high novelty
+//            → RF/video/VR/3D ontological rupture
+//            → manifold re-alignment required across spatial domain
+//            → depth + viewpoint consistency degradation risk
 //
 // ------------------------------------------------------------
 
