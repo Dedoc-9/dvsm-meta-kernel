@@ -1114,4 +1114,270 @@ Everything else is implementation detail.
 //
 // END EVOLUTION SPECIFICATION
 // ============================================================================
+// ============================================================================
+// DVSM-π / ALG-P3 / A10 · FULL INTEGRATION ADDENDUM
+// Hybrid Projected Graph System + Streaming Geometric Kernel Alignment
+// ============================================================================
+//
+// PURPOSE OF THIS ADDENDUM
+// ------------------------
+// This block unifies:
+//
+//   DVSM-π  → hybrid projected graph dynamics
+//   ALG-P3  → low-rank adaptive field cognition
+//   A10     → streaming arithmetic core (240Hz bounded execution)
+//
+// into a single consistent interpretation:
+//
+//   "A projected hybrid graph evolving inside a streaming low-rank field
+//    under strict geometric constraint projection."
+//
+// ============================================================================
+//
+// 0. SYSTEM IDENTITY (UNIFIED VIEW)
+// ============================================================================
+//
+// The system is not:
+//
+//   - an optimizer
+//   - a solver
+//   - a learned model
+//
+// It is:
+//
+//   x_{t+1} = Π_M( F(x_t, σ_t) + Φ_lowrank(x_t) )
+//
+// where:
+//
+//   F(x_t, σ_t)   → DVSM-π nonlinear graph excitation
+//   Φ_lowrank     → ALG-P3 / A10 streaming projection field
+//   Π_M           → geometric feasibility constraint
+//
+// Interpretation:
+//
+//   DVSM-π supplies STRUCTURAL switching dynamics
+//   A10 supplies CONTINUOUS streaming adaptation
+//
+// ============================================================================
+//
+// 1. A10 COMPATIBILITY LAYER (STREAMING REDUCTION VIEW)
+// ============================================================================
+//
+// The DVSM graph update is reinterpreted as:
+//
+//   residual_t = σ_t - x_t
+//
+//   x_{t+1} = Π_M(
+//       x_t
+//       + η_eff · residual_t
+//       + γ · Laplacian(x_t)
+//       + z_shear
+//   )
+//
+// where:
+//
+//   η_eff = η · (1 + |residual|) / (1 + drift)
+//
+// This enforces:
+//
+//   ✔ streaming update (no batch solve)
+//   ✔ local time causality (frame-local)
+//   ✔ bounded adaptation per 4.167ms tick
+//
+// ============================================================================
+//
+// 2. LOW-RANK COUPLING INTERPRETATION (ALG-P3 LAYER)
+// ============================================================================
+//
+// Graph coupling:
+//
+//   L(x) = Σ (x_j - x_i)
+//
+// is NOT a global solver.
+//
+// It is a rank-restricted field projection:
+//
+//   L(x) ≈ R ⊗ P(x)
+//
+// meaning:
+//
+//   - interactions are mediated via shared latent basis
+//   - graph edges are projections into shared field space
+//
+// This aligns DVSM-π with A10:
+//
+//   graph coupling ≈ low-rank field diffusion
+//
+// ============================================================================
+//
+// 3. NON-NORMAL MEMORY LAYER (SHEAR ALIGNMENT)
+// ============================================================================
+//
+// Jet reconstruction:
+//
+//   v = dx/dt
+//   a = dv/dt
+//
+// DVSM-π uses this only for observation.
+//
+// A10 reinterpretation:
+//
+//   z_shear = EMA(z_proj - x)
+//
+// meaning:
+//
+//   - memory is NOT derivative estimation
+//   - memory is lagged field deviation storage
+//
+// Function:
+//
+//   stabilizes 240Hz jitter
+//   encodes motion coherence
+//
+// ============================================================================
+//
+// 4. SYMBOLIC ACTIVE SET = AIR-GAP EVENT LAYER
+// ============================================================================
+//
+// ActiveSet:
+//
+//   Interior → stable manifold region
+//   Upper    → constraint saturation (+Σ)
+//   Lower    → constraint saturation (-Σ)
+//
+// A10 mapping:
+//
+//   ActiveSet = discrete projection events of continuous field
+//
+// This becomes:
+//
+//   event stream S_t over continuous geometry
+//
+// No feedback allowed into dynamics unless explicitly wired.
+//
+// ============================================================================
+//
+// 5. ENTROPY / COMPLEXITY = OBSERVATION LAYER ONLY
+// ============================================================================
+//
+// H(S), μ, LZ:
+//
+//   ARE NOT CONTROL SIGNALS
+//
+// They are:
+//
+//   post-hoc diagnostics of switching geometry
+//
+// Critical constraint:
+//
+//   ❌ must not modify η, γ, or projection operator
+//   ✔ only used for regime classification / telemetry
+//
+// ============================================================================
+//
+// 6. NO-DRIFT INTEGRITY CONDITION (CRITICAL)
+// ============================================================================
+//
+// Drift definition:
+//
+//   drift = ||WᵀW - I||
+//
+// HARD RULE:
+//
+//   if drift increases:
+//       DO NOT increase adaptation
+//       DO NOT amplify η_eff
+//
+// Instead:
+//
+//   η_eff := η_eff * brake
+//   W := Π(W)
+//
+// This prevents:
+//
+//   - runaway coupling amplification
+//   - graph-induced instability loops
+//   - 240Hz feedback explosion
+//
+// ============================================================================
+//
+// 7. DVSM-π → A10 REDUCTION STATEMENT
+// ============================================================================
+//
+// DVSM-π provides:
+//
+//   - hybrid switching graph dynamics
+//   - boundary-driven symbolic structure
+//   - event-based state segmentation
+//
+// A10 provides:
+//
+//   - continuous streaming field evolution
+//   - rank-limited projection coupling
+//   - deterministic 240Hz execution model
+//
+// Unified system:
+//
+//   "A hybrid graph embedded inside a streaming low-rank geometric field"
+//
+// ============================================================================
+//
+// 8. FINAL MATHEMATICAL FORM (CLOSED FORM)
+// ============================================================================
+//
+// x_{t+1} = Π_M(
+//     x_t
+//     + η_eff · (σ_t - x_t)
+//     + γ · L(x_t)
+//     + z_shear
+//     - λ x_t
+// )
+//
+// subject to:
+//
+//   L(x) = low-rank projection operator
+//   Π_M  = convex constraint projection
+//   z_shear = EMA lag memory
+//
+// ============================================================================
+//
+// 9. EXECUTION GUARANTEE (240Hz BOUND)
+// ============================================================================
+//
+// Per-frame complexity:
+//
+//   O(N · R) + O(E)
+//
+// constraints:
+//
+//   R ≤ 12
+//   E sparse graph regime
+//   dt = 1/240 fixed
+//
+// ensures:
+//
+//   ✔ deterministic runtime
+//   ✔ no solver dependence
+//   ✔ GPU-mappable structure
+//
+// ============================================================================
+//
+// 10. SYSTEM CLOSURE STATEMENT
+// ============================================================================
+//
+// This is no longer:
+//
+//   graph dynamics
+//   + projection system
+//   + field model
+//
+// It is:
+//
+//   a streaming hybrid geometric constraint system
+//   with embedded symbolic event extraction
+//   operating under low-rank temporal continuity rules
+//
+// ============================================================================
+// END ADDENDUM
+// ============================================================================
 */
