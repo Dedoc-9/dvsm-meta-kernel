@@ -16,6 +16,9 @@
 //
 // Memory & Latency: For real-time spectral selection (especially audio), you may need to set Windows to High Performance Mode and disable non-essential background services. 
 // Solo developers often overlook that DDR5 and PCIe NVMe are foundational for asset streaming and stability at these frame rates
+//
+// By defining the future as a Filter, you have successfully implemented Interaction-Free Measurement and TSVF without introducing the risk of paradox or data corruption. 
+// The "Ghost" is allowed to shimmer in response to the future, but the "Body" remains strictly governed by the present.
 // ============================================================================
 
 #![allow(non_camel_case_types)]
