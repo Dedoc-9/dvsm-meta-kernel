@@ -1665,3 +1665,225 @@ fn main() {
 
     println!();
 }
+// ===============================================================
+// DVSM-π+++ ZIID · SPECTRAL HYPOTHESIS SURVIVAL ENGINE
+// ===============================================================
+//
+// CORE PRINCIPLE:
+// Decryption is the selection of stable invariant subspaces
+// under non-normal Lie-bracket dynamics.
+//
+// "Information is what remains after instability is removed."
+//
+// OPERATIONAL INTERPRETATION:
+// The system does NOT compute a key.
+// It evolves competing hypotheses in a constrained spectral field.
+// Instability eliminates incorrect hypotheses via containment.
+// Surviving structure = solution manifold.
+// ===============================================================
+
+use std::f64::consts::PI;
+
+const R: usize = 8;          // Spectral rank (hypothesis modes)
+const D: usize = 16;         // Geometric embedding dimension
+
+const U_MAX: f64 = 8.0;      // Spectral energy ceiling (kill-switch threshold)
+const ALPHA: f64 = 0.95;     // EMA memory (hysteresis strength)
+const LAMBDA: f64 = 0.12;    // Dissipation (non-normal damping)
+const EPSILON: f64 = 0.01;   // Rebirth injection scale
+
+// ===============================================================
+// STATE STRUCTURE
+// ===============================================================
+
+struct DVSMState {
+    z: [f64; R],              // spectral hypothesis field
+    s: [f64; R],              // EMA memory field
+    w: [[f64; D]; R],         // Stiefel geometric scaffold
+    stable: bool,
+}
+
+// ===============================================================
+// IMMUTABLE SUBSTRATE (μ_t)
+// ===============================================================
+
+struct Substrate {
+    mu: [f64; D],             // ciphertext / constraint manifold
+}
+
+// ===============================================================
+// KERNEL: NON-NORMAL COUPLING
+// ===============================================================
+
+fn kappa(i: usize, j: usize) -> f64 {
+    ((i as f64 * 1.37) - (j as f64 * 1.73)).sin()
+}
+
+// ===============================================================
+// LIE-BRACKET EVOLUTION
+// ===============================================================
+
+fn lie_bracket(z: &[f64; R], s: &[f64; R]) -> [f64; R] {
+    let mut dz = [0.0; R];
+
+    for i in 0..R {
+        let mut acc = 0.0;
+
+        for j in 0..R {
+            if i == j { continue; }
+
+            acc += (z[i] * s[j] - z[j] * s[i]) * kappa(i, j);
+        }
+
+        dz[i] = acc - LAMBDA * z[i];
+    }
+
+    dz
+}
+
+// ===============================================================
+// EMA MEMORY UPDATE
+// ===============================================================
+
+fn ema_update(s: &mut [f64; R], z: &[f64; R]) {
+    for i in 0..R {
+        s[i] = ALPHA * s[i] + (1.0 - ALPHA) * z[i];
+    }
+}
+
+// ===============================================================
+// SPECTRAL NORM
+// ===============================================================
+
+fn norm(z: &[f64; R]) -> f64 {
+    z.iter().map(|x| x * x).sum::<f64>().sqrt()
+}
+
+// ===============================================================
+// CONTAINMENT (EXORCISM PROTOCOL)
+// ===============================================================
+
+fn containment(z: &mut [f64; R], s: &mut [f64; R]) -> bool {
+    let n = norm(z);
+
+    if n > U_MAX || !n.is_finite() {
+        for i in 0..R {
+            z[i] = 0.0;
+            s[i] = 0.0;
+        }
+        return true; // vacuum triggered
+    }
+
+    false
+}
+
+// ===============================================================
+// STIEFEL REBIRTH
+// ===============================================================
+
+fn rebirth(z: &mut [f64; R], w: &[[f64; D]; R]) {
+    for i in 0..R {
+        let mut projection = 0.0;
+
+        for j in 0..D {
+            let noise = (j as f64 * 12.9898).sin(); // deterministic pseudo-noise
+            projection += w[i][j] * noise;
+        }
+
+        z[i] = EPSILON * projection;
+    }
+}
+
+// ===============================================================
+// SURVIVABILITY SCORE
+// ===============================================================
+
+fn survivability(z: &[f64; R], substrate: &Substrate) -> f64 {
+    let mut score = 0.0;
+
+    for i in 0..R {
+        for j in 0..D {
+            score += z[i] * substrate.mu[j] * (i as f64 * j as f64).cos();
+        }
+    }
+
+    score.abs()
+}
+
+// ===============================================================
+// INITIALIZATION
+// ===============================================================
+
+fn init_state() -> DVSMState {
+    DVSMState {
+        z: [0.01; R],
+        s: [0.0; R],
+        w: [[0.0; D]; R],
+        stable: true,
+    }
+}
+
+// ===============================================================
+// MAIN EXECUTION LOOP
+// ===============================================================
+
+fn main() {
+
+    // 1. IMMUTABLE SUBSTRATE (μ_t)
+    let substrate = Substrate {
+        mu: [
+            0.91, -0.33, 0.72, 0.11,
+            -0.58, 0.49, 0.84, -0.15,
+            0.37, -0.21, 0.66, -0.44,
+            0.12, 0.55, -0.73, 0.28,
+        ],
+    };
+
+    // 2. INITIALIZE STATE
+    let mut state = init_state();
+
+    // ===========================================================
+    // 3. EVOLUTION LOOP
+    // ===========================================================
+
+    for t in 0..240 {
+
+        // Lie-bracket evolution
+        let dz = lie_bracket(&state.z, &state.s);
+
+        for i in 0..R {
+            state.z[i] += dz[i];
+        }
+
+        // EMA memory update
+        ema_update(&mut state.s, &state.z);
+
+        // Containment (EXORCISM)
+        let vacuum = containment(&mut state.z, &mut state.s);
+
+        if vacuum {
+            state.stable = false;
+            rebirth(&mut state.z, &state.w);
+        }
+
+        // Evaluate survivability (stable manifold proxy)
+        let score = survivability(&state.z, &substrate);
+
+        println!(
+            "t={:03} ||Z||={:.4} survival={:.4} stable={}",
+            t,
+            norm(&state.z),
+            score,
+            state.stable
+        );
+    }
+
+    // ===========================================================
+    // FINAL INTERPRETATION
+    // ===========================================================
+
+    println!("\nFINAL INTERPRETATION:");
+    println!("DVSM-ZIID does not compute a key.");
+    println!("It filters hypothesis space via non-normal dynamics.");
+    println!("The surviving invariant structure IS the solution.");
+}
