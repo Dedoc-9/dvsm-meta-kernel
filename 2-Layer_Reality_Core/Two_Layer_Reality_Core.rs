@@ -1,1019 +1,686 @@
+// ============================================================
+// DVSM-DFE · UNIFIED STIEFEL GEOMETRIC ENGINE (V4)
+// ============================================================
+//
 // Author: Daniel J. Dillberg
-// ============================================================
-// DVSM-DFE · STIEFEL MANIFOLD GEOMETRIC ENGINE 
-// ============================================================
 //
-// 📌 SYSTEM SUMMARY
+// 📌 SYSTEM OVERVIEW
 //
-// This module implements a contractive dynamical system on a
-// learned Stiefel manifold:
+// This module implements a coupled dynamical system on a
+// product manifold:
 //
-//     W ∈ St(n, r),   S ∈ ℝⁿ
+//     S ∈ S^(n−1)          (unit spherical state space)
+//     W ∈ St(n, r)         (orthonormal Stiefel frame)
+//     Z ∈ ℝⁿ               (external excitation signal)
 //
-// where:
+// The system performs structured geometric inference via:
 //
-//   - S is a state vector evolving under geometric inertia
-//   - W is an orthonormal low-rank basis (Stiefel frame)
-//   - Z is an external excitation field
+//     projection → decomposition → contraction → retraction
 //
-// The system couples observation → projection → contraction →
-// basis adaptation into a single unified geometric update loop.
+// producing a bounded, low-rank, adaptive representation of
+// streaming high-dimensional signals.
 //
 // ------------------------------------------------------------
-// 🧠 MATHEMATICAL FUNDAMENTAL (TWO EQUIVALENT VIEWS)
+// 🧠 TWO-LAYER ARCHITECTURE
 // ------------------------------------------------------------
 //
-// (A) GEOMETRIC VIEW (MANIFOLD DYNAMICS)
+// LAYER 1 — GEOMETRIC CORE (Immutable Mathematics)
 //
-//   1. Projection onto learned subspace:
-//        ẑ = P_W(z) = Σ⟨w_k, z⟩ w_k
+// Defines the invariant system:
 //
-//   2. State evolution on unit sphere:
-//        s_{t+1} = normalize(
-//                      (1-λ)[α ŝ + (1-α) ẑ] + λ s
-//                  )
+//   • Projection operator:
+//       Π_W(Z) = W Wᵀ Z
 //
-//   3. Basis evolution (tangent residual flow):
-//        w_k ← orthonormalize(
-//                 w_k + η (z - P_{w_k}(z))
-//              )
+//   • Residual decomposition:
+//       Z = Π_W(Z) + R
+//       R ⟂ W
+//
+//   • State evolution (contractive spherical flow):
+//       S_{t+1} = normalize(
+//           (1 − λ)(α Ŝ + (1 − α) Ẑ) + λ S
+//       )
+//
+//   • Basis evolution (residual-driven tangent update):
+//       W ← QR(W + η · ΔR)
+//
+// Invariants:
+//
+//   ||S|| = 1
+//   WᵀW = I
+//   Projection is orthogonal and idempotent
+//
+// ------------------------------------------------------------
+//
+// LAYER 2 — RUNTIME PORTING ENGINE (Mutable Execution Layer)
+//
+// Responsible for:
+//
+//   • Streaming input ingestion (RF / gaming / hybrid)
+//   • Scheduling of discrete-time updates
+//   • Buffering and backpressure control
+//   • Numerical safety enforcement (eps guards)
+//   • Mode switching without altering geometry
+//
+// This layer DOES NOT modify mathematical structure.
+//
+// ------------------------------------------------------------
+// 🧠 MATHEMATICAL INTERPRETATION (UNIFIED VIEW)
+// ------------------------------------------------------------
+//
+// The system defines a contractive dynamical flow on:
+//
+//     S^(n−1) × St(n, r)
+//
+// governed by nonlinear operator iteration:
+//
+//     Z → Π_W(Z) → S update → W retraction → repeat
 //
 // Interpretation:
-//   → System evolves as a coupled flow on Sⁿ⁻¹ × St(n,r)
+//
+//   • S encodes geometric “state coherence”
+//   • W encodes adaptive observation subspace
+//   • Z is compressed through learned projection geometry
 //
 // ------------------------------------------------------------
-//
-// (B) OPERATOR / SIGNAL PROCESSING VIEW
-//
-//   Let W be a low-rank operator:
-//
-//        P_W = W Wᵀ   (with orthonormal columns)
-//
-//   Then:
-//
-//        z_proj = P_W z
-//        s_{t+1} = Tλ ( α s + (1-α) z_proj )
-//
-// where:
-//
-//   Tλ(x) = normalize((1-λ)x + λ s)
-//
-// Interpretation:
-//   → System is a contractive nonlinear operator iteration
-//   → with adaptive projection subspace learning
-//
-// ------------------------------------------------------------
-// 🔬 STABILITY PRINCIPLE
+// 🔬 STABILITY PRINCIPLES
 // ------------------------------------------------------------
 //
-// Stability arises from three constraints:
+// Stability is guaranteed by:
 //
-//   1. Stiefel orthogonality:
+//   1. Stiefel constraint:
 //        WᵀW = I
 //
-//   2. Contractive mixing:
+//   2. Spherical normalization:
+//        ||S|| = 1
+//
+//   3. Contractive mixing:
 //        0 ≤ λ ≤ 1
 //
-//   3. Manifold projection:
-//        normalization onto Sⁿ⁻¹
+//   4. Orthogonal residual separation:
+//        R ⟂ W
 //
 // Result:
 //   → bounded nonlinear dynamics under arbitrary excitation Z
 //
 // ------------------------------------------------------------
-// 📡 STRESS FUNCTION (INTERPRETATION)
+// 📡 OBSERVABLE METRIC (STRESS FUNCTION)
 // ------------------------------------------------------------
 //
-//   B(t) = 1 - ⟨ ŝ , ẑ_proj ⟩
+//     B(t) = 1 − ⟨ Ŝ , Π_W(Z)̂ ⟩
 //
-// Measures:
-//   → angular divergence between internal state and
-//     learned excitation manifold projection
+// Meaning:
+//   Angular divergence between internal state and projected input.
 //
-// ------------------------------------------------------------
-// ⚖️ INTELLECTUAL PROPERTY STATEMENT (DEFENSIBLE CLAIM)
-// ------------------------------------------------------------
-//
-// This implementation constitutes a novel class of:
-//
-//   “Stiefel-constrained adaptive projection dynamical systems
-//    with contractive spherical state coupling and residual-driven
-//    basis evolution.”
-//
-// Key differentiators:
-//
-//   1. Coupled evolution of:
-//        - spherical state dynamics (Sⁿ⁻¹)
-//        - orthonormal learned subspace (Stiefel manifold)
-//
-//   2. Residual-driven basis adaptation:
-//
-//        w_k updated via projection error dynamics rather than
-//        gradient descent on a scalar loss.
-//
-//   3. Contractive geometric mixing operator:
-//
-//        blends memory (S), projection (WZ), and damping (λ)
-//        into a single nonlinear iteration.
-//
-//   4. Stress defined as manifold-space angular divergence,
-//      not signal magnitude or energy.
-//
-// This architecture is not a standard filter, PCA variant,
-// or classical state-space model; it is a coupled manifold
-// evolution system with adaptive projection geometry.
+// Range:
+//   B(t) ∈ [0, 2]
 //
 // ------------------------------------------------------------
-// 🧩 DESIGN INTENT
+// ⚖️ SYSTEM CLASSIFICATION
 // ------------------------------------------------------------
 //
-// The system is designed to remain:
+// This system is a:
 //
-//   - stable under high-noise excitation
-//   - adaptive under non-stationary inputs
-//   - low-rank in representational complexity
-//   - geometrically constrained (no unbounded drift)
+//   “contractive manifold-coupled projection dynamical system
+//    with residual-driven Stiefel adaptation and spherical state flow”
+//
+// It is NOT:
+//
+//   • PCA or linear subspace tracking
+//   • Kalman filtering
+//   • standard state-space estimation
+//   • gradient-descent loss minimization
 //
 // ------------------------------------------------------------
-// ============================================================
-// DVSM-DFE · STIEFEL MANIFOLD GEOMETRIC ENGINE (V3)
-// ============================================================
-
-use nalgebra::DVector;
-
-/// ------------------------------
-/// CONFIG
-/// ------------------------------
-#[derive(Clone, Copy)]
-pub struct Config {
-    pub alpha: f64,   // state inertia
-    pub lambda: f64,  // geometric damping (pre-normalization)
-    pub eta: f64,     // basis adaptation rate
-    pub epsilon: f64, // numerical stability
-}
-
-/// ------------------------------
-/// EXCITATION FIELD
-/// ------------------------------
-pub struct ExcitationZ {
-    pub z: DVector<f64>,
-}
-
-/// ------------------------------
-/// STIEFEL MANIFOLD FRAME
-/// W ∈ St(n, r)
-/// ------------------------------
-pub struct GeometricSW {
-    pub s: DVector<f64>,
-    pub w: Vec<DVector<f64>>,
-}
-
-/// ------------------------------
-/// STRESS ENGINE (manifold-space cosine)
-/// ------------------------------
-pub struct StressEngine {
-    pub history: Vec<f64>,
-}
-
-impl StressEngine {
-    pub fn new() -> Self {
-        Self { history: vec![] }
-    }
-
-    pub fn compute_b(
-        &mut self,
-        s: &DVector<f64>,
-        z_proj: &DVector<f64>,
-        eps: f64,
-    ) -> f64 {
-        let s_hat = s.normalize();
-        let z_hat = z_proj.normalize();
-
-        let dot = s_hat.dot(&z_hat).clamp(-1.0, 1.0);
-        let b = 1.0 - dot; // angular divergence
-
-        self.history.push(b);
-        if self.history.len() > 256 {
-            self.history.remove(0);
-        }
-
-        b
-    }
-}
-
-/// ------------------------------
-/// CORE SYSTEM
-/// ------------------------------
-pub struct DVSMCore {
-    pub layer: GeometricSW,
-    pub stress: StressEngine,
-    pub cfg: Config,
-}
-
-impl DVSMCore {
-    pub fn new(dim: usize, rank: usize, cfg: Config) -> Self {
-        Self {
-            layer: GeometricSW {
-                s: DVector::from_element(dim, 0.0),
-                w: vec![DVector::from_element(dim, 0.0); rank],
-            },
-            stress: StressEngine::new(),
-            cfg,
-        }
-    }
-
-    // ========================================================
-    // TRUE STIEFEL ORTHONORMALIZATION (Gram–Schmidt)
-    // ========================================================
-    fn orthonormalize(&mut self) {
-        let eps = self.cfg.epsilon;
-
-        for i in 0..self.layer.w.len() {
-            for j in 0..i {
-                let proj = self.layer.w[i].dot(&self.layer.w[j]);
-                self.layer.w[i] -= &(&self.layer.w[j] * proj);
-            }
-
-            let norm = self.layer.w[i].norm().max(eps);
-            self.layer.w[i] /= norm;
-        }
-    }
-
-    // ========================================================
-    // PROJECTION ONTO STIEFEL FRAME
-    // ========================================================
-    fn project_w(&self, z: &DVector<f64>) -> DVector<f64> {
-        let mut proj = DVector::from_element(z.len(), 0.0);
-
-        for w_k in &self.layer.w {
-            let coeff = w_k.dot(z);
-            proj += w_k * coeff;
-        }
-
-        proj
-    }
-
-    // ========================================================
-    // SINGLE DYNAMICAL STEP
-    // ========================================================
-    pub fn step(&mut self, z: &DVector<f64>) -> f64 {
-        let cfg = self.cfg;
-
-        let s = &self.layer.s;
-
-        // ----------------------------------------------------
-        // 1. PROJECT INTO LEARNED SUBSPACE (VALID NOW)
-        // ----------------------------------------------------
-        let z_proj = self.project_w(z);
-
-        // ----------------------------------------------------
-        // 2. NORMALIZED GEOMETRY
-        // ----------------------------------------------------
-        let s_hat = s.normalize();
-        let z_hat = if z_proj.norm() > cfg.epsilon {
-            z_proj.normalize()
-        } else {
-            z_proj.clone()
-        };
-
-        // ----------------------------------------------------
-        // 3. CONTRACTIVE STATE UPDATE
-        // ----------------------------------------------------
-        let blend = cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
-
-        let damped = (1.0 - cfg.lambda) * &blend + cfg.lambda * s;
-
-        self.layer.s = damped.normalize();
-
-        // ----------------------------------------------------
-        // 4. STIEFEL BASIS UPDATE (RESIDUAL LEARNING)
-        // ----------------------------------------------------
-        for i in 0..self.layer.w.len() {
-            let w_i = &self.layer.w[i];
-
-            let coeff = w_i.dot(z);
-            let residual = z - &(w_i * coeff);
-
-            self.layer.w[i] =
-                (1.0 - cfg.eta) * w_i + cfg.eta * residual.normalize();
-        }
-
-        // enforce manifold constraint
-        self.orthonormalize();
-
-        // ----------------------------------------------------
-        // 5. STRESS IN PROJECTED SPACE
-        // ----------------------------------------------------
-        self.stress.compute_b(&self.layer.s, &z_proj, cfg.epsilon)
-    }
-}
-{
-  "system": "DVSM-DFE Stiefel Manifold Geometric Engine (V3)",
-  "author": "Daniel J. Dillberg",
-  "geometry": {
-    "manifold": "Stiefel St(n, r)",
-    "state_space": "Spherical Sⁿ⁻¹",
-    "basis": "Orthonormal low-rank frame (W)",
-    "state": "Geometric inertia vector (S)"
-  },
-  "hyperparameters": {
-    "alpha": "State inertia (mixing memory vs. new projection)",
-    "lambda": "Geometric damping / contractive factor",
-    "eta": "Basis adaptation rate (learning speed)",
-    "epsilon": "Numerical stability floor"
-  },
-  "mathematical_operators": {
-    "projection": "P_W(z) = Σ⟨w_k, z⟩ w_k",
-    "stress_function": "B(t) = 1 - ⟨s_hat, z_proj_hat⟩",
-    "evolution": "s_{t+1} = normalize((1-λ)[α s_hat + (1-α) z_hat] + λ s)"
-  },
-  "defensible_claims": {
-    "novelty_1": "Coupled evolution of spherical dynamics and Stiefel frames",
-    "novelty_2": "Residual-driven basis adaptation (non-gradient descent)",
-    "novelty_3": "Stress defined as manifold-space angular divergence",
-    "stability": "Bounded nonlinear dynamics via manifold projection"
-  }
-}
-// ============================================================
-// DVSM-DFE · STIEFEL ENGINE ADDENDUM IMPLEMENTATION
-// ============================================================
+// 🧩 DESIGN OBJECTIVES
+// ------------------------------------------------------------
 //
-// DEV NOTES (IMPORTANT):
+// The architecture is designed to be:
 //
-// This file is a numerical-hardening layer for DVSM-Core.
-//
-// It enforces:
-//   - Stiefel manifold consistency: WᵀW ≈ I
-//   - Stable projection geometry: P_W = W Wᵀ
-//   - Robust RF-scale behavior under drift
-//
-// DESIGN DECISION SUMMARY:
-//
-// 1. We use QR retraction (preferred) instead of Gram–Schmidt.
-//    Reason:
-//      - GS/MGS accumulates drift in high-rank streaming regimes
-//      - QR gives globally consistent orthonormal frame
-//
-// 2. We keep λ-blending unchanged:
-//      - λ is intentionally NOT a spectral operator
-//      - it is purely geometric inertia in S-space
-//
-// 3. Stress remains cosine-based:
-//      - ensures scale invariance
-//      - depends ONLY on orthonormal W validity
+//   • Stable under high-noise streaming inputs
+//   • Adaptive under non-stationary excitation fields
+//   • Low-rank in representation complexity
+//   • Geometrically constrained (no drift outside manifolds)
+//   • Deterministic under frame-synchronized execution
 //
 // ============================================================
 
 use nalgebra::{DMatrix, DVector};
+use std::time::{Duration, Instant};
+use std::collections::VecDeque;
 
-/// ============================================================
-/// CONFIG
-/// ============================================================
+// ============================================================
+// CONFIG (shared across layers)
+// ============================================================
 #[derive(Clone, Copy)]
 pub struct Config {
-    pub alpha: f64,
-    pub lambda: f64,
-    pub eta: f64,
-    pub epsilon: f64,
+    pub alpha: f64,     // state inertia
+    pub lambda: f64,    // contractive damping
+    pub eta: f64,       // manifold learning rate
+    pub eps: f64,       // numerical floor
 }
 
-/// ============================================================
-/// STIEFEL STATE
-/// ============================================================
-pub struct GeometricSW {
-    pub s: DVector<f64>,
-    pub w: DMatrix<f64>, // NOTE: stored as matrix for QR correctness
-}
+// ============================================================
+// LAYER 1: GEOMETRIC CORE
+// ============================================================
 
-/// ============================================================
-/// STRESS ENGINE
-/// ============================================================
-pub struct StressEngine {
-    pub history: Vec<f64>,
-}
-
-impl StressEngine {
-    pub fn new() -> Self {
-        Self { history: vec![] }
-    }
-
-    pub fn compute_b(&mut self, s: &DVector<f64>, z_proj: &DVector<f64>) -> f64 {
-        let s_hat = s.normalize();
-        let z_hat = z_proj.normalize();
-
-        let dot = s_hat.dot(&z_hat).clamp(-1.0, 1.0);
-        let b = 1.0 - dot;
-
-        self.history.push(b);
-        if self.history.len() > 256 {
-            self.history.remove(0);
-        }
-
-        b
-    }
-}
-
-/// ============================================================
-/// CORE ENGINE (ADDENDUM-HARDENED VERSION)
-/// ============================================================
 pub struct DVSMCore {
-    pub layer: GeometricSW,
-    pub stress: StressEngine,
+    pub s: DVector<f64>,   // S ∈ Sⁿ⁻¹
+    pub w: DMatrix<f64>,   // W ∈ St(n,r)
     pub cfg: Config,
 }
 
 impl DVSMCore {
+
     pub fn new(n: usize, r: usize, cfg: Config) -> Self {
         Self {
-            layer: GeometricSW {
-                s: DVector::from_element(n, 0.0),
-                w: DMatrix::identity(n, r), // initialized as orthonormal frame
-            },
-            stress: StressEngine::new(),
+            s: DVector::from_element(n, 0.0),
+            w: DMatrix::identity(n, r),
             cfg,
         }
     }
 
-    // ========================================================
-    // PROJECTION: P_W = W Wᵀ z
-    // ========================================================
-    fn project_w(&self, z: &DVector<f64>) -> DVector<f64> {
-        let w = &self.layer.w;
-
-        // proj = W (Wᵀ z)
-        let wt_z = w.transpose() * z;
-        w * wt_z
+    // ------------------------------
+    // SAFE NORMALIZATION (core invariant)
+    // ------------------------------
+    fn normalize_safe(&self, v: &DVector<f64>) -> DVector<f64> {
+        let n = v.norm();
+        if n <= self.cfg.eps {
+            return DVector::from_element(v.len(), 0.0);
+        }
+        v / n
     }
 
-    // ========================================================
-    // QR RETRACTION (STIEFEL CONSTRAINT ENFORCEMENT)
-    // ========================================================
-    fn retract_stiefel(&mut self, delta: &DMatrix<f64>) {
-        // W' = W + ηΔW
-        let w_new = &self.layer.w + self.cfg.eta * delta;
+    // ------------------------------
+    // PROJECTION: Π_W(z) = W Wᵀ z
+    // ------------------------------
+    fn project(&self, z: &DVector<f64>) -> DVector<f64> {
+        let wt_z = self.w.transpose() * z;
+        &self.w * wt_z
+    }
 
-        // QR decomposition ensures orthonormal columns
+    // ------------------------------
+    // STIEFEL RETRACTION (QR ONLY)
+    // ------------------------------
+    fn retract(&mut self, w_new: DMatrix<f64>) {
         let qr = w_new.qr();
-        self.layer.w = qr.q(); // Q is Stiefel frame
+        self.w = qr.q();
     }
 
-    // ========================================================
-    // ONE DYNAMICAL STEP
-    // ========================================================
+    // ------------------------------
+    // SINGLE GEOMETRIC STEP
+    // ------------------------------
     pub fn step(&mut self, z: &DVector<f64>) -> f64 {
-        let cfg = self.cfg;
 
-        // ----------------------------------------------------
-        // 1. PROJECT INPUT INTO LEARNED SUBSPACE
-        // ----------------------------------------------------
-        let z_proj = self.project_w(z);
+        // 1. projection
+        let z_proj = self.project(z);
 
-        // ----------------------------------------------------
-        // 2. STATE UPDATE (S ON UNIT SPHERE)
-        // ----------------------------------------------------
-        let s_hat = self.layer.s.normalize();
-        let z_hat = z_proj.normalize();
+        // 2. state update (Sⁿ⁻¹ contraction)
+        let s_hat = self.normalize_safe(&self.s);
+        let z_hat = self.normalize_safe(&z_proj);
 
-        let blend = cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
+        let blend = self.cfg.alpha * s_hat + (1.0 - self.cfg.alpha) * z_hat;
+        let damped = (1.0 - self.cfg.lambda) * blend + self.cfg.lambda * &self.s;
+        self.s = self.normalize_safe(&damped);
 
-        let damped = (1.0 - cfg.lambda) * &blend + cfg.lambda * &self.layer.s;
+        // 3. residual-driven basis update
+        let mut delta = DMatrix::zeros(self.w.nrows(), self.w.ncols());
 
-        self.layer.s = damped.normalize();
-
-        // ----------------------------------------------------
-        // 3. STIEFEL UPDATE (RESIDUAL FIELD)
-        // ----------------------------------------------------
-        let w = &self.layer.w;
-
-        let mut delta = DMatrix::zeros(w.nrows(), w.ncols());
-
-        for j in 0..w.ncols() {
-            let w_j = w.column(j).into_owned();
+        for j in 0..self.w.ncols() {
+            let w_j = self.w.column(j).into_owned();
 
             let coeff = w_j.dot(z);
-            let proj = &w_j * coeff;
+            let residual = z - &(w_j * coeff);
 
-            let residual = z - proj;
+            let update = if residual.norm() > self.cfg.eps {
+                self.normalize_safe(&residual)
+            } else {
+                w_j.clone()
+            };
 
-            delta.set_column(
-                j,
-                &((1.0 - cfg.eta) * &w_j + cfg.eta * residual.normalize()),
-            );
+            delta.set_column(j, &((1.0 - self.cfg.eta) * &w_j + self.cfg.eta * update));
         }
 
-        // ----------------------------------------------------
-        // 4. RETRACTION (CRITICAL ADDENDUM STEP)
-        // ----------------------------------------------------
-        self.retract_stiefel(&delta);
+        self.retract(delta);
 
-        // ----------------------------------------------------
-        // 5. STRESS (GEOMETRIC ALIGNMENT)
-        // ----------------------------------------------------
-        self.stress.compute_b(&self.layer.s, &z_proj)
+        // 4. stress (angular divergence)
+        let dot = self.s.dot(&self.normalize_safe(&z_proj)).clamp(-1.0, 1.0);
+        1.0 - dot
     }
 }
 
-/// ============================================================
-/// DEV NOTES SUMMARY
-/// ============================================================
-//
-// WHY QR RETRACTION?
-// -------------------
-// Gram–Schmidt fails under:
-//   - high-rank streaming updates
-//   - near-collinear excitation fields
-//   - long-horizon RF inference
-//
-// QR ensures:
-//   - WᵀW = I (numerically stable)
-//   - global consistency of projection operator
-//
-// ------------------------------------------------------------
-//
-// WHY MATRIX STORAGE FOR W?
-// --------------------------
-// Vector-of-vectors is insufficient for:
-//   - stable QR decomposition
-//   - linear algebra correctness of P_W = W Wᵀ
-//
-// ------------------------------------------------------------
-//
-// WHY KEEP λ IN SPHERICAL SPACE?
-// ------------------------------
-// λ is intentionally NOT part of W geometry.
-// It governs ONLY:
-//   - temporal inertia of S
-//   - angular smoothing behavior
-//
-// This prevents coupling instability between:
-//   (S dynamics) and (Stiefel retraction dynamics)
-//
-// ------------------------------------------------------------
-//
-// STABILITY GUARANTEE (PRACTICAL):
-// --------------------------------
-// System remains bounded because:
-//   - S is normalized every step
-//   - W is retracted via QR
-//   - projection is orthonormal-consistent
-//
-// ------------------------------------------------------------
-//
-// SYSTEM CLASSIFICATION:
-// ----------------------
-// This is a:
-//   "contractive spherical state + Stiefel-retracted subspace
-//    dynamical system with residual-driven basis evolution"
-//
-// NOT:
-//   - PCA
-//   - Kalman filter
-//   - standard SDE
-//   - static manifold model
-//
 // ============================================================
-{
-  "engine_version": "3.1 (Addendum-Hardened)",
-  "stability_mechanisms": {
-    "stiefel_constraint": {
-      "method": "QR Retraction",
-      "advantage": "Ensures WᵀW = I regardless of drift or near-collinear excitation",
-      "storage_format": "DMatrix (Column-Major Orthogonality)"
-    },
-    "state_evolution": {
-      "manifold": "Sⁿ⁻¹ (Spherical)",
-      "operator": "Contractive Mixing (λ-blending)",
-      "invariant": "||S|| ≡ 1.0 via per-step normalization"
-    }
-  },
-  "ip_differentiation": {
-    "primary_claim": "Coupled flow on St(n,r) × Sⁿ⁻¹ using residual-driven basis adaptation.",
-    "novelty_markers": [
-      "Subspace-aware angular divergence (Stress B) vs. Euclidean error.",
-      "QR-based retraction for real-time basis evolution.",
-      "Independence of λ-inertia from spectral basis geometry."
-    ]
-  },
-  "operational_envelope": {
-    "high_rank_stability": "Verified via DMatrix QR",
-    "non_stationary_handling": "Adaptive residual flow (delta) in step 3",
-    "numerical_precision": "1.0e-12 (typical double-precision orthogonality floor)"
-  }
-}
-// ============================================================
-// DVSM-DFE · RUNTIME PORTING
-// ============================================================
-//
-// PURPOSE:
-// This module defines how DVSM-Core is deployed in real systems:
-//   - RF inference loop (streaming, noisy, adversarial)
-//   - gaming loop (low latency, deterministic updates)
-//   - hybrid mode (mixed timing constraints)
-//
-// It abstracts:
-//   - step scheduling
-//   - mode switching
-//   - numerical safety guards
-//   - backpressure handling for Z streams
-//
-// IMPORTANT DESIGN RULE:
-// Core DVSM math NEVER changes here.
-// This layer only controls execution semantics.
-//
+// LAYER 2: RUNTIME PORTING ENGINE
 // ============================================================
 
-use std::time::{Duration, Instant};
-
-use nalgebra::DVector;
-
-use crate::dvsm_core::DVSMCore;
-use crate::config::Config;
-
-// ============================================================
-// EXECUTION MODES
-// ============================================================
 #[derive(Clone, Copy)]
 pub enum RuntimeMode {
-    Gaming,   // deterministic, frame-driven
-    Hybrid,   // mixed pacing
-    RF,       // streaming / async inference
+    Gaming,
+    RF,
+    Hybrid,
 }
 
-// ============================================================
-// STREAM INPUT ABSTRACTION
-// ============================================================
-//
-// In RF mode, Z arrives asynchronously.
-// In Gaming mode, Z is frame-synced.
-// In Hybrid, Z is buffered.
-//
-pub trait ZStream {
-    fn next(&mut self) -> Option<DVector<f64>>;
-}
-
-// ============================================================
-// RUNTIME CONTROLLER
-// ============================================================
 pub struct DVSMRuntime {
     pub core: DVSMCore,
     pub mode: RuntimeMode,
-
-    // RF / Hybrid buffering
-    pub buffer: Vec<DVector<f64>>,
-
-    // timing
-    pub last_step: Instant,
-
-    // safety
-    pub max_buffer: usize,
+    pub buffer: VecDeque<DVector<f64>>,
+    pub last: Instant,
     pub dt_rf: Duration,
     pub dt_game: Duration,
+    pub max_buffer: usize,
 }
 
 impl DVSMRuntime {
+
     pub fn new(core: DVSMCore, mode: RuntimeMode) -> Self {
         Self {
             core,
             mode,
-            buffer: vec![],
-            last_step: Instant::now(),
-            max_buffer: 64,
+            buffer: VecDeque::new(),
+            last: Instant::now(),
             dt_rf: Duration::from_millis(2),
             dt_game: Duration::from_millis(16),
+            max_buffer: 64,
         }
     }
 
-    // ========================================================
-    // MODE SWITCHING (SAFE, NON-DESTRUCTIVE)
-    // ========================================================
-    pub fn set_mode(&mut self, mode: RuntimeMode) {
-        self.mode = mode;
-        self.buffer.clear(); // prevents cross-mode aliasing artifacts
-    }
-
-    // ========================================================
-    // INPUT INGESTION
-    // ========================================================
+    // ------------------------------
+    // INPUT INGESTION (FIFO SAFE)
+    // ------------------------------
     pub fn ingest(&mut self, z: DVector<f64>) {
-        self.buffer.push(z);
-
-        if self.buffer.len() > self.max_buffer {
-            // backpressure: drop oldest
-            self.buffer.remove(0);
+        if self.buffer.len() >= self.max_buffer {
+            self.buffer.pop_front();
         }
+        self.buffer.push_back(z);
     }
 
-    // ========================================================
-    // STEP SCHEDULER
-    // ========================================================
-    pub fn should_step(&self) -> bool {
+    // ------------------------------
+    // TIMING POLICY
+    // ------------------------------
+    fn should_step(&self) -> bool {
         match self.mode {
-            RuntimeMode::Gaming => self.last_step.elapsed() >= self.dt_game,
-            RuntimeMode::RF => self.last_step.elapsed() >= self.dt_rf,
-            RuntimeMode::Hybrid => {
-                // adaptive pacing: step when buffer has signal
-                self.buffer.len() >= 1 && self.last_step.elapsed() >= self.dt_rf
-            }
+            RuntimeMode::Gaming => self.last.elapsed() >= self.dt_game,
+            RuntimeMode::RF => self.last.elapsed() >= self.dt_rf,
+            RuntimeMode::Hybrid => self.last.elapsed() >= self.dt_rf && !self.buffer.is_empty(),
         }
     }
 
-    // ========================================================
-    // MAIN EXECUTION STEP
-    // ========================================================
+    // ------------------------------
+    // EXECUTION TICK
+    // ------------------------------
     pub fn tick(&mut self) -> Option<f64> {
         if !self.should_step() {
             return None;
         }
 
-        let z = match self.buffer.pop() {
-            Some(z) => z,
-            None => return None,
-        };
+        let z = self.buffer.pop_front()?;
+        self.last = Instant::now();
 
-        self.last_step = Instant::now();
-
-        // ----------------------------------------------------
-        // CORE DVSM STEP (UNCHANGED MATH)
-        // ----------------------------------------------------
-        let stress = self.core.step(&z);
-
-        Some(stress)
+        Some(self.core.step(&z))
     }
 
-    // ========================================================
-    // REAL-TIME LOOP HELPER (OPTIONAL)
-    // ========================================================
-    pub fn run_loop<F>(&mut self, mut source: F)
-    where
-        F: FnMut() -> Option<DVector<f64>>,
-    {
-        loop {
-            if let Some(z) = source() {
-                self.ingest(z);
-            }
-
-            if let Some(b) = self.tick() {
-                // In production this would:
-                //   - feed telemetry
-                //   - drive rendering
-                //   - trigger RF decision logic
-                println!("DVSM stress: {:.6}", b);
-            }
-        }
+    // ------------------------------
+    // MODE SWITCH (safe reset boundary)
+    // ------------------------------
+    pub fn set_mode(&mut self, mode: RuntimeMode) {
+        self.mode = mode;
+        self.buffer.clear();
     }
 }
-
 // ============================================================
-// DEV NOTES (RUNTIME LAYER)
-// ============================================================
-//
-// 1. SEPARATION OF CONCERNS
-// -------------------------
-// This layer does NOT:
-//   - modify manifold math
-//   - alter normalization logic
-//   - change projection operator
-//
-// It ONLY:
-//   - schedules execution
-//   - buffers inputs
-//   - manages timing semantics
-//
-// ------------------------------------------------------------
-//
-// 2. RF VS GAMING DIFFERENCE
-// --------------------------
-// Gaming:
-//   - fixed dt (frame sync)
-//   - deterministic step cadence
-//
-// RF:
-//   - bursty asynchronous input
-//   - low-latency step triggers
-//
-// Hybrid:
-//   - adaptive buffer-driven stepping
-//
-// ------------------------------------------------------------
-//
-// 3. BACKPRESSURE STRATEGY
-// ------------------------
-// Buffer overflow is handled via:
-//   - FIFO drop (oldest discarded)
-//
-// Rationale:
-//   - preserves recent geometry
-//   - avoids stale manifold distortion
-//
-// ------------------------------------------------------------
-//
-// 4. STABILITY NOTE
-// ------------------
-// Stability is NOT handled here.
-//
-// Stability belongs to:
-//   DVSMCore (Stiefel + spherical constraints)
-//
-// This layer only ensures:
-//   temporal coherence of input flow
-//
-// ------------------------------------------------------------
-//
-// 5. SYSTEM BOUNDARY
-// ------------------
-// DVSM SYSTEM =
-//   Core (geometry) + Runtime (scheduling)
-//
-// This file = runtime ONLY.
-//
-// ============================================================
-{
-  "module": "dvsm_runtime_v3.1",
-  "operational_modes": {
-    "Gaming": {
-      "pacing": "Deterministic / Sync",
-      "target_dt": "16ms (60Hz)",
-      "use_case": "Low-latency frame-driven stability"
-    },
-    "RF": {
-      "pacing": "Asynchronous / Streaming",
-      "target_dt": "2ms (500Hz)",
-      "use_case": "High-speed inference / bursty signal tracking"
-    },
-    "Hybrid": {
-      "pacing": "Adaptive / Buffer-driven",
-      "trigger": "buffer_len >= 1 && elapsed >= dt_rf",
-      "use_case": "Mixed timing constraints with backpressure handling"
-    }
-  },
-  "flow_control": {
-    "buffer_capacity": 64,
-    "overflow_policy": "FIFO (Drop Oldest)",
-    "rationale": "Prioritize current geometry over stale manifold history"
-  },
-  "deployment_invariants": {
-    "logic_separation": "Math is immutable; only scheduling is mutable",
-    "temporal_coherence": "Ensures Z-stream integrity across mode switches",
-    "backpressure": "Prevents memory leaks/stale drift during signal bursts"
-  }
-}
-// ============================================================
-// DVSM-DFE · ADDENDUM PATCH LAYER (NUMERICAL + SEMANTIC HARDENING)
-// Author: Daniel J. Dillberg
-// Purpose: Correctness + RF stability augmentation (non-invasive)
+// DVSM-DFE · MATHEMATICAL FOUNDATION + AXIOM ADDON
 // ============================================================
 //
-// DESIGN RULE:
-// This module does NOT redefine DVSM.
-// It only corrects numerical edge cases and runtime semantics.
+// This module encodes the formal system contract:
+//
+//   S ∈ S^(n−1)          (unit sphere state)
+//   W ∈ St(n,r)         (Stiefel orthonormal basis)
+//   Z ∈ R^n             (input signal)
+//
+// Core decomposition:
+//
+//   Z = Π_W(Z) + R
+//   R ⟂ W
+//
+// Projection:
+//
+//   Π_W(Z) = W Wᵀ Z
 //
 // ============================================================
 
 use nalgebra::{DMatrix, DVector};
-use std::collections::VecDeque;
-use std::time::{Duration, Instant};
 
 // ============================================================
-// ADDENDUM 1: SAFE FIFO GUARANTEE (REPLACES VECTOR BUFFER RULE)
-// ============================================================
-//
-// ISSUE FIXED:
-//   Vec::remove(0) → O(n) + cache-inefficient + RF unstable
-//
-// PATCH:
-//   enforce VecDeque everywhere for causal correctness
-//
+// AXIOM CONFIGURATION
 // ============================================================
 
-pub struct SafeBuffer {
-    pub q: VecDeque<DVector<f64>>,
-    pub max: usize,
-}
-
-impl SafeBuffer {
-    pub fn new(max: usize) -> Self {
-        Self {
-            q: VecDeque::new(),
-            max,
-        }
-    }
-
-    pub fn push(&mut self, z: DVector<f64>) {
-        if self.q.len() >= self.max {
-            self.q.pop_front(); // FIFO eviction
-        }
-        self.q.push_back(z);
-    }
-
-    pub fn pop(&mut self) -> Option<DVector<f64>> {
-        self.q.pop_front()
-    }
+#[derive(Clone, Copy)]
+pub struct AxiomConfig {
+    pub eps: f64,        // numerical stability floor
+    pub alpha: f64,      // state blending
+    pub lambda: f64,     // contraction strength
+    pub eta: f64,        // basis learning rate
 }
 
 // ============================================================
-// ADDENDUM 2: NUMERIC NORMALIZATION SAFETY (RF HARDENING)
+// CORE STATE (MANIFOLD PRODUCT SPACE)
 // ============================================================
-//
-// ISSUE FIXED:
-//   normalize() instability when ||x|| → 0
-//
-// PATCH:
-//   guarded normalization with epsilon floor
-//
+
+pub struct ManifoldCore {
+    pub s: DVector<f64>,   // S ∈ S^(n−1)
+    pub w: DMatrix<f64>,   // W ∈ St(n,r)
+    pub cfg: AxiomConfig,
+}
+
+// ============================================================
+// AXIOM 1 — SPHERICAL INVARIANCE
 // ============================================================
 
 #[inline]
-pub fn safe_normalize(v: &DVector<f64>, eps: f64) -> DVector<f64> {
+fn enforce_sphere(s: &DVector<f64>, eps: f64) -> DVector<f64> {
+    let n = s.norm();
+    if n <= eps {
+        return DVector::zeros(s.len());
+    }
+    s / n
+}
+
+// ============================================================
+// AXIOM 2 — STIEFEL ORTHONORMALITY (QR RETRACTION)
+// ============================================================
+
+#[inline]
+fn enforce_stiefel(w: DMatrix<f64>) -> DMatrix<f64> {
+    let qr = w.qr();
+    qr.q()
+}
+
+// ============================================================
+// AXIOM 3 — PROJECTION OPERATOR Π_W(Z)
+// ============================================================
+
+#[inline]
+fn project(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    w * (w.transpose() * z)
+}
+
+// ============================================================
+// AXIOM 4 — RESIDUAL DECOMPOSITION
+// ============================================================
+
+#[inline]
+fn residual(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    z - project(w, z)
+}
+
+// ============================================================
+// AXIOM 5 — CONTRACTIVE STATE UPDATE
+// ============================================================
+
+#[inline]
+fn update_state(
+    s: &DVector<f64>,
+    z_proj: &DVector<f64>,
+    cfg: &AxiomConfig,
+) -> DVector<f64> {
+    let s_hat = enforce_sphere(s, cfg.eps);
+    let z_hat = enforce_sphere(z_proj, cfg.eps);
+
+    let blend =
+        cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
+
+    enforce_sphere(
+        &((1.0 - cfg.lambda) * blend + cfg.lambda * s_hat),
+        cfg.eps,
+    )
+}
+
+// ============================================================
+// AXIOM 6 — BOUNDED STRESS FUNCTION
+// B(t) = 1 - <S, Π_W(Z)>
+// ============================================================
+
+#[inline]
+fn stress(s: &DVector<f64>, z_proj: &DVector<f64>) -> f64 {
+    let s_hat = s.normalize();
+    let z_hat = z_proj.normalize();
+
+    1.0 - s_hat.dot(&z_hat).clamp(-1.0, 1.0)
+}
+
+// ============================================================
+// AXIOM 7 — BASIS UPDATE (RESIDUAL FLOW)
+// ============================================================
+
+#[inline]
+fn update_basis(
+    w: DMatrix<f64>,
+    r: &DVector<f64>,
+    cfg: &AxiomConfig,
+) -> DMatrix<f64> {
+    let mut delta = DMatrix::<f64>::zeros(w.nrows(), w.ncols());
+
+    for j in 0..w.ncols() {
+        let w_j = w.column(j).into_owned();
+
+        let coeff = w_j.dot(r);
+        let proj = &w_j * coeff;
+
+        let r_j = r - proj;
+
+        delta.set_column(
+            j,
+            &((1.0 - cfg.eta) * w_j + cfg.eta * r_j),
+        );
+    }
+
+    enforce_stiefel(delta)
+}
+
+// ============================================================
+// AXIOM 8 — NUMERICAL FLOOR RULE
+// ============================================================
+
+#[inline]
+fn safe_normalize(v: &DVector<f64>, eps: f64) -> DVector<f64> {
     let n = v.norm();
     if n <= eps {
-        return DVector::from_element(v.len(), 0.0);
+        DVector::zeros(v.len())
+    } else {
+        v / n
+    }
+}
+
+// ============================================================
+// CORE STEP (FULL AXIOM SYSTEM)
+// ============================================================
+
+impl ManifoldCore {
+    pub fn step(&mut self, z: &DVector<f64>) -> f64 {
+        let cfg = self.cfg;
+
+        // ----------------------------------------------------
+        // AXIOM: PROJECTION CONSISTENCY
+        // ----------------------------------------------------
+        let z_proj = project(&self.w, z);
+        let r = residual(&self.w, z);
+
+        // ----------------------------------------------------
+        // AXIOM: STATE EVOLUTION
+        // ----------------------------------------------------
+        self.s = update_state(&self.s, &z_proj, &cfg);
+
+        // ----------------------------------------------------
+        // AXIOM: BASIS EVOLUTION
+        // ----------------------------------------------------
+        self.w = update_basis(self.w.clone(), &r, &cfg);
+
+        // ----------------------------------------------------
+        // AXIOM: STIEFEL CONSTRAINT ENFORCEMENT
+        // ----------------------------------------------------
+        self.w = enforce_stiefel(self.w.clone());
+
+        // ----------------------------------------------------
+        // AXIOM: OUTPUT STRESS
+        // ----------------------------------------------------
+        stress(&self.s, &z_proj)
+    }
+}
+
+// ============================================================
+// SYSTEM INVARIANTS (FORMAL CONTRACT)
+// ============================================================
+//
+// I1: ||S|| = 1
+// I2: WᵀW = I
+// I3: Z = Π_W(Z) + R
+// I4: R ⟂ W
+// I5: 0 ≤ B(t) ≤ 2
+//
+// ============================================================
+ // ============================================================
+ // DVSM-DFE · UNIFIED STIEFEL GEOMETRIC ENGINE (RUST CORE)
+ // ============================================================
+
+use nalgebra::{DMatrix, DVector};
+
+/// ============================================================
+/// CONFIGURATION (AXIOM PARAMETERS)
+/// ============================================================
+#[derive(Clone, Copy)]
+pub struct Config {
+    pub alpha: f64,     // state blending
+    pub lambda: f64,    // contraction strength
+    pub eta: f64,       // basis adaptation rate
+    pub eps: f64,       // numerical stability floor
+}
+
+/// ============================================================
+/// CORE STATE (S × St(n,r))
+/// ============================================================
+pub struct DVSMCore {
+    pub s: DVector<f64>,   // S ∈ S^(n−1)
+    pub w: DMatrix<f64>,   // W ∈ St(n,r)
+    pub cfg: Config,
+}
+
+/// ============================================================
+/// SAFE NORMALIZATION (AXIOM: ||S|| = 1)
+/// ============================================================
+fn normalize(v: &DVector<f64>, eps: f64) -> DVector<f64> {
+    let n = v.norm();
+    if n <= eps {
+        return DVector::zeros(v.len());
     }
     v / n
 }
 
-// ============================================================
-// ADDENDUM 3: STIEFEL DRIFT DETECTOR (DIAGNOSTIC ONLY)
-// ============================================================
-//
-// PURPOSE:
-//   detects WᵀW deviation from identity in RF regimes
-//
-// ============================================================
+/// ============================================================
+/// PROJECTION OPERATOR: Π_W(Z) = W Wᵀ Z
+/// ============================================================
+fn project(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    w * (w.transpose() * z)
+}
 
-pub fn stiefel_drift(w: &DMatrix<f64>) -> f64 {
-    let gram = w.transpose() * w;
-    let mut err = 0.0;
+/// ============================================================
+/// RESIDUAL: R = Z - Π_W(Z)
+/// ============================================================
+fn residual(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    z - project(w, z)
+}
 
-    for i in 0..gram.nrows() {
-        for j in 0..gram.ncols() {
-            let target = if i == j { 1.0 } else { 0.0 };
-            err += (gram[(i, j)] - target).abs();
+/// ============================================================
+/// STIEFEL ENFORCEMENT (QR RETRACTION)
+//  AXIOM: WᵀW = I
+/// ============================================================
+fn stiefel_retract(w: DMatrix<f64>) -> DMatrix<f64> {
+    let qr = w.qr();
+    qr.q()
+}
+
+/// ============================================================
+/// STRESS FUNCTION (ANGULAR DIVERGENCE)
+/// B(t) = 1 - <Ŝ, Π_W(Z)̂>
+/// ============================================================
+fn stress(s: &DVector<f64>, z_proj: &DVector<f64>) -> f64 {
+    let s_hat = normalize(s, 1e-12);
+    let z_hat = normalize(z_proj, 1e-12);
+
+    1.0 - s_hat.dot(&z_hat).clamp(-1.0, 1.0)
+}
+
+/// ============================================================
+/// CORE DYNAMICAL STEP
+/// ============================================================
+impl DVSMCore {
+    pub fn step(&mut self, z: &DVector<f64>) -> f64 {
+        let cfg = self.cfg;
+
+        // ----------------------------------------------------
+        // 1. PROJECTION (GEOMETRIC OBSERVATION)
+        // ----------------------------------------------------
+        let z_proj = project(&self.w, z);
+        let r = residual(&self.w, z);
+
+        // ----------------------------------------------------
+        // 2. STATE UPDATE (SPHERICAL CONTRACTIVE FLOW)
+        // ----------------------------------------------------
+        let s_hat = normalize(&self.s, cfg.eps);
+        let z_hat = normalize(&z_proj, cfg.eps);
+
+        let blend =
+            cfg.alpha * s_hat + (1.0 - cfg.alpha) * z_hat;
+
+        self.s = normalize(
+            &((1.0 - cfg.lambda) * blend + cfg.lambda * s_hat),
+            cfg.eps,
+        );
+
+        // ----------------------------------------------------
+        // 3. BASIS UPDATE (RESIDUAL-DRIVEN FLOW)
+        // ----------------------------------------------------
+        let mut delta = DMatrix::<f64>::zeros(self.w.nrows(), self.w.ncols());
+
+        for j in 0..self.w.ncols() {
+            let w_j = self.w.column(j).into_owned();
+
+            let coeff = w_j.dot(z);
+            let proj = &w_j * coeff;
+
+            let r_j = z - proj;
+
+            delta.set_column(j, &normalize(&r_j, cfg.eps));
         }
-    }
 
-    err
+        self.w = self.w + cfg.eta * delta;
+        self.w = stiefel_retract(self.w.clone());
+
+        // ----------------------------------------------------
+        // 4. OUTPUT METRIC (STRESS)
+        // ----------------------------------------------------
+        stress(&self.s, &z_proj)
+    }
 }
 
-// ============================================================
-// ADDENDUM 4: STRESS STABILIZER (POST-PROCESS VIEW ONLY)
-// ============================================================
-//
-// NOTE:
-// This does NOT modify DVSM stress.
-// It only stabilizes telemetry interpretation.
-//
-// ============================================================
+/// ============================================================
+/// SYSTEM INVARIANTS (RUNTIME CONTRACT)
+/// ============================================================
+///
+/// I1: ||S|| = 1
+/// I2: WᵀW = I
+/// I3: Z = Π_W(Z) + R
+/// I4: R ⟂ W
+///
+/// ============================================================
 
-pub fn stabilize_stress(b: f64) -> f64 {
-    // clamps numerical spikes from near-singular projections
-    if b.is_nan() {
-        return 0.0;
-    }
-    if b > 2.0 {
-        return 2.0;
-    }
-    if b < 0.0 {
-        return 0.0;
-    }
-    b
+/// ============================================================
+/// OPTIONAL GPU HOOK (PLACEHOLDER)
+/// ============================================================
+///
+/// Future extension:
+/// - WGSL projection kernel
+/// - CUDA WᵀZ reduction
+/// - SIMD batch projection
+/// ============================================================
+pub fn gpu_project_hook(_z: &DVector<f64>) {
+    // placeholder for GPU backend
 }
-
-// ============================================================
-// ADDENDUM 5: MODE-SAFE TIMING GUARD
-// ============================================================
-//
-// Prevents RF burst starvation in hybrid mode.
-//
-// ============================================================
-
-pub fn should_force_step(
-    last: Instant,
-    dt_rf: Duration,
-    buffer_len: usize,
-) -> bool {
-    last.elapsed() >= dt_rf && buffer_len > 0
-}
-
-// ============================================================
-// ADDENDUM SUMMARY (ARCHITECTURAL EFFECT)
-// ============================================================
-//
-// This patch introduces:
-//
-//   1. O(1) FIFO correctness (VecDeque enforcement)
-//   2. RF-safe normalization (no divide-by-zero drift)
-//   3. Stiefel orthogonality monitoring (diagnostics)
-//   4. Stress telemetry stabilization (non-invasive)
-//   5. Hybrid timing robustness (burst protection)
-//
-// It DOES NOT modify:
-//   - DVSM geometry equations
-//   - projection operator Π_W
-//   - manifold constraints
-//
-// It ONLY stabilizes:
-//   - runtime behavior
-//   - numerical edge cases
-//   - RF streaming robustness
-//
-// ============================================================
