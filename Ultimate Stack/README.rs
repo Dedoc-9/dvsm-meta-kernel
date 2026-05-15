@@ -67,6 +67,8 @@ impl DVSMArith {
         (ghost * beta > epsilon) && (z_norm < u_max)
     }
 }
+// ---
+V_{t+1} = GATE( OVERLAP · RESIDUE(Z,S), β, ε, Umax, ||Z|| ) ∘ EVEOLVE(V, σ)
 //
 // ============================================================================
 
