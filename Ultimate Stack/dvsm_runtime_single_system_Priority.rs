@@ -4138,7 +4138,674 @@ pub fn dvsm_step(executor: &DAGExecutor, state: &mut ExecutionState) {
   }
 }
 
+// ============================================================
+// DVSM-π+++ FULL SYSTEM FILE (Stage 1 → Stage 2 Transition)
+// CPU DAG + GPU Lie-Bracket Kernel Bridge
+// ============================================================
+//
+// Layers:
+//   (1) CPU DAG (semantic orchestration)
+//   (2) GPU Lie-bracket kernel (Z evolution)
+//   (3) Buffer synchronization layer (Z, S, κ)
+//   (4) Execution scheduler (frame loop)
+// ============================================================
 
+use std::sync::Arc;
+
+// -----------------------------
+// GPU Backend (wgpu)
+// -----------------------------
+use wgpu::util::DeviceExt;
+
+// ============================================================
+// INTRODUCTION LAYER (SYSTEM SEMANTICS)
+// ============================================================
+
+/// DVSM state: (μ_t, Z_t, W_t)
+#[derive(Clone, Debug)]
+pub struct DVSMState {
+    pub z: Vec<f32>,   // spectral field Z
+    pub s: Vec<f32>,   // EMA memory S
+    pub w: Vec<f32>,   // Grassmann basis W
+}
+
+/// GPU buffers mirrored state
+pub struct GPUState {
+    pub z_buffer: wgpu::Buffer,
+    pub s_buffer: wgpu::Buffer,
+    pub kappa_buffer: wgpu::Buffer,
+    pub bind_group: wgpu::BindGroup,
+}
+
+// ============================================================
+// STAGE 1 — CPU DAG EXECUTION LAYER
+// ============================================================
+
+pub trait DAGNode {
+    fn execute(&mut self, state: &mut DVSMState);
+}
+
+/// CPU update node (fallback / debug mode)
+pub struct LieBracketCPU {
+    pub lambda: f32,
+    pub kappa: Vec<f32>,
+    pub n: usize,
+}
+
+impl DAGNode for LieBracketCPU {
+    fn execute(&mut self, state: &mut DVSMState) {
+        let mut dz = vec![0.0; self.n];
+
+        for i in 0..self.n {
+            for j in 0..self.n {
+                if i == j { continue; }
+
+                let kij = self.kappa[(i * self.n + j) % self.kappa.len()];
+
+                dz[i] += (state.z[i] * state.s[j] - state.z[j] * state.s[i]) * kij;
+            }
+
+            dz[i] -= self.lambda * state.z[i];
+        }
+
+        for i in 0..self.n {
+            state.z[i] += dz[i];
+        }
+    }
+}
+
+// ============================================================
+// STAGE 2 — GPU LIE-BRACKET KERNEL (WGSL)
+// ============================================================
+
+const LIE_BRACKET_WGSL: &str = r#"
+@group(0) @binding(0) var<storage, read_write> Z : array<f32>;
+@group(0) @binding(1) var<storage, read> S : array<f32>;
+@group(0) @binding(2) var<storage, read> Kappa : array<f32>;
+
+struct Params {
+    n: u32,
+    lambda: f32,
+};
+
+@group(0) @binding(3) var<uniform> params : Params;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+    let i = id.x;
+    if (i >= params.n) { return; }
+
+    var dz: f32 = 0.0;
+
+    for (var j: u32 = 0u; j < params.n; j = j + 1u) {
+        if (i == j) { continue; }
+
+        let idx = i * params.n + j;
+        let kij = Kappa[idx];
+
+        dz = dz + (Z[i] * S[j] - Z[j] * S[i]) * kij;
+    }
+
+    dz = dz - params.lambda * Z[i];
+
+    Z[i] = Z[i] + dz;
+}
+"#;
+
+// ============================================================
+// GPU PIPELINE CONTEXT
+// ============================================================
+
+pub struct DVSMGPU {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub pipeline: wgpu::ComputePipeline,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl DVSMGPU {
+    pub async fn new(adapter: &wgpu::Adapter) -> Self {
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: Some("DVSM Device"),
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits::default(),
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("LieBracket Shader"),
+            source: wgpu::ShaderSource::Wgsl(LIE_BRACKET_WGSL.into()),
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("DVSM BGL"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("DVSM Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("DVSM Lie Bracket Pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader,
+            entry_point: "main",
+        });
+
+        Self {
+            device,
+            queue,
+            pipeline,
+            bind_group_layout,
+        }
+    }
+}
+
+// ============================================================
+// BUFFER SYNCHRONIZATION LAYER
+// ============================================================
+
+pub fn upload_state(
+    gpu: &DVSMGPU,
+    state: &DVSMState,
+) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
+    let z_buffer = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Z Buffer"),
+        contents: bytemuck::cast_slice(&state.z),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+    });
+
+    let s_buffer = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("S Buffer"),
+        contents: bytemuck::cast_slice(&state.s),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+    });
+
+    let kappa_buffer = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Kappa Buffer"),
+        contents: bytemuck::cast_slice(&vec![0.0_f32; state.z.len() * state.z.len()]),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+    });
+
+    (z_buffer, s_buffer, kappa_buffer)
+}
+
+// ============================================================
+// EXECUTION SCHEDULER (CPU → GPU DAG SWITCH)
+// ============================================================
+
+pub struct DVSMEngine {
+    pub gpu: DVSMGPU,
+    pub cpu_fallback: LieBracketCPU,
+    pub use_gpu: bool,
+}
+
+impl DVSMEngine {
+    pub fn step_cpu(&mut self, state: &mut DVSMState) {
+        self.cpu_fallback.execute(state);
+    }
+
+    pub fn step_gpu(&mut self, _state: &mut DVSMState) {
+        // GPU dispatch placeholder (command encoder stage)
+        // Real execution occurs via compute pass
+
+        // NOTE:
+        // - encode pass
+        // - set pipeline
+        // - dispatch_workgroups
+    }
+}
+
+// ============================================================
+// OBSERVABLES (CLT / B(t))
+// ============================================================
+
+pub fn burst_metric(state: &DVSMState) -> f32 {
+    let z_norm: f32 = state.z.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let s_norm: f32 = state.s.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+    s_norm / (z_norm + 1e-6)
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+
+pub fn init_state(n: usize) -> DVSMState {
+    DVSMState {
+        z: vec![0.0; n],
+        s: vec![0.0; n],
+        w: vec![0.0; n],
+    }
+}
+
+// ============================================================
+// EXECUTION ENTRY (FRAME LOOP MODEL)
+// ============================================================
+
+pub fn run_engine(mut engine: DVSMEngine, mut state: DVSMState) {
+    loop {
+        if engine.use_gpu {
+            engine.step_gpu(&mut state);
+        } else {
+            engine.step_cpu(&mut state);
+        }
+
+        let b = burst_metric(&state);
+
+        // ghost diagnostic placeholder
+        if b > 10.0 {
+            println!("GHOST MODE: spectral instability detected");
+        }
+
+        // frame tick (VR 60–120Hz assumed externally)
+    }
+}
+
+// ============================================================
+// DVSM-π+++ RUNTIME SDK BOUNDARY LAYER
+// Single-File Developer Deployment Interface
+// ============================================================
+//
+// PURPOSE:
+// This file converts DVSM from a research engine into a
+// deployable developer SDK with a stable runtime contract.
+//
+// LAYERS:
+//   (1) Runtime API (CPU/GPU unified control)
+//   (2) Execution modes (Dev / GPU / VR / CLT)
+//   (3) Observable contract (safe external surface)
+//   (4) Plugin system (developer extensibility)
+// ============================================================
+
+use std::sync::Arc;
+
+// ============================================================
+// CORE STATE (INTERNAL ENGINE REPRESENTATION)
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct DVSMState {
+    pub z: Vec<f32>, // spectral field
+    pub s: Vec<f32>, // EMA memory
+    pub w: Vec<f32>, // Grassmann basis
+}
+
+// ============================================================
+// SAFE EXTERNAL OBSERVABLE CONTRACT
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct DVSMObservables {
+    pub barycenter: [f32; 3],
+    pub burst_metric: f32, // B(t)
+    pub ess: f32,
+    pub eta_norm: f32,
+}
+
+// ============================================================
+// EXECUTION MODES (DEPLOYMENT TARGETS)
+// ============================================================
+
+#[derive(Clone, Copy, Debug)]
+pub enum DVSMMode {
+    DevCPU,       // deterministic debugging
+    GPUCompute,   // full Lie-bracket GPU execution
+    VRRealtime,   // VR-optimized frame loop
+    CLTAnalysis,  // statistical convergence diagnostics
+}
+
+// ============================================================
+// PLUGIN INTERFACE (EXTENSION POINT)
+// ============================================================
+
+pub trait DVSMPlugin: Send {
+    fn on_step(&mut self, obs: &DVSMObservables);
+}
+
+// ============================================================
+// GPU BACKEND HANDLE (ABSTRACTED)
+// ============================================================
+
+pub struct DVSMGPU {
+    pub enabled: bool,
+}
+
+impl DVSMGPU {
+    pub fn step(&self, _state: &mut DVSMState) {
+        // Placeholder:
+        // In production this binds:
+        // - WGSL Lie-bracket kernel
+        // - buffer dispatch (Z, S, κ)
+        // - compute pass execution
+    }
+}
+
+// ============================================================
+// CORE RUNTIME ENGINE
+// ============================================================
+
+pub struct DVSMRuntime {
+    pub state: DVSMState,
+    pub mode: DVSMMode,
+    pub gpu: Option<DVSMGPU>,
+    pub plugins: Vec<Box<dyn DVSMPlugin>>,
+}
+
+impl DVSMRuntime {
+    // -----------------------------
+    // CONSTRUCTOR
+    // -----------------------------
+    pub fn new(n: usize, mode: DVSMMode) -> Self {
+        Self {
+            state: DVSMState {
+                z: vec![0.0; n],
+                s: vec![0.0; n],
+                w: vec![0.0; n],
+            },
+            mode,
+            gpu: Some(DVSMGPU { enabled: true }),
+            plugins: vec![],
+        }
+    }
+
+    // -----------------------------
+    // STEP DISPATCH (UNIFIED ENTRY)
+    // -----------------------------
+    pub fn step(&mut self) {
+        match self.mode {
+            DVSMMode::DevCPU => self.step_cpu(),
+            DVSMMode::GPUCompute => self.step_gpu(),
+            DVSMMode::VRRealtime => {
+                self.step_gpu();
+                self.step_plugins();
+            }
+            DVSMMode::CLTAnalysis => {
+                self.step_cpu(); // deterministic reference baseline
+            }
+        }
+
+        self.step_plugins();
+    }
+
+    // -----------------------------
+    // CPU FALLBACK (REFERENCE DYNAMICS)
+    // -----------------------------
+    fn step_cpu(&mut self) {
+        let n = self.state.z.len();
+        let mut dz = vec![0.0; n];
+
+        for i in 0..n {
+            for j in 0..n {
+                if i == j {
+                    continue;
+                }
+
+                // simplified Lie-bracket surrogate
+                dz[i] += (self.state.z[i] * self.state.s[j]
+                    - self.state.z[j] * self.state.s[i]) * 0.1;
+            }
+
+            dz[i] -= 0.1 * self.state.z[i];
+        }
+
+        for i in 0..n {
+            self.state.z[i] += dz[i];
+        }
+    }
+
+    // -----------------------------
+    // GPU EXECUTION (LIE-BRACKET KERNEL)
+    // -----------------------------
+    fn step_gpu(&mut self) {
+        if let Some(gpu) = &self.gpu {
+            gpu.step(&mut self.state);
+        }
+    }
+
+    // -----------------------------
+    // PLUGIN EXECUTION
+    // -----------------------------
+    fn step_plugins(&mut self) {
+        let obs = self.observables();
+
+        for p in self.plugins.iter_mut() {
+            p.on_step(&obs);
+        }
+    }
+
+    // ========================================================
+    // OBSERVABLE CONTRACT (SAFE EXTERNAL SURFACE)
+    // ========================================================
+    pub fn observables(&self) -> DVSMObservables {
+        let z_norm: f32 = self.state.z.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let s_norm: f32 = self.state.s.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+        DVSMObservables {
+            barycenter: [
+                self.state.z.get(0).copied().unwrap_or(0.0),
+                self.state.z.get(1).copied().unwrap_or(0.0),
+                self.state.z.get(2).copied().unwrap_or(0.0),
+            ],
+            burst_metric: if z_norm > 1e-6 { s_norm / z_norm } else { 0.0 },
+            ess: 1.0 / (1.0 + z_norm), // placeholder proxy
+            eta_norm: z_norm,
+        }
+    }
+
+    // ========================================================
+    // PLUGIN REGISTRATION
+    // ========================================================
+    pub fn add_plugin(&mut self, plugin: Box<dyn DVSMPlugin>) {
+        self.plugins.push(plugin);
+    }
+}
+
+// ============================================================
+// EXAMPLE PLUGIN (VR HOOK)
+// ============================================================
+
+pub struct VRLogger;
+
+impl DVSMPlugin for VRLogger {
+    fn on_step(&mut self, obs: &DVSMObservables) {
+        // In real system: feed into GPU vertex shader or WebXR layer
+        println!(
+            "VR OBS → bary: {:?}, B(t): {:.4}, eta: {:.4}",
+            obs.barycenter, obs.burst_metric, obs.eta_norm
+        );
+    }
+}
+
+// ============================================================
+// INITIALIZATION HELPERS
+// ============================================================
+
+pub fn init_runtime(n: usize, mode: DVSMMode) -> DVSMRuntime {
+    DVSMRuntime::new(n, mode)
+}
+
+// ============================================================
+// ENTRY EXAMPLE
+// ============================================================
+
+pub fn example_run() {
+    let mut runtime = init_runtime(128, DVSMMode::GPUCompute);
+
+    runtime.add_plugin(Box::new(VRLogger));
+
+    loop {
+        runtime.step();
+    }
+}
+
+// ============================================================
+// FINALIZATION BLOCK — DVSM-π+++ RUNTIME SDK
+// ============================================================
+//
+// PURPOSE:
+// This block closes the runtime contract, enforces invariants,
+// and defines the system boundary for safe deployment.
+//
+// NOTE:
+// Nothing beyond this point modifies core dynamics.
+// This is the "sealed interface layer" of DVSM.
+// ============================================================
+
+/// -----------------------------
+/// INVARIANT GUARANTEE (SOFT RUNTIME CHECKS)
+/// -----------------------------
+pub fn validate_state(state: &DVSMState) -> Result<(), &'static str> {
+    if state.z.len() != state.s.len() || state.s.len() != state.w.len() {
+        return Err("DVSM invariant violation: state vector mismatch");
+    }
+
+    if state.z.iter().any(|x| x.is_nan()) {
+        return Err("DVSM invariant violation: NaN detected in Z");
+    }
+
+    Ok(())
+}
+
+/// -----------------------------
+/// SAFE SHUTDOWN HOOK
+/// -----------------------------
+pub fn shutdown(runtime: &mut DVSMRuntime) {
+    // Gracefully detach plugins
+    runtime.plugins.clear();
+
+    // Mark GPU inactive (soft release)
+    if let Some(gpu) = &mut runtime.gpu {
+        gpu.enabled = false;
+    }
+
+    // Zero-state optional (deployment dependent)
+    // runtime.state.z.fill(0.0);
+    // runtime.state.s.fill(0.0);
+}
+
+/// -----------------------------
+/// RUNTIME SEAL (CONCEPTUAL BOUNDARY)
+/// -----------------------------
+/// This function represents the conceptual "air-gap":
+/// after this point, DVSM is no longer mutated by external logic.
+///
+/// It is not a security boundary — it is a semantic boundary.
+pub fn seal_runtime(runtime: &DVSMRuntime) -> DVSMRuntime {
+    DVSMRuntime {
+        state: runtime.state.clone(),
+        mode: runtime.mode,
+        gpu: runtime.gpu.as_ref().map(|g| DVSMGPU {
+            enabled: g.enabled,
+        }),
+        plugins: vec![], // intentionally dropped
+    }
+}
+
+/// -----------------------------
+/// SUCHNESS ANCHOR (NON-FUNCTIONAL ANNOTATION)
+/// -----------------------------
+/// The DVSM system, at runtime equilibrium, represents a fixed
+/// point of coupled stochastic-geometric flow:
+///
+///     (μ_t, Z_t, W_t) → (μ*, Z*, W*)
+///
+/// This "suchness" is not computed.
+/// It is observed as stability of observables:
+///
+///     d/dt B(t) → 0
+///     d/dt η_norm → 0
+///     d/dt ESS → stationary regime
+///
+/// This block does not enforce convergence.
+/// It only acknowledges the regime boundary.
+///
+/// -----------------------------
+
+/// -----------------------------
+/// AIR-GAP LOGIC (DEPLOYMENT MODEL)
+// -----------------------------
+/// DVSM is designed as a dual-layer system:
+///
+///   TRUSTED CORE:
+///     - Lie-bracket GPU kernel
+///     - CPU fallback DAG
+///     - state evolution (Z, S, W)
+///
+///   UNTRUSTED EXTENSIONS:
+///     - plugins
+///     - VR renderers
+///     - bioscience adapters
+///
+/// AIR-GAP RULE:
+///     Core never depends on plugins.
+///     Plugins may depend on observables only.
+///
+/// This ensures reproducibility of dynamics.
+///
+/// -----------------------------
+
+/// -----------------------------
+/// FINAL ENTRY POINT (OPTIONAL)
+// -----------------------------
+pub fn run_sealed(mut runtime: DVSMRuntime) {
+    loop {
+        if let Err(e) = validate_state(&runtime.state) {
+            eprintln!("DVSM HALT: {}", e);
+            break;
+        }
+
+        runtime.step();
+
+        // Optional termination condition (stability heuristic)
+        let obs = runtime.observables();
+        if obs.eta_norm < 1e-5 && obs.burst_metric < 1e-3 {
+            println!("DVSM: equilibrium (suchness regime reached)");
+            break;
+        }
+    }
+
+    shutdown(&mut runtime);
+}      
 
 
 
