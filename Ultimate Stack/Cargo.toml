@@ -217,3 +217,475 @@ pub extern "C" fn dvsm_gate(
 //   libdvsm_core.dylib
 //
 // ============================================================================
+// ============================================================================
+// DVSM-π+++ / DQSDv2 · C ABI CONTRACT
+// File: dvsm.h
+// ============================================================================
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ---------------------------------------------------------------------------
+// OPAQUE HANDLE (DO NOT INSPECT)
+// ---------------------------------------------------------------------------
+
+typedef struct DVSM_Handle DVSM_Handle;
+
+// ---------------------------------------------------------------------------
+// INITIALIZATION PARAMS
+// ---------------------------------------------------------------------------
+
+typedef struct DVSM_Params {
+    float beta;
+    float epsilon;
+    float u_max;
+} DVSM_Params;
+
+// ---------------------------------------------------------------------------
+// CORE LIFECYCLE API
+// ---------------------------------------------------------------------------
+
+DVSM_Handle* dvsm_create(const DVSM_Params* params);
+void dvsm_destroy(DVSM_Handle* handle);
+
+// Single frame tick (240Hz-safe contract)
+unsigned int dvsm_step(DVSM_Handle* handle, unsigned int sigma);
+
+// ---------------------------------------------------------------------------
+// COMPUTE PRIMITIVES
+// ---------------------------------------------------------------------------
+
+// spectral residue (CPU/GPU shared semantic)
+float dvsm_residue(const float* a, const float* b, unsigned int len);
+
+// selection gate (DLSS-style accept/reject)
+unsigned int dvsm_gate(
+    float ghost,
+    float beta,
+    float epsilon,
+    float u_max,
+    float z_norm
+);
+
+// ---------------------------------------------------------------------------
+// GPU INTEROP HOOKS
+// ---------------------------------------------------------------------------
+
+typedef struct DVSM_GPUBuffer {
+    void* ptr;
+    unsigned int size;
+} DVSM_GPUBuffer;
+
+void dvsm_gpu_upload(DVSM_Handle* h, DVSM_GPUBuffer buffer);
+void dvsm_gpu_execute(DVSM_Handle* h);
+
+// ---------------------------------------------------------------------------
+
+#ifdef __cplusplus
+}
+#endif
+
+// ============================================================================
+// DVSM VULKAN COMPUTE SHADER (selection kernel)
+// ============================================================================
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0) buffer ZBuffer {
+    float z[];
+};
+
+layout(set = 0, binding = 1) buffer SBuffer {
+    float s[];
+};
+
+layout(set = 0, binding = 2) buffer OutBuffer {
+    float ghost[];
+};
+
+uniform float beta;
+uniform float epsilon;
+uniform float u_max;
+
+void main() {
+
+    uint i = gl_GlobalInvocationID.x;
+
+    float diff = z[i] - s[i];
+    float residue = diff * diff;
+
+    float g = residue * beta;
+
+    float z_norm = sqrt(residue);
+
+    float alive = (g > epsilon && z_norm < u_max) ? 1.0 : 0.0;
+
+    ghost[i] = alive * g;
+}
+
+// ============================================================================
+// DVSM METAL COMPUTE KERNEL
+// ============================================================================
+
+#include <metal_stdlib>
+using namespace metal;
+
+kernel void dvsm_kernel(
+    device float* z        [[buffer(0)]],
+    device float* s        [[buffer(1)]],
+    device float* ghost    [[buffer(2)]],
+    constant float& beta   [[buffer(3)]],
+    constant float& eps    [[buffer(4)]],
+    constant float& umax   [[buffer(5)]],
+    uint id [[thread_position_in_grid]]
+) {
+    float diff = z[id] - s[id];
+    float residue = diff * diff;
+
+    float g = residue * beta;
+    float z_norm = sqrt(residue);
+
+    ghost[id] = (g > eps && z_norm < umax) ? g : 0.0;
+}
+
+// ============================================================================
+// DVSM DLSS ADAPTER LAYER (FRAME RECONSTRUCTION SHIM)
+// ============================================================================
+
+pub struct DVSLAdapter;
+
+impl DVSLAdapter {
+
+    /// Input: motion-aligned ghost field
+    /// Output: frame confidence weight (DLSS-style)
+    #[inline(always)]
+    pub fn confidence(ghost: f32, motion_vector_error: f32) -> f32 {
+        let stability = 1.0 / (1.0 + motion_vector_error);
+        ghost * stability
+    }
+
+    /// Frame acceptance (DLSS replacement gate)
+    #[inline(always)]
+    pub fn accept_frame(conf: f32, threshold: f32) -> bool {
+        conf > threshold
+    }
+
+    /// Temporal blend factor (reconstruction weight)
+    #[inline(always)]
+    pub fn blend(conf: f32) -> f32 {
+        conf.clamp(0.0, 1.0)
+    }
+}
+
+// ============================================================================
+// DVSM.cs UNITY WRAPPER (Managed C# API)
+// ============================================================================
+
+using System;
+using System.Runtime.InteropServices;
+
+public static class DVSM
+{
+    // ------------------------------------------------------------------------
+    // Native DLL Binding
+    // ------------------------------------------------------------------------
+
+    private const string DLL = "dvsm_core";
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DVSM_Handle { public IntPtr ptr; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DVSM_Params
+    {
+        public float beta;
+        public float epsilon;
+        public float u_max;
+    }
+
+    // ------------------------------------------------------------------------
+    // CORE API
+    // ------------------------------------------------------------------------
+
+    [DllImport(DLL)] public static extern IntPtr dvsm_create(ref DVSM_Params p);
+    [DllImport(DLL)] public static extern void dvsm_destroy(IntPtr h);
+    [DllImport(DLL)] public static extern uint dvsm_step(IntPtr h, uint sigma);
+
+    [DllImport(DLL)] public static extern float dvsm_residue(
+        float[] a,
+        float[] b,
+        uint len
+    );
+
+    [DllImport(DLL)] public static extern uint dvsm_gate(
+        float ghost,
+        float beta,
+        float epsilon,
+        float u_max,
+        float z_norm
+    );
+}
+
+// ============================================================================
+// DVSM FRAME GRAPH HOOK (Unity SRP / URP / HDRP compatible)
+// ============================================================================
+
+using UnityEngine;
+
+public class DVSMFrameDriver : MonoBehaviour
+{
+    private IntPtr handle;
+
+    public DVSM.DVSM_Params paramsDVSM;
+
+    void Start()
+    {
+        handle = DVSM.dvsm_create(ref paramsDVSM);
+    }
+
+    void Update()
+    {
+        uint sigma = (uint)Time.frameCount;
+
+        DVSM.dvsm_step(handle, sigma);
+    }
+
+    void OnDestroy()
+    {
+        DVSM.dvsm_destroy(handle);
+    }
+}
+
+// ============================================================================
+// DVSMRuntime.h UNREAL ENGINE PLUGIN INTERFACE
+// ============================================================================
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "DVSMRuntime.generated.h"
+
+UCLASS()
+class UDvsmRuntime : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+
+public:
+
+    UFUNCTION(BlueprintCallable, Category="DVSM")
+    static void Init(float beta, float epsilon, float u_max);
+
+    UFUNCTION(BlueprintCallable, Category="DVSM")
+    static void Step(int32 sigma);
+
+    UFUNCTION(BlueprintCallable, Category="DVSM")
+    static float Residue(const TArray<float>& A, const TArray<float>& B);
+
+    UFUNCTION(BlueprintCallable, Category="DVSM")
+    static bool Gate(float ghost, float beta, float epsilon, float u_max, float z_norm);
+};
+
+// ============================================================================
+// DVSMRuntime.cpp UNREAL ENGINE PLUGIN IMPLEMENTATION
+// ============================================================================
+
+#include "DVSMRuntime.h"
+
+extern "C" {
+    void* dvsm_create(void*);
+    void dvsm_destroy(void*);
+    unsigned int dvsm_step(void*, unsigned int);
+    float dvsm_residue(const float*, const float*, unsigned int);
+    unsigned int dvsm_gate(float, float, float, float, float);
+}
+
+static void* Handle = nullptr;
+
+void UDvsmRuntime::Init(float beta, float epsilon, float u_max)
+{
+    struct {
+        float beta;
+        float epsilon;
+        float u_max;
+    } params = { beta, epsilon, u_max };
+
+    Handle = dvsm_create(&params);
+}
+
+void UDvsmRuntime::Step(int32 sigma)
+{
+    if (!Handle) return;
+    dvsm_step(Handle, (unsigned int)sigma);
+}
+
+float UDvsmRuntime::Residue(const TArray<float>& A, const TArray<float>& B)
+{
+    if (A.Num() == 0 || B.Num() == 0) return 0.0f;
+
+    return dvsm_residue(A.GetData(), B.GetData(), A.Num());
+}
+
+bool UDvsmRuntime::Gate(float ghost, float beta, float epsilon, float u_max, float z_norm)
+{
+    return dvsm_gate(ghost, beta, epsilon, u_max, z_norm) != 0;
+}
+
+Blueprint Nodes:
+Init DVSM
+Step DVSM
+Compute Residue
+Evaluate Gate
+
+Typical Blueprint Flow:
+
+BeginPlay
+   → Init DVSM
+
+Tick
+   → Step DVSM
+   → Compute Residue (Render Buffers)
+   → Gate Frame Acceptance
+
+   // PSEUDOCODE FRAME GRAPH PASS
+
+AddRenderPass("DVSM_GhostField",
+    Inputs: ZBuffer, SBuffer,
+    Outputs: GhostBuffer,
+    Execute: DVSM_GPU_ComputeShader
+);
+
+// ScriptableRenderPass
+cmd.DispatchCompute(dvsmComputeShader, kernel, x, 1, 1);
+
+// ============================================================================
+// DVSM-π+++ / DQSDv2 · ENGINE INTEGRATION NOTE BLOCK
+// File: dvsm_compute_residue_note.rs
+//
+// PURPOSE:
+//   Defines the GPU-side interpretation contract for:
+//     → Compute Residue (Render Buffers)
+//
+// CONTEXT:
+//   This block is NOT a renderer.
+//   It is a constraint mapping between spectral residue fields (Z_t)
+//   and GPU frame buffers (color / motion / history).
+//
+//   Used in:
+//     - Vulkan compute pipelines
+//     - Metal compute kernels
+//     - DirectX compute shaders
+//     - DLSS / FSR / TSR-like temporal upscaling adapters
+//     - Unity / Unreal frame graph injection points
+// ============================================================================
+
+/// --------------------------------------------------------------------------
+/// COMPUTE RESIDUE CONTRACT
+/// --------------------------------------------------------------------------
+///
+/// Residue definition:
+///   R_t = || Z_t - S_t ||
+///
+/// Interpretation:
+///   - Z_t = forward spectral field (current frame hypothesis)
+///   - S_t = temporal memory buffer (history accumulation)
+///   - R_t = non-normal energy leftover after projection mismatch
+///
+/// GPU mapping:
+///   R_t is written into:
+///     - motion vectors buffer (aux channel)
+///     - temporal accumulation buffer (history ping-pong)
+///     - variance / uncertainty buffer (DLSS-like confidence field)
+///
+pub struct ComputeResidueContract;
+
+impl ComputeResidueContract {
+
+    /// Scalar form (CPU-side fallback / debug path)
+    #[inline(always)]
+    pub fn residue_scalar(z: &[f32], s: &[f32]) -> f32 {
+        let mut acc = 0.0f32;
+
+        let len = z.len().min(s.len());
+        let mut i = 0;
+
+        while i < len {
+            let d = z[i] - s[i];
+            acc += d * d;
+            i += 1;
+        }
+
+        acc.sqrt()
+    }
+
+    /// GPU binding semantics (conceptual only)
+    ///
+    /// NOTE:
+    /// This does NOT execute on CPU.
+    /// It defines how compute shaders MUST interpret buffers.
+    pub fn gpu_binding_contract() -> &'static str {
+        r#"
+        layout(set = 0, binding = 0) buffer Z_t { float z[]; };
+        layout(set = 0, binding = 1) buffer S_t { float s[]; };
+        layout(set = 0, binding = 2) buffer R_t { float r[]; };
+
+        r[i] = sqrt((z[i] - s[i]) * (z[i] - s[i]));
+        "#
+    }
+
+    /// DLSS / temporal upscaling adapter rule:
+    ///
+    /// Residue controls reconstruction confidence:
+    ///   high R_t → low reuse of history
+    ///   low R_t  → strong temporal accumulation
+    #[inline(always)]
+    pub fn temporal_confidence(residue: f32) -> f32 {
+        1.0 / (1.0 + residue)
+    }
+}
+
+// ============================================================================
+// RUNTIME NOTE:
+// ----------------------------------------------------------------------------
+// This contract is intentionally side-effect free.
+//
+// It does NOT:
+//   - modify GPU state
+//   - allocate buffers
+//   - perform rendering
+//
+// It ONLY defines how compute pipelines interpret spectral mismatch.
+// ============================================================================
+
+// ============================================================================
+// INTEGRATION POINTS
+// ----------------------------------------------------------------------------
+//
+// Vulkan:
+//   → compute shader binding 0/1/2
+//   → storage buffer ping-pong per frame
+//
+// Metal:
+//   → MTLBuffer triplet (Z, S, R)
+//   → compute kernel residue pass
+//
+// Unreal Engine:
+//   → RDG (Render Dependency Graph) pass injection
+//   → temporal upscaler hook
+//
+// Unity:
+//   → ScriptableRenderPass injection
+//   → CommandBuffer compute dispatch
+//
+// DLSS-like systems:
+//   → R_t becomes "uncertainty / rejection mask"
+// ============================================================================
+
+// ============================================================================
+// END NOTE BLOCK
+// ============================================================================
