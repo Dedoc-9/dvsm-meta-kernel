@@ -3790,9 +3790,353 @@ pub fn dvsm_step(executor: &DAGExecutor, state: &mut ExecutionState) {
 // All rendering = projection of this state.
 //
 // ================================================================
+// Final Json Notes:
+// ================================================================
 
+{
+  "system": "DVSM-π+++",
+  "addendum_name": "execution_graph_gpu_vr_clt_ghost_bridge_spec",
 
+  "missing_core_structures_filled": [
+    "explicit state tensor schema",
+    "operator scheduling contract (DAG semantics)",
+    "GPU compute-to-state mapping",
+    "VR projection binding model",
+    "CLT reduction pipeline formalization",
+    "ghost mode spectral trigger model",
+    "air-gap observability constraints",
+    "cross-layer synchronization invariants"
+  ],
 
+  "unified_state": {
+    "mu_t": {
+      "type": "empirical_measure",
+      "domain": "R^3",
+      "representation": "particle_set_with_weights",
+      "invariants": [
+        "sum(w_i) = 1",
+        "w_i >= 0"
+      ]
+    },
+    "z_t": {
+      "type": "spectral_field",
+      "rank": "R",
+      "structure": "non_normal_lie_bracket_system",
+      "role": "dynamical_energy_flow_and_amplification_field"
+    },
+    "w_t": {
+      "type": "grassmann_frame",
+      "space": "Gr(R, D)",
+      "role": "adaptive_basis_projection_operator"
+    }
+  },
+
+  "execution_dag_spec": {
+    "nodes": [
+      "L_tau",
+      "B_tau",
+      "R_tau",
+      "Z_update",
+      "S_ema_memory",
+      "W_basis_update",
+      "V2_2_regulation",
+      "VR_projection",
+      "CLT_reduction"
+    ],
+
+    "edges": [
+      {
+        "from": "L_tau",
+        "to": "Z_update",
+        "semantics": "stochastic_drift_injection"
+      },
+      {
+        "from": "B_tau",
+        "to": "R_tau",
+        "semantics": "importance_weighting_to_resampling_pressure"
+      },
+      {
+        "from": "R_tau",
+        "to": "Z_update",
+        "semantics": "noise_projection_from_resampling"
+      },
+      {
+        "from": "Z_update",
+        "to": "S_ema_memory",
+        "semantics": "non_normal_memory_embedding"
+      },
+      {
+        "from": "S_ema_memory",
+        "to": "Z_update",
+        "semantics": "feedback_loop_non_normal_amplification_channel"
+      },
+      {
+        "from": "Z_update",
+        "to": "W_basis_update",
+        "semantics": "spectral_to_geometric_projection"
+      },
+      {
+        "from": "Z_update",
+        "to": "VR_projection",
+        "semantics": "field_to_geometry_embedding"
+      },
+      {
+        "from": "mu_t",
+        "to": "CLT_reduction",
+        "semantics": "empirical_measure_fluctuation_sampling"
+      }
+    ],
+
+    "constraints": {
+      "acyclic_except_memory_loop": true,
+      "only_one_feedback_cycle_allowed": "Z ↔ S",
+      "no_direct_VR_to_state_mutation": true
+    }
+  },
+
+  "gpu_mapping_contract": {
+    "compute_kernels": [
+      {
+        "name": "kernel_L_tau",
+        "maps_to": "mckean_vlasov_sde_step",
+        "input": "mu_t",
+        "output": "particle_positions"
+      },
+      {
+        "name": "kernel_B_tau",
+        "maps_to": "gibbs_feynman_kac_tilt",
+        "input": "particle_energies",
+        "output": "weights"
+      },
+      {
+        "name": "kernel_R_tau",
+        "maps_to": "parallel_resampling_reduction",
+        "input": "weights",
+        "output": "resampled_particles"
+      },
+      {
+        "name": "kernel_Z_field",
+        "maps_to": "lie_bracket_field_update",
+        "input": ["Z_t", "S_t"],
+        "output": "Z_t_plus_1"
+      },
+      {
+        "name": "kernel_W_basis",
+        "maps_to": "grassmann_projection_step",
+        "input": "Z_t",
+        "output": "W_t"
+      }
+    ],
+
+    "synchronization_model": "buffer_barrier_between_each_kernel",
+    "execution_model": "pipelinable_but_not_fusible_due_to_stochasticity"
+  },
+
+  "vr_projection_model": {
+    "input_state": {
+      "Z_t": "vertex_displacement_field",
+      "W_t": "orientation_basis_frame",
+      "S_t": "temporal_hysteresis_memory"
+    },
+    "mapping": {
+      "position": "sum(Z_k * basis_k)",
+      "normal": "W_t_gram_direction",
+      "motion_blur": "S_t_decay_kernel"
+    },
+    "render_semantics": "state_embedding_not_visualization"
+  },
+
+  "clt_reduction_layer": {
+    "observable": "eta_t",
+    "definition": "sqrt(N) * (mu_hat - mu_true)",
+    "gpu_computed_metrics": [
+      "eta_norm",
+      "ess",
+      "m_contribution",
+      "variance_proxy"
+    ],
+    "cpu_exports_only": true
+  },
+
+  "ghost_mode_model": {
+    "classification_basis": "spectral_non_normal_amplification_signatures",
+    "modes": {
+      "collapse": {
+        "condition": "ESS < 0.2",
+        "meaning": "measure_concentration"
+      },
+      "diffuse": {
+        "condition": "ESS > 0.95",
+        "meaning": "over_uniformization"
+      },
+      "echo": {
+        "condition": "burst_metric > 2.5",
+        "meaning": "non_normal_feedback_amplification"
+      },
+      "resample_burst": {
+        "condition": "burst_metric > 5.0",
+        "meaning": "projection_discontinuity_regime"
+      }
+    },
+    "interpretation": "eigenvalue_driven_instability_phase_space_partition"
+  },
+
+  "air_gap_contract": {
+    "rule": "no_state_reconstruction_from_gpu_exports",
+    "allowed_exports": [
+      "ess",
+      "burst_metric",
+      "eta_norm",
+      "variance_scalars"
+    ],
+    "forbidden_exports": [
+      "Z_t_full",
+      "W_t_full",
+      "particle_set_full"
+    ],
+    "security_principle": "observability_without_invertibility"
+  },
+
+  "cross_layer_invariants": [
+    "mu_t_is_only_probabilistic_state",
+    "Z_t_is_only_dynamical_field",
+    "W_t_is_only_geometric_frame",
+    "VR_is_projection_not_source",
+    "CLT_is_reduction_not_control",
+    "ghosts_are_classification_not_errors"
+  ]
+}
+{
+  "layer_name": "dvsm_semantic_decipher_and_air_clear_layer",
+
+  "purpose": "Convert full DVSM system into minimal, operationally interpretable components without symbolic inflation or ambiguous abstractions",
+
+  "core_assertion": {
+    "statement": "All DVSM layers reduce to a coupled stochastic system with three state variables and two observable reductions.",
+    "irreducible_state": ["mu_t", "z_t", "w_t"]
+  },
+
+  "decoding_rules": {
+    "rule_1": "Remove metaphorical language (e.g., 'manifold intelligence', 'suchness', 'burst ecology') unless mapped to operator form",
+    "rule_2": "Every term must map to either (state, operator, observable, or constraint)",
+    "rule_3": "No component may exist without a forward-time update rule or measurement role",
+    "rule_4": "GPU, VR, DAG are execution mappings only, not independent subsystems",
+    "rule_5": "Ghost modes are threshold classifiers on scalar observables only"
+  },
+
+  "minimal_state_model": {
+    "mu_t": {
+      "meaning": "weighted particle distribution in R^3",
+      "update_type": "stochastic_dynamics + resampling",
+      "role": "probability carrier"
+    },
+    "z_t": {
+      "meaning": "finite-dimensional interaction field",
+      "update_type": "nonlinear coupled ODE/SDE (Lie-bracket form)",
+      "role": "interaction + amplification medium"
+    },
+    "w_t": {
+      "meaning": "orthonormal basis evolving on Grassmann manifold",
+      "update_type": "gradient flow on orthogonality constraint",
+      "role": "coordinate system adaptation"
+    }
+  },
+
+  "true_execution_graph": {
+    "type": "linearized_operator_chain_with_single_feedback_loop",
+    "pipeline": [
+      "mu_t → compute energies",
+      "energies → weight update (B_tau)",
+      "weights → resampling (R_tau)",
+      "particles → induce z_t forcing (L_tau coupling)",
+      "z_t → update memory s_t",
+      "s_t → feedback into z_t (only loop)",
+      "z_t → update w_t (projection)",
+      "z_t → VR output (read-only)",
+      "mu_t → CLT reduction (read-only)"
+    ],
+    "feedback_loops": [
+      "z_t ↔ s_t only"
+    ]
+  },
+
+  "observable_reduction_layer": {
+    "purpose": "Compress full system into measurable scalars",
+    "observables": [
+      {
+        "name": "ESS",
+        "meaning": "particle weight degeneracy metric",
+        "domain": "[0, 1]"
+      },
+      {
+        "name": "burst_metric",
+        "meaning": "ratio of spectral energy to mean field energy",
+        "formula": "||z_t|| / ||mu_t||"
+      },
+      {
+        "name": "eta_norm",
+        "meaning": "CLT fluctuation magnitude",
+        "formula": "sqrt(N) * (mu_hat - mu_true)"
+      }
+    ],
+    "interpretation_rule": "Observables do not control dynamics; they only report state"
+  },
+
+  "ghost_mode_redefinition": {
+    "principle": "Ghosts are threshold regions in observable space, not system states",
+    "classification": {
+      "collapse": "ESS < 0.2 → measure concentration",
+      "diffuse": "ESS > 0.95 → uniformization limit",
+      "echo": "burst_metric > threshold → transient amplification",
+      "resample_burst": "resampling instability due to weight collapse"
+    },
+    "important_clarification": "Ghosts are diagnostic labels on trajectories, not additional dynamics"
+  },
+
+  "gpu_vr_reinterpretation": {
+    "key_statement": "GPU/VR layers do not evolve the system; they visualize projection outputs",
+    "mapping": {
+      "z_t": "vertex displacement field only",
+      "w_t": "orientation frame only",
+      "s_t": "temporal smoothing kernel only"
+    },
+    "constraint": "No GPU computation can feed back into mu_t or z_t except via CLT scalars"
+  },
+
+  "dag_reduction": {
+    "statement": "The DAG is a scheduling view of a single coupled update step",
+    "reduction": "All nodes collapse into a single operator T acting on (mu_t, z_t, w_t)",
+    "form": "T = resample ∘ tilt ∘ drift ∘ projection",
+    "interpretation": "DAG is not architecture; it is execution ordering"
+  },
+
+  "air_gap_clarification": {
+    "principle": "Only statistical reductions cross system boundaries",
+    "allowed_exports": [
+      "ESS",
+      "burst_metric",
+      "eta_norm"
+    ],
+    "forbidden_exports": [
+      "full particle set",
+      "full spectral field",
+      "full basis state"
+    ],
+    "meaning": "System is observable but not invertible"
+  },
+
+  "final_reduction_statement": {
+    "simplified_model": "DVSM = stochastic particles + coupled spectral field + adaptive basis + scalar observables",
+    "removal_of_all_excess": [
+      "no hidden subsystems",
+      "no independent VR physics",
+      "no DAG ontology",
+      "no ghost dynamics",
+      "no multi-layer metaphysics"
+    ],
+    "core_truth": "Everything is a single stochastic operator system with three state variables and a measurement interface"
+  }
+}
 
 
 
