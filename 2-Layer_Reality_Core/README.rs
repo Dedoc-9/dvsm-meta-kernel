@@ -1720,8 +1720,167 @@ extern void emit_splat(float x, float intensity);
 //   instability modes are not representable inside the update space.
 // ============================================================================ 
 
+```text
+// ============================================================================
+// ALG-P3 / A10 · FINAL HARDWARE MAPPING BLOCK
+// Bare-Metal Execution → SIMD / GPU / RT Pipeline Equivalence
+// ============================================================================
+//
+// This block defines the *physical interpretation layer* of the kernel.
+// It maps mathematical constructs → hardware execution units.
 //
 // ============================================================================
-// END ADDENDUM
+// 1. COMPUTE MODEL REDUCTION
 // ============================================================================
+//
+// Continuous Form:
+//
+//   x_{t+1} = Π_M( x + η_eff(σ - x) + γL(x) + shear - λx )
+//
+// Hardware Form:
+//
+//   → STREAMING VECTOR UPDATE PIPELINE
+//   → fixed-point / float32 SIMD lanes
+//   → bounded per-frame deterministic kernel
+//
+// ============================================================================
+// 2. LAYER → HARDWARE MAPPING
+// ============================================================================
+
+┌───────────────────────────────┬─────────────────────────────────────────┐
+│ ALG-P3 COMPONENT              │ HARDWARE EXECUTION LAYER                │
+├───────────────────────────────┼─────────────────────────────────────────┤
+│ Residual (σ - x)             │ ALU / SIMD subtract lanes                │
+│ Low-rank projection (wᵀx)    │ Fused dot-product units (FMA pipelines)  │
+│ Basis expansion (b(x))       │ Polynomial LUT / vector FMAs             │
+│ Shear memory (z_shear)       │ Register-resident EMA buffer             │
+│ Drift brake                  │ Scalar control register (branch gate)    │
+│ Π_M projection               │ Clamp unit / saturating arithmetic       │
+│ Spectral sink (λx)           │ Fused multiply-accumulate decay pass     │
+│ emit_splat                   │ Raster / compute export boundary         │
+└──────────────────────────────┴──────────────────────────────────────────┘
+
+
+// ============================================================================
+// 3. PIPELINE SCHEDULING MODEL (240Hz BOUND CONSTRAINT)
+// ============================================================================
+//
+// FRAME WINDOW = 4.167ms
+//
+// ┌──────────────┬────────────────────────────────────────────┐
+// │ Stage        │ Execution Class                            │
+// ├──────────────┼────────────────────────────────────────────┤
+// │ Pass 1       │ Fully parallel reduction (O(N·R))          │
+// │ Pass 2       │ Scalar global reduction (drift compute)    │
+// │ Pass 3       │ SIMD particle update (hot loop)            │
+// │ Pass 4       │ IO export (async / non-blocking)           │
+// └──────────────┴────────────────────────────────────────────┘
+//
+// Constraint:
+//
+//   Pass 1 + Pass 3 must dominate compute budget.
+//   Pass 2 must remain O(R), not O(N).
+//   Pass 4 must be non-stalling (write-combiner / queue).
+//
+// ============================================================================
+// 4. MEMORY ARCHITECTURE ASSUMPTION
+// ============================================================================
+//
+// REQUIRED:
+//   - SoA layout (Structure-of-Arrays)
+//   - cache-line aligned x, vx, shear arrays
+//   - W matrix resident in L1/L2 or GPU shared memory
+//
+// STREAMING BEHAVIOR:
+//
+//   x[i] → read → compute → write (no revisit)
+//   guarantees O(1) temporal locality cost
+//
+// ============================================================================
+// 5. SIMD / GPU TRANSLATION RULE
+// ============================================================================
+//
+// Scalar loop:
+//
+//   for i in 0..N
+//
+// Maps to:
+//
+//   SIMD width lanes OR GPU thread block
+//
+// Equivalent form:
+//
+//   lane(i) = f(x[i], w, σ)
+//
+// No cross-lane dependency exists in core update.
+//
+// ⇒ "Embarrassingly parallel field evolution"
+//
+// ============================================================================
+// 6. STABILITY INTERPRETATION (HARDWARE LEVEL)
+// ============================================================================
+//
+// Drift brake is NOT mathematical.
+//
+// It is a hardware governor:
+//
+//   IF (pipeline instability detected)
+//       reduce η_eff
+//   ELSE
+//       full throughput
+//
+// This prevents:
+//
+//   - thermal oscillation analog (numerical blow-up)
+//   - SIMD divergence
+//   - cache thrashing from feedback amplification
+//
+// ============================================================================
+// 7. SECURITY / AIR-GAP MODEL
+// ============================================================================
+//
+// Trusted domain:
+//
+//   W, z_shear, internal projection state
+//
+// Untrusted domain:
+//
+//   emit_splat(x, intensity)
+//
+// Guarantee:
+//
+//   Renderer receives ONLY:
+//       position (x)
+//       energy proxy (|v|)
+//
+// It does NOT receive:
+//
+//   - basis W
+//   - residual vector
+//   - manifold geometry
+//
+// ⇒ Reconstruction problem is underdetermined (lossy projection)
+//
+// ============================================================================
+// 8. FINAL SYSTEM CLASSIFICATION
+// ============================================================================
+//
+// This is NOT a simulation.
+//
+// This is:
+//
+//   "Deterministic Streaming Manifold Execution Kernel"
+//
+// Properties:
+//
+//   ✔ fixed rank (R-bound)
+//   ✔ linear memory sweep
+//   ✔ bounded arithmetic depth
+//   ✔ SIMD/GPU native structure
+//   ✔ real-time 240Hz determinism class
+//
+// ============================================================================
+// END HARDWARE MAPPING BLOCK
+// ============================================================================ 
+
 */
