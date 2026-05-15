@@ -655,3 +655,185 @@ impl System {
         let _ = kernel.select(&self.sigma);
     }
 }
+// ============================================================================
+// DVSM — TRACELOG CROSS-INDUSTRY EXPORT FORMAT (FINAL SINGLE FILE)
+// ============================================================================
+//
+// Design goals:
+//   - ABI-stable (C-compatible)
+//   - zero-copy friendly
+//   - domain-agnostic scalar stream
+//   - no semantic embedding
+//   - no feedback into system state
+//
+// Interpretation rule:
+//   TraceLog = ordered scalar emission stream (no ontology attached)
+// ============================================================================
+
+use std::marker::PhantomData;
+
+// ============================================================================
+// PHANTOM DOMAIN (NO STRUCTURAL MEANING)
+// ============================================================================
+
+pub struct Ontic;
+
+// ============================================================================
+// INTERNAL TRACE BUFFER (RUST ONLY)
+// ============================================================================
+
+#[derive(Clone)]
+pub struct TraceLog {
+    /// Scalar emission buffer (internal ownership)
+    pub values: Vec<f64>,
+
+    /// Monotonic frame index (no semantic time assumption)
+    pub frame_id: u64,
+}
+
+// ============================================================================
+// ABI-STABLE EXPORT STRUCTURE
+// ============================================================================
+
+#[repr(C)]
+pub struct TraceLogFFI {
+    /// Pointer to scalar buffer (f64 stream)
+    pub data: *const f64,
+
+    /// Number of valid elements
+    pub len: usize,
+
+    /// Capacity (for reuse / pooling systems)
+    pub capacity: usize,
+
+    /// Frame index (monotonic external ordering)
+    pub frame_id: u64,
+
+    /// External timestamp (optional, system-defined meaning)
+    pub timestamp_ns: u64,
+
+    /// Quality / validity flag (domain-independent)
+    pub quality_flag: u8,
+
+    /// Reserved padding for ABI stability
+    pub _reserved: [u8; 7],
+}
+
+// ============================================================================
+// STREAMING VIEW (OPTIONAL LOW-LATENCY INTERFACE)
+// ============================================================================
+
+#[repr(C)]
+pub struct TraceStreamFFI {
+    pub ptr: *const f64,
+    pub len: usize,
+    pub window_index: u64,
+    pub continuity: f32,
+    pub quality_flag: u8,
+    pub _reserved: [u8; 7],
+}
+
+// ============================================================================
+// CORE CONVERSION API
+// ============================================================================
+
+impl TraceLog {
+
+    /// Export as ABI-safe FFI struct (zero-copy)
+    pub fn as_ffi(&self, timestamp_ns: u64) -> TraceLogFFI {
+        TraceLogFFI {
+            data: self.values.as_ptr(),
+            len: self.values.len(),
+            capacity: self.values.capacity(),
+            frame_id: self.frame_id,
+            timestamp_ns,
+            quality_flag: 0,
+            _reserved: [0; 7],
+        }
+    }
+
+    /// Export streaming view (for pipelines / real-time consumers)
+    pub fn as_stream(&self, window_index: u64, continuity: f32) -> TraceStreamFFI {
+        TraceStreamFFI {
+            ptr: self.values.as_ptr(),
+            len: self.values.len(),
+            window_index,
+            continuity,
+            quality_flag: 0,
+            _reserved: [0; 7],
+        }
+    }
+
+    /// Push scalar emission (no semantic meaning)
+    pub fn push(&mut self, value: f64) {
+        self.values.push(value);
+    }
+
+    /// Create empty trace
+    pub fn new(frame_id: u64) -> Self {
+        Self {
+            values: Vec::new(),
+            frame_id,
+        }
+    }
+}
+
+// ============================================================================
+// DVSM RUNTIME INTERFACE (OPTIONAL HOOK POINT)
+// ============================================================================
+
+pub struct TraceRuntime;
+
+impl TraceRuntime {
+
+    /// Inject scalar emission from system step
+    pub fn emit(trace: &mut TraceLog, value: f64) {
+        trace.push(value);
+    }
+
+    /// Frame advance (no semantic time assumption)
+    pub fn next_frame(trace: &mut TraceLog) {
+        trace.frame_id = trace.frame_id.wrapping_add(1);
+        trace.values.clear();
+    }
+}
+
+// ============================================================================
+// SAFETY / CONSTRAINT NOTES
+// ============================================================================
+//
+// HARD RULES:
+//
+// 1. TraceLog does NOT encode system state
+// 2. TraceLog does NOT enable reconstruction of V
+// 3. TraceLog is not a memory system
+// 4. TraceLog is not a feature vector
+// 5. TraceLog is not an optimization signal
+//
+// It is strictly:
+//   → ordered scalar emission residue
+//
+// ============================================================================
+// ABI COMPATIBILITY GUARANTEE
+// ============================================================================
+//
+// TraceLogFFI is:
+//
+//   - repr(C)
+//   - pointer + length based
+//   - zero ownership transfer
+//   - safe for C / C++ / WASM / GPU interop
+//
+// ============================================================================
+// CROSS-INDUSTRY MAPPING (OUTSIDE CORE SCOPE)
+// ============================================================================
+//
+// Audio: waveform / residual stream
+// RF: spectral deviation stream
+// ML: latent activation trace
+// Robotics: sensor delta stream
+// Finance: tick residual stream
+//
+// NOTE: These mappings are external adapters only.
+//
+// ============================================================================
