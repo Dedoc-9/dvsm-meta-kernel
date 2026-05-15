@@ -2,6 +2,8 @@
 // DVSM FUTURE CONSTRAINT AUDIT KERNEL (TSVF-ALIGNED BINARY API)
 // ============================================================================
 //
+// Author: Daniel J. Dillberg
+//
 // INTRODUCTION
 // ----------------------------------------------------------------------------
 //
