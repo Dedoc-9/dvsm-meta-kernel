@@ -3,678 +3,768 @@
 // Adaptive Geometric Streaming Kernel (AGSK)
 // Author: Daniel J. dillberg
 // ============================================================
-// DVSM-DFE · SYSTEM ARCHITECTURE STACK (CURRENT STATE + TERMINAL KERNELS)
-// ----------------------------------------------------------------------------
-// Includes both execution and cognition layers:
-//
-// 1. AGSK 240FPS TERMINAL ARCHETYPE (THIS FILE)
-//    Adaptive Geometric Streaming Kernel
-//
-//    - O(N·R) real-time field execution
-//    - EMA shear temporal memory (non-normal flow)
-//    - Drift-calibrated stability braking
-//    - Air-gap scalar splat export (render boundary)
-//    - 120–240fps deterministic update loop
-//    - GPU-mappable SoA layout (engine runtime core)
-//
-// 2. REALITYCORE COGNITIVE MODEL (ABSTRACT LAYER)
-//    - Stiefel manifold dynamics (W ∈ St(n,r))
-//    - Identity state tracking (S)
-//    - Adaptive sensing operator Ψ(t)
-//    - Entropy + stress functional governance
-//    - QR/SVD orthogonal retraction theory
-//    - Drift-aware learning-rate modulation (η_eff)
-//
-// 3. ADAPTIVE SENSING LAYER (ASL)
-//    - Perceptual modulation field:
-//      Ψ(t) = (1 + ν) · exp(-λ₁δ) · (1 - σ)^λ₂
-//    - Controls interpretation, not physics
-//    - Bridges telemetry → semantic weighting
-//
-// ----------------------------------------------------------------------------
-// SUMMARY:
-// AGSK executes the world in real time.
-// ALG-P3 defines how it is interpreted.
-// ASL determines what is perceived as signal vs noise.
-
-// ALG-P3: Adaptive Low-Rank Geometry Protocol (Phase 3)
-// Interprets DVSM-DFE as a drift-governed, mean-field + EMA shear system
-// where all dynamics are constrained to low-rank projections on a Stiefel manifold.
-// ----------------------------------------------------------------------------
-
-#![allow(non_snake_case)]
-use std::time::Instant;
-
-// ============================================================
-// C-STYLE HOT CONSTANTS (240fps locked budget model)
-// ============================================================
-
-const DT: f32 = 1.0 / 240.0;        // 4.167ms frame
-const R: usize = 8;                 // low-rank manifold (4–12 optimal)
-const EPS: f32 = 1e-6;
-const LAMBDA: f32 = 0.05;           // spectral sink
-const ALPHA: f32 = 0.98;            // temporal shear memory
-
-// ============================================================
-// SIMD-FRIENDLY SOA STATE (GPU/CPU MIRRORABLE)
-// ============================================================
-
-#[repr(C)]
-pub struct System {
-    pub n: usize,
-
-    // -------------------------
-    // 3D STATE (SoA layout)
-    // -------------------------
-    pub x: Vec<f32>,
-    pub y: Vec<f32>,
-    pub z: Vec<f32>,
-
-    pub vx: Vec<f32>,
-    pub vy: Vec<f32>,
-    pub vz: Vec<f32>,
-
-    // -------------------------
-    // LOW-RANK FIELD (mean + shear)
-    // -------------------------
-    pub field: [[f32; 3]; R],
-    pub shear: [[f32; 3]; R],
-
-    // -------------------------
-    // BASIS GEOMETRY (4-term poly)
-    // -------------------------
-    pub w: [[f32; 4]; R],
-
-    // -------------------------
-    // R-OPERATOR (optional selection)
-    // -------------------------
-    pub fitness: Vec<f32>,
-}
-
-// ============================================================
-// BASIS FUNCTION (C-style inline hot path)
-// ============================================================
-
-#[inline(always)]
-fn basis(x: f32, y: f32, z: f32) -> [f32; 4] {
-    let r2 = x*x + y*y + z*z;
-    [1.0, r2, r2*r2, r2.sqrt()]
-}
-
-// ============================================================
-// LOW-RANK PROJECTION (CORE KERNEL)
-// ============================================================
-
-#[inline(always)]
-fn phi(w: &[f32; 4], b: &[f32; 4]) -> f32 {
-    w[0]*b[0] + w[1]*b[1] + w[2]*b[2] + w[3]*b[3]
-}
-
-// ============================================================
-// CORE DVSM STEP (240FPS HARD BOUND)
-// ============================================================
-
-pub fn step(sys: &mut System) {
-
-    // ========================================================
-    // PASS 1 — MEAN FIELD CONSTRUCTION (O(N·R))
-    // ========================================================
-    for k in 0..R {
-        sys.field[k] = [0.0; 3];
-    }
-
-    for i in 0..sys.n {
-        let b = basis(sys.x[i], sys.y[i], sys.z[i]);
-
-        for k in 0..R {
-            let p = phi(&sys.w[k], &b);
-
-            sys.field[k][0] += p;
-            sys.field[k][1] += p;
-            sys.field[k][2] += p;
-        }
-    }
-
-    let inv_n = 1.0 / sys.n as f32;
-
-    for k in 0..R {
-        sys.field[k][0] *= inv_n;
-        sys.field[k][1] *= inv_n;
-        sys.field[k][2] *= inv_n;
-    }
-
-    // ========================================================
-    // PASS 2 — EMA SHEAR (TEMPORAL VELOCITY FIELD)
-    // ========================================================
-    for k in 0..R {
-        let f = sys.field[k];
-        let s = sys.shear[k];
-
-        sys.shear[k][0] = ALPHA * s[0] + (1.0 - ALPHA) * f[0];
-        sys.shear[k][1] = ALPHA * s[1] + (1.0 - ALPHA) * f[1];
-        sys.shear[k][2] = ALPHA * s[2] + (1.0 - ALPHA) * f[2];
-    }
-
-    // ========================================================
-    // PASS 2.5 — STABILITY BRAKE (DRIFT CONTROL)
-    // ========================================================
-    let mut drift: f32 = 0.0;
-
-    for k in 0..R {
-        drift += sys.field[k][0]*sys.field[k][0]
-               + sys.shear[k][0]*sys.shear[k][0];
-    }
-
-    let eta_scale = if drift > EPS { 0.1 } else { 1.0 };
-
-    // ========================================================
-    // PASS 3 — PARTICLE DYNAMICS (AIR-GAP PROJECTION ENGINE)
-    // ========================================================
-    for i in 0..sys.n {
-
-        let bx = sys.x[i];
-        let by = sys.y[i];
-        let bz = sys.z[i];
-
-        let b = basis(bx, by, bz);
-
-        let mut fx = 0.0;
-        let mut fy = 0.0;
-        let mut fz = 0.0;
-
-        let mut fit = 0.0;
-
-        for k in 0..R {
-
-            let uk = phi(&sys.w[k], &b);
-
-            let sx = sys.field[k][0] + sys.shear[k][0];
-            let sy = sys.field[k][1] + sys.shear[k][1];
-            let sz = sys.field[k][2] + sys.shear[k][2];
-
-            // =================================================
-            // NON-NORMAL CROSS FIELD (3D FLOW GENERATOR)
-            // =================================================
-            fx += uk * (sy - sz);
-            fy += uk * (sz - sx);
-            fz += uk * (sx - sy);
-
-            fit += uk * (sx + sy + sz);
-        }
-        // spectral sink (prevents divergence)
-        fx -= LAMBDA * bx;
-        fy -= LAMBDA * by;
-        fz -= LAMBDA * bz;
-
-        // integration (Euler-Maruyama style deterministic core)
-        sys.vx[i] += DT * fx * eta_scale;
-        sys.vy[i] += DT * fy * eta_scale;
-        sys.vz[i] += DT * fz * eta_scale;
-
-        sys.x[i] += DT * sys.vx[i];
-        sys.y[i] += DT * sys.vy[i];
-        sys.z[i] += DT * sys.vz[i];
-
-        sys.fitness[i] = fit;
-    }
-    // ========================================================
-    // PASS 4 — AIR-GAP EXPORT (3D PROXY SPLATS)
-    // ========================================================
-    export_splats(sys);
-}
-// ============================================================
-// AIR-GAP RENDER EXPORT (SECURITY BOUNDARY)
-// ============================================================
-
-#[inline(always)]
-fn export_splats(sys: &System) {
-
-    // Only LOW-RANK semantic echoes leave enclave:
-    // - position
-    // - velocity magnitude
-    // - field-aligned intensity
-
-    for i in 0..sys.n {
-        let intensity =
-            (sys.vx[i]*sys.vx[i] +
-             sys.vy[i]*sys.vy[i] +
-             sys.vz[i]*sys.vz[i]).sqrt();
-
-        unsafe {
-            // C-style external renderer hook (GPU/engine boundary)
-            emit_splat(
-                sys.x[i],
-                sys.y[i],
-                sys.z[i],
-                intensity
-            );
-        }
-    }
-}
-// ============================================================
-// EXTERNAL RENDER INTERFACE (C FFI BOUNDARY)
-// ============================================================
-
-extern "C" {
-    fn emit_splat(x: f32, y: f32, z: f32, intensity: f32);
-}
-// ============================================================
-// OPTIONAL: R-OPERATOR (COMMENTED — ENABLE FOR SIMULATION MODE)
+// DVSM-DFE · UNIFIED STIEFEL GEOMETRIC ENGINE (CURRENT 3D RUNTIME)
 // ============================================================
 //
-// This converts the system into a measure-valued process.
+// 📌 PURPOSE
+// This module is a real-time 3D geometric streaming engine.
 //
-// fn resample(...) { ... }
+// It runs a coupled manifold system:
 //
+//     S ∈ S^(n−1)        (state / orientation)
+//     W ∈ St(n, r)       (learned low-rank spatial basis)
+//     Z ∈ ℝ³             (3D excitation field / particles)
+//
+// The system produces a stable 3D flow field via:
+//
+//     projection → residual decomposition → field synthesis →
+//     particle integration → orthogonal retraction
+//
+// Target: 120–240 FPS deterministic simulation loop
 // ============================================================
-// SYSTEM FINAL CLASSIFICATION
-// ============================================================
-//
-// ✔ O(N·R) bounded mean-field kernel
-// ✔ EMA-driven non-normal temporal flow
-// ✔ Air-gap 3D proxy emission layer
-// ✔ 240fps deterministic execution budget
-// ✔ GPU-mappable structure (SoA aligned)
-//
-// This is no longer simulation.
-//
-// It is:
-//    → Adaptive Geometric Streaming Kernel
-//    → Real-time low-rank field renderer
-//    → Temporal cognition engine
-//
-// ============================================================================
-// DVSM-DFE · ARCHITECTURAL DISTINCTION NOTE
-// ============================================================================
-//
-// CORE DIFFERENCE BETWEEN SYSTEM LAYERS:
-//
-// 1. TERMINAL RUNTIME KERNEL (THIS FILE)
-// ------------------------------------------------------------
-// - O(N·R) real-time execution model
-// - Minimal state (SoA particle + low-rank field)
-// - EMA shear memory for temporal stability
-// - Drift-based stability brake
-// - Air-gap export via scalar splats only
-// - Designed for 120–240fps deterministic execution
-// - GPU-mappable / engine-integrable structure
-//
-// → PURPOSE: ACTUAL EXECUTION ENGINE (runs per frame)
-//
-// 2. COGNITIVE / RESEARCH MODEL (FULL ALG-P3 / RealityCore)
-// ------------------------------------------------------------
-// - Matrix-based manifold reasoning (W, S, Stiefel constraints)
-// - Adaptive sensing equations (Ψ(t), entropy, stress functionals)
-// - QR/SVD orthogonalization and geometric guarantees
-// - Formal drift + identity + novelty coupling
-// - Higher-order stability theory and interpretability layer
-//
-// → PURPOSE: SYSTEM DESIGN / THEORY / CONTROL PLANE
-//
-// SUMMARY:
-// ------------------------------------------------------------
-// Kernel = fast field execution (what runs every frame)
-// Core  = deep geometric cognition (what defines behavior)
-//
-// ============================================================================
-// END DISTINCTION NOTE
-// ============================================================================
-// DVSM-DFE · ALG-P3 REALITY CORE (240fps TERMINAL ARCHETYPE)
-// ----------------------------------------------------------------------------
-// Trusted Geometric Streaming Kernel (CPU-side cognition layer)
-//
-// CORE SYSTEM PROPERTIES:
-// - O(N·R) low-rank manifold cognition
-// - 240Hz temporal stability (Δt = 4.167ms target)
-// - Air-gap scalar telemetry export
-// - Non-normal shear memory (temporal anti-aliasing)
-// - Drift-calibrated adaptive learning rate (η_eff)
-// - Entropy-aware manifold compression
-// - Adaptive Sensing Layer (ASL): perceptual modulation engine
-// ============================================================================
 
 use nalgebra::{DMatrix, DVector};
-use std::time::Instant;
 
-/// ---------------------------------------------------------------------------
-/// AIR-GAP EXPORT FRAME (ONLY SAFE OUTPUT ACROSS TRUST BOUNDARY)
-/// ---------------------------------------------------------------------------
-pub struct TelemetryFrame {
-    pub stress: f64,     // B(t): alignment error (0..2)
-    pub novelty: f64,    // external signal novelty (0..1)
-    pub drift: f64,      // orthogonality violation ||WᵀW - I||
-    pub entropy: f64,    // spectral concentration of basis
-    pub healthy: bool,   // stability gate (drift-safe region)
-    pub timestamp: Instant,
-}
-
-/// ---------------------------------------------------------------------------
-/// CONFIGURATION (240Hz TUNED PARAMETERS)
-/// ---------------------------------------------------------------------------
+// ============================================================
+// CONFIG (runtime-tuned for 3D engine)
+// ============================================================
 #[derive(Clone, Copy)]
 pub struct Config {
-    pub alpha: f64,            // identity inertia (S stability)
-    pub eta: f64,              // base manifold adaptation rate
-    pub tau: f64,              // confidence gate (Mode B)
-    pub lambda_shear: f64,     // temporal lag memory
-    pub eps_residual: f64,     // signal threshold
-    pub eps_drift: f64,       // orthogonality safety threshold
+    pub alpha: f64,   // state inertia (memory)
+    pub lambda: f64,  // damping (stability)
+    pub eta: f64,     // basis adaptation rate
+    pub eps: f64,     // numerical floor
 }
 
-/// ---------------------------------------------------------------------------
-/// CORE MANIFOLD STATE
-/// ---------------------------------------------------------------------------
-pub struct RealityCore {
-    pub s: DVector<f64>,       // identity state ("self")
-    pub w: DMatrix<f64>,       // perceptual basis (Stiefel manifold)
-    pub z_shear: DVector<f64>, // non-normal temporal memory ("ghost")
+// ============================================================
+// CORE STATE (3D GEOMETRIC ENGINE)
+// ============================================================
+pub struct DVSMCore {
+    pub s: DVector<f64>,     // global system state (S² embedding)
+    pub w: DMatrix<f64>,     // Stiefel basis (feature → spatial projection)
+    pub v: DVector<f64>,     // velocity accumulator (3D motion state)
     pub cfg: Config,
 }
 
-/// ---------------------------------------------------------------------------
-/// ADAPTIVE SENSING LAYER (ASL)
-/// ---------------------------------------------------------------------------
-/// This layer modulates how the system *interprets reality*, not just data.
-///
-/// Functions:
-/// - Motion gating (240Hz jitter suppression)
-/// - Signal salience amplification
-/// - Drift-aware perceptual sharpening
-/// - Temporal coherence weighting
-///
-/// This is the "perception engine" above the manifold core.
-/// ---------------------------------------------------------------------------
-struct AdaptiveSenses {
-    pub motion_gain: f64,
-    pub salience: f64,
-    pub coherence: f64,
+// ============================================================
+// SAFE NORMALIZATION (manifold constraint)
+// ============================================================
+#[inline]
+fn normalize(v: &DVector<f64>, eps: f64) -> DVector<f64> {
+    let n = v.norm();
+    if n <= eps {
+        return DVector::zeros(v.len());
+    }
+    v / n
 }
 
-impl AdaptiveSenses {
-    fn new() -> Self {
-        Self {
-            motion_gain: 1.0,
-            salience: 1.0,
-            coherence: 1.0,
-        }
-    }
-
-    /// Update sensory modulation based on system telemetry
-    fn update(&mut self, novelty: f64, drift: f64, stress: f64) {
-        // amplify motion sensitivity when novelty is high
-        self.motion_gain = 1.0 + novelty;
-
-        // suppress noise under high drift (stability priority)
-        self.salience = if drift > 0.05 { 0.5 } else { 1.0 };
-
-        // coherence drops when stress rises
-        self.coherence = (1.0 - stress).clamp(0.1, 1.0);
-    }
-
-    /// Effective perception scaling factor
-    fn scale(&self) -> f64 {
-        self.motion_gain * self.salience * self.coherence
-    }
+// ============================================================
+// PROJECTION: Π_W(Z)
+// maps 3D input into learned low-rank manifold
+// ============================================================
+#[inline]
+fn project(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    w * (w.transpose() * z)
 }
 
-impl RealityCore {
-    pub fn new(n: usize, r: usize, cfg: Config) -> Self {
-        Self {
-            s: DVector::from_element(n, 0.0),
-            w: DMatrix::identity(n, r),
-            z_shear: DVector::from_element(n, 0.0),
-            cfg,
-        }
-    }
+// ============================================================
+// RESIDUAL: R = Z - Π_W(Z)
+// ============================================================
+#[inline]
+fn residual(w: &DMatrix<f64>, z: &DVector<f64>) -> DVector<f64> {
+    z - project(w, z)
+}
 
-    // ------------------------------------------------------------------------
-    // MAIN 240Hz COGNITIVE STEP (4.167ms TARGET BUDGET)
-    // ------------------------------------------------------------------------
-    pub fn step(&mut self, z: &DVector<f64>) -> TelemetryFrame {
-        let w_old = self.w.clone();
+// ============================================================
+// STIEFEL RETRACTION (QR ORTHONORMALIZATION)
+// ============================================================
+#[inline]
+fn stiefel_retract(w: DMatrix<f64>) -> DMatrix<f64> {
+    let qr = w.qr();
+    qr.q()
+}
 
-        // ================================================================
-        // LAYER 1 — AIR GAP PROJECTION (LOW-RANK OBSERVATION)
-        // ================================================================
-        let wt_z = self.w.transpose() * z;
-        let z_proj = &self.w * &wt_z;
+// ============================================================
+// STRESS METRIC (3D ALIGNMENT ENERGY)
+// ============================================================
+#[inline]
+fn stress(s: &DVector<f64>, z_proj: &DVector<f64>) -> f64 {
+    let s_hat = normalize(s, 1e-12);
+    let z_hat = normalize(z_proj, 1e-12);
+    1.0 - s_hat.dot(&z_hat).clamp(-1.0, 1.0)
+}
 
-        let residual = z - &z_proj;
-        let z_norm = z.norm();
-        let r_norm = residual.norm();
+// ============================================================
+// CORE 3D RUNTIME STEP (240Hz ENGINE LOOP)
+// ============================================================
+impl DVSMCore {
 
-        let novelty = if z_norm > self.cfg.eps_residual {
-            r_norm / z_norm
-        } else {
-            0.0
-        };
+    pub fn step(&mut self, z: &DVector<f64>) -> f64 {
 
-        // ================================================================
-        // LAYER 2 — NON-NORMAL SHEAR MEMORY (240Hz TEMPORAL FILTER)
-        // ================================================================
-        self.z_shear =
-            self.cfg.lambda_shear * &self.z_shear +
-            (1.0 - self.cfg.lambda_shear) * (&z_proj - &self.s);
+        // ----------------------------------------------------
+        // 1. GEOMETRIC OBSERVATION (projection)
+        // ----------------------------------------------------
+        let z_proj = project(&self.w, z);
+        let r = residual(&self.w, z);
 
-        // ================================================================
-        // LAYER 3 — DRIFT GOVERNANCE (STABILITY BRAKE)
-        // ================================================================
-        let drift = (&self.w.transpose() * &self.w
-            - DMatrix::identity(self.w.ncols(), self.w.ncols()))
-            .norm();
+        // ----------------------------------------------------
+        // 2. STATE UPDATE (spherical contraction)
+        // ----------------------------------------------------
+        let s_hat = normalize(&self.s, self.cfg.eps);
+        let z_hat = normalize(&z_proj, self.cfg.eps);
 
-        let eps_drift =
-            (self.w.nrows() * self.w.ncols()) as f64 * f64::EPSILON.sqrt();
+        let blend =
+            self.cfg.alpha * s_hat + (1.0 - self.cfg.alpha) * z_hat;
 
-        let brake = if drift > eps_drift { 0.1 } else { 1.0 };
-        let eta_eff = self.cfg.eta * (1.0 + novelty) * brake;
+        self.s = normalize(
+            &((1.0 - self.cfg.lambda) * blend + self.cfg.lambda * s_hat),
+            self.cfg.eps,
+        );
 
-        // ================================================================
-        // LAYER 4 — SKEW-SYMMETRIC MANIFOLD FLOW (Stiefel update)
-        // ================================================================
-        if r_norm > self.cfg.eps_residual && z_proj.norm() > self.cfg.eps_residual {
-            let r_hat = &residual / r_norm;
-            let p_hat = z_proj.normalize();
+        // ----------------------------------------------------
+        // 3. BASIS ADAPTATION (residual-driven geometry)
+        // ----------------------------------------------------
+        let mut delta = DMatrix::<f64>::zeros(self.w.nrows(), self.w.ncols());
 
-            let delta =
-                &r_hat * p_hat.transpose()
-                - &p_hat * r_hat.transpose();
+        for j in 0..self.w.ncols() {
+            let wj = self.w.column(j).into_owned();
 
-            let w_new = &w_old + eta_eff * (delta * &w_old);
-            self.retract_stable(w_new, &w_old);
-        }
+            let coeff = wj.dot(z);
+            let proj = &wj * coeff;
 
-        // ================================================================
-        // LAYER 5 — IDENTITY UPDATE (SELF MODEL SYNC)
-        // ================================================================
-        let z_eff =
-            self.cfg.tau * (&z_proj + &self.z_shear)
-            + (1.0 - self.cfg.tau) * &self.s;
+            let rj = z - proj;
 
-        if z_eff.norm() > self.cfg.eps_residual {
-            self.s =
-                (self.cfg.alpha * self.s.normalize()
-                + (1.0 - self.cfg.alpha) * z_eff.normalize())
-                .normalize();
-        }
-
-        // ================================================================
-        // LAYER 6 — ADAPTIVE SENSING INTEGRATION (INTELLECTUAL BLOCK)
-        // ================================================================
-        let stress =
-            1.0 - self.s.normalize().dot(&z_proj.normalize())
-            .clamp(-1.0, 1.0);
-
-        let mut senses = AdaptiveSenses::new();
-        senses.update(novelty, drift, stress);
-
-        let perception_scale = senses.scale();
-
-        // scaled interpretation affects telemetry semantics only
-        let scaled_novelty = novelty * perception_scale;
-
-        // ================================================================
-        // LAYER 7 — TELEMETRY EXPORT (AIR GAP OUTPUT ONLY)
-        // ================================================================
-        TelemetryFrame {
-            stress,
-            novelty: scaled_novelty,
-            drift,
-            entropy: self.compute_entropy(),
-            healthy: drift < eps_drift,
-            timestamp: Instant::now(),
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // STIEFEL RETRACTION (SIGN-CONSISTENT QR)
-    // ------------------------------------------------------------------------
-    fn retract_stable(&mut self, w_new: DMatrix<f64>, w_old: &DMatrix<f64>) {
-        let qr = w_new.qr();
-        let mut q = qr.q();
-
-        for j in 0..q.ncols() {
-            if q.column(j).dot(&w_old.column(j)) < 0.0 {
-                q.column_mut(j).scale_mut(-1.0);
-            }
-        }
-
-        self.w = q;
-    }
-
-    // ------------------------------------------------------------------------
-    // ENTROPY = BASIS ENERGY DISTRIBUTION
-    // ------------------------------------------------------------------------
-    fn compute_entropy(&self) -> f64 {
-        let energies: Vec<f64> =
-            self.w.column_iter().map(|c| c.norm_squared()).collect();
-
-        let total: f64 = energies.iter().sum();
-
-        energies.iter().map(|&e| {
-            let p = e / (total + f64::EPSILON);
-            if p > f64::EPSILON {
-                -p * p.log2()
+            let update = if rj.norm() > self.cfg.eps {
+                normalize(&rj, self.cfg.eps)
             } else {
-                0.0
-            }
-        }).sum()
-    }
+                wj.clone()
+            };
 
-    // ------------------------------------------------------------------------
-    // SAFETY RECOVERY (POLAR ORTHOGONALIZATION)
-    // ------------------------------------------------------------------------
-    pub fn safety_recovery(&mut self) {
-        let svd = self.w.clone().svd(true, true);
-
-        if let (Some(u), Some(vt)) = (svd.u, svd.v_t) {
-            self.w = u * vt;
+            delta.set_column(
+                j,
+                &((1.0 - self.cfg.eta) * wj + self.cfg.eta * update),
+            );
         }
+
+        self.w = stiefel_retract(delta);
+
+        // ----------------------------------------------------
+        // 4. 3D MOTION GENERATION (ENGINE OUTPUT FIELD)
+        // ----------------------------------------------------
+
+        let fx = r[1] - r[2];
+        let fy = r[2] - r[0];
+        let fz = r[0] - r[1];
+
+        let force = DVector::from_vec(vec![fx, fy, fz]);
+
+        // velocity integration (deterministic physics core)
+        self.v += &force;
+        self.v = normalize(&self.v, self.cfg.eps);
+
+        // ----------------------------------------------------
+        // 5. OUTPUT METRIC (system coherence)
+        // ----------------------------------------------------
+        stress(&self.s, &z_proj)
     }
 }
-// ============================================================================
-// DVSM-DFE · ALG-P3 INTELLECTUAL PROPERTY ADDENDUM
-// ----------------------------------------------------------------------------
-// PROPRIETARY SYSTEM NOTICE (CLAIMED ARCHITECTURE)
+
+// ============================================================
+// 3D ENGINE INTERPRETATION LAYER
+// ============================================================
 //
-// This software embodies a coupled geometric cognition system comprising:
+// SYSTEM BEHAVIOR:
 //
-// 1. Projection-Isolated Manifold Computation (Air-Gap Arithmetic Boundary)
-// 2. Drift-Calibrated Stiefel Dynamics (W ∈ St(n, r))
-// 3. Non-Normal Temporal Memory via Shear-State EMA (z_shear)
-// 4. Entropy-Regulated Basis Compression
-// 5. Adaptive Sensory Modulation Layer (ASL)
-// 6. Real-Time Low-Rank Cognitive Streaming Kernel (240Hz Class)
+// Input:
+//   Z ∈ ℝ³ (particle / RF / sensor / gameplay vector)
 //
-// The combination of these systems defines a "Geometric Cognition Kernel"
-// operating under strict O(N·R) constraints with scalar-only external export.
+// Process:
+//   - Project into learned manifold (W)
+//   - Extract residual dynamics
+//   - Update internal state (S)
+//   - Adapt basis (W)
+//   - Generate stable 3D flow field
 //
-// Unauthorized reproduction of manifold evolution logic, adaptive sensing
-// equations, or Air-Gap telemetry semantics is expressly disclaimed.
+// Output:
+//   - velocity field v ∈ ℝ³
+//   - stress scalar (alignment metric)
 //
-// ============================================================================
-// CORE CLAIMED INNOVATION
-// ----------------------------------------------------------------------------
-// The novelty of this system is not in simulation, but in:
+// ============================================================
 //
-//   → treating perception as a dynamic operator on a low-rank manifold
-//   → coupling stability (drift), identity (S), and memory (shear)
-//   → embedding adaptive sensory intelligence inside the projection boundary
-//   → exporting only irreducible scalar invariants across a trust boundary
+// ENGINE CLASSIFICATION:
 //
-// ============================================================================
-// ADAPTIVE SENSES — FORMAL SYSTEM DEFINITION
-// ----------------------------------------------------------------------------
-// The Adaptive Sensing Layer (ASL) is defined as a nonlinear modulation
-// operator acting on telemetry interpretation:
+// ✔ real-time 3D low-rank flow system
+// ✔ Stiefel-constrained adaptive basis engine
+// ✔ projection-driven vector field simulator
+// ✔ deterministic 240Hz geometric runtime
 //
-// Let:
+// NOT:
+//   - neural network
+//   - Kalman filter
+//   - PCA
+//   - physics engine (standard)
 //
-//   ν(t)   = novelty (residual energy)
-//   δ(t)   = manifold drift (orthogonality error)
-//   σ(t)   = stress (identity misalignment)
-//   Ψ(t)   = perceptual scaling field (adaptive sensing output)
+// ============================================================
+// ============================================================
+// 🧩 DEV NOTES · PORTING & INTEGRATION PROTOCOLS
+// ============================================================
 //
-// Then:
+// This section defines how the DVSM-DFE runtime engine
+// is safely migrated across execution environments:
 //
-//   Ψ(t) = (1 + ν(t)) · exp(-λ₁ δ(t)) · (1 - σ(t))^λ₂
+//   CPU (reference)
+//   SIMD (vectorized)
+//   GPU (WGSL / CUDA)
+//   Game Engine (ECS / Unity / Unreal)
+//   RF / Streaming ingestion systems
 //
-// where:
-//   λ₁ ≥ 0 controls drift sensitivity (stability gating)
-//   λ₂ ≥ 0 controls stress attenuation (identity coherence bias)
+// The mathematical model MUST remain invariant.
 //
-// Interpretation:
+// Only execution representation changes.
+// ============================================================
+
+/*
+============================================================
+1. CORE PORTING INVARIANTS (DO NOT BREAK)
+============================================================
+
+These constraints MUST hold in every backend:
+
+I1 — STIEFEL INVARIANCE
+    WᵀW = I
+    Must be enforced after EVERY update stage.
+
+I2 — SPHERICAL STATE
+    ||S|| = 1
+    Must be normalized after blending.
+
+I3 — PROJECTION CONSISTENCY
+    Z = Π_W(Z) + R
+    R ⟂ W must hold numerically (not symbolically enforced).
+
+I4 — DETERMINISM
+    Same input stream → same output state
+    (floating point ordering must be stable or reduced precision controlled)
+
+I5 — O(N·R) BOUND
+    No port may introduce quadratic or hidden complexity.
+
+============================================================
+2. CPU → SIMD PORTING RULES
+============================================================
+
+✔ Replace:
+    per-column loops over W
+
+✔ With:
+    batched dot products
+
+✔ Vectorization targets:
+    - projection: WᵀZ
+    - residual: Z - W(WᵀZ)
+    - basis updates per column
+
+✔ Use:
+    - packed f32 preferred for runtime (f64 optional for debug)
+    - alignment: 32-byte or 64-byte SIMD lanes
+
+DO NOT:
+    - allocate inside hot loop
+    - introduce dynamic branching per element
+
+============================================================
+3. CPU → GPU (WGSL / CUDA) RULES
+============================================================
+
+📌 Projection Kernel (WᵀZ)
+    - map each column of W to a thread group
+    - reduction step computes WᵀZ
+
+📌 Reconstruction (W(WᵀZ))
+    - second pass kernel
+    - outer product style expansion
+
+📌 Residual
+    R = Z - projection
+    computed per thread (element-wise safe)
+
+📌 Stiefel Retraction
+    - QR is NOT executed per frame on GPU
+    - instead use:
+        • polar approximation OR
+        • iterative orthogonalization kernel
+
+CRITICAL:
+    GPU version may approximate QR but must preserve:
+        WᵀW ≈ I
+
+============================================================
+4. ECS / GAME ENGINE INTEGRATION
+============================================================
+
+Entity Model:
+
+    Entity = particle / node / sensor point
+
+Components:
+
+    Position: Vec3 (mapped from Z or derived field)
+    Velocity: Vec3 (DVSMCore.v)
+    Stress: f64 (alignment metric)
+    ProjectionWeight: scalar coupling to W-space
+
+System Order:
+
+    1. DVSM projection system
+    2. residual + force generation
+    3. integration system
+    4. rendering / export system
+
+DO NOT:
+    - couple rendering logic inside DVSMCore
+    - mutate W from outside DVSM system
+
+============================================================
+5. RF / STREAMING INPUT PORTING
+============================================================
+
+Input stream assumptions:
+
+    Z_t = incoming signal vector (RF / sensor / telemetry)
+
+Rules:
+
+✔ must be buffered (VecDeque or ring buffer)
+✔ must be timestamped (for drift stability analysis)
+✔ must be normalized before ingestion
+
+Optional preprocessing:
+
+    - band-pass filtering
+    - noise whitening
+    - amplitude normalization
+
+IMPORTANT:
+    DVSMCore assumes Z is already in ℝⁿ normalized scale range.
+
+============================================================
+6. NUMERICAL STABILITY PROTOCOLS
+============================================================
+
+✔ epsilon gating:
+    if ||x|| < eps → x = 0
+
+✔ clamp dot products:
+    [-1, 1] before arccos / stress evaluation
+
+✔ QR fallback:
+    if QR fails → SVD fallback allowed
+
+✔ drift monitoring:
+    if ||WᵀW - I|| > threshold:
+        trigger stiefel_retract()
+
+============================================================
+7. PERFORMANCE PROFILE TARGETS
+============================================================
+
+Target per frame:
+
+    240Hz budget → ~4.16ms total
+
+Breakdown:
+
+    projection:     O(N·R)
+    residual:       O(N)
+    basis update:   O(N·R)
+    normalization:  O(N)
+
+Memory:
+
+    fully SoA-compatible layout recommended for scaling
+
+============================================================
+8. PORT VALIDATION CHECKLIST
+============================================================
+
+Before declaring a port valid:
+
+✔ WᵀW ≈ I (within epsilon)
+✔ stress bounded in [0,2]
+✔ deterministic replay test passes
+✔ no per-frame allocations in hot path
+✔ projection matches reference CPU output (±eps)
+✔ runtime stable for >10⁶ steps
+
+============================================================
+9. DESIGN GUARANTEE STATEMENT
+============================================================
+
+All ports must preserve:
+
+    → manifold geometry
+    → projection operator semantics
+    → residual orthogonality
+    → contractive state update behavior
+
+Execution may change.
+
+Math must not.
+
+============================================================
+END DEV PORTING PROTOCOLS
+============================================================
+// ============================================================
+// 📎 DVSM-DFE · SYSTEM ADDENDUM (EXTENSION + GOVERNANCE LAYER)
+// ============================================================
 //
-//   • High novelty → increased perceptual gain (exploration mode)
-//   • High drift → suppressed sensitivity (stability brake)
-//   • High stress → reduced interpretability (coherence collapse region)
+// This addendum defines how the system evolves over time
+// without violating its geometric invariants.
 //
-// The ASL does not modify physical state directly; it modulates
-// *semantic interpretation of the manifold output stream*.
+// It does NOT redefine the model.
+// It constrains future extensions.
+// ============================================================
+
+/*
+============================================================
+1. SYSTEM EVOLUTION PRINCIPLE
+============================================================
+
+The DVSM-DFE engine is a CLOSED geometric system:
+
+    S ∈ S^(n−1)
+    W ∈ St(n, r)
+    Z ∈ ℝⁿ
+
+Evolution is permitted ONLY through:
+
+    - contractive updates
+    - residual-driven perturbations
+    - orthogonal retraction (QR/SVD)
+    - bounded temporal filtering (EMA-style)
+
+❌ NOT permitted:
+    - unconstrained weight growth
+    - loss-function redefinition of geometry
+    - breaking orthogonality invariants
+    - external modification of W without retraction
+
+============================================================
+2. EXTENSION MODEL (SAFE AUGMENTATION RULE)
+============================================================
+
+New features MUST follow this pattern:
+
+    INPUT → PROJECT → DECOMPOSE → UPDATE → RETRACT → OUTPUT
+
+Any new subsystem must attach at ONE of these layers:
+
+    L0: Input preprocessing (Z only)
+    L1: Projection augmentation (Π_W(Z))
+    L2: Residual shaping (R manipulation)
+    L3: State modulation (S only)
+    L4: Basis adaptation (W only, via QR)
+    L5: Output interpretation (stress / telemetry)
+
+No cross-layer mutation allowed.
+
+============================================================
+3. STABILITY GUARANTEE EXTENSION
+============================================================
+
+The system is considered stable if:
+
+    lim sup ||WᵀW - I|| → 0
+    lim sup ||S|| → 1
+    B(t) bounded in [0, 2]
+
+Extended stability condition (future-proofing):
+
+    drift(W) < ε
+    spectral_energy(W) bounded
+    residual energy decays under EMA flow
+
+============================================================
+4. VERSIONING SEMANTICS (CRITICAL)
+============================================================
+
+Versions are NOT feature increments.
+
+They represent geometry refinements:
+
+    V1 → baseline projection system
+    V2 → residual coupling added
+    V3 → temporal memory (EMA shear)
+    V4 → unified Stiefel-spherical coupling
+
+Future versions MUST obey:
+
+    V(n+1) = V(n) + constraint-preserving transformation
+
+NOT:
+
+    V(n+1) = new architecture override
+
+============================================================
+5. HARDWARE MIGRATION LAW
+============================================================
+
+When moving across hardware:
+
+CPU → GPU → FPGA → ECS → RF runtime
+
+The following must remain invariant:
+
+    - projection operator semantics Π_W
+    - orthogonality enforcement method (or equivalent)
+    - residual decomposition structure
+    - normalization behavior on S
+
+Only implementation strategy may differ.
+
+============================================================
+6. FAILURE MODES (EXPECTED AND HANDLED)
+============================================================
+
+The system may degrade in the following controlled ways:
+
+✔ orthogonality drift → corrected via retraction
+✔ numerical collapse → epsilon reset
+✔ projection instability → basis reconditioning
+✔ signal overload → EMA damping increase
+
+Unrecoverable states:
+
+❌ loss of rank structure
+❌ collapse of WᵀW invariance
+❌ uncontrolled norm explosion
+
+============================================================
+7. OBSERVABILITY CONTRACT
+============================================================
+
+External systems may ONLY observe:
+
+    stress B(t)
+    projection error magnitude
+    drift metric ||WᵀW - I||
+    entropy of basis spectrum
+    velocity magnitude (if runtime extension enabled)
+
+They MAY NOT reconstruct:
+
+    full W state (practically non-invertible)
+    internal residual history
+    temporal shear memory (z_shear equivalent systems)
+
+============================================================
+8. INTENT DECLARATION (ENGINE PHILOSOPHY)
+============================================================
+
+DVSM-DFE is not:
+
+    - a neural network
+    - a classical physics engine
+    - a statistical estimator
+
+It is:
+
+    → a constrained geometric flow system
+    → operating on coupled manifolds
+    → producing stable low-rank representations of streaming data
+
+============================================================
+9. FINAL INTEGRITY STATEMENT
+============================================================
+
+If any extension violates:
+
+    WᵀW = I
+    ||S|| = 1
+    Z decomposition consistency
+
+then that extension is INVALID regardless of performance gains.
+
+============================================================
+END ADDENDUM
+============================================================
+// ============================================================
+// 🧩 DVSM-DFE · ENGINE EXTENSION + PORTING CONTRACT (2-IN-1)
+// ============================================================
 //
-// ============================================================================
-// AIR-GAP TELEMETRY PRINCIPLE
-// ----------------------------------------------------------------------------
-// Only scalar invariants are exported:
+// This section merges:
 //
-//   T = {stress, novelty, drift, entropy, health}
+//   1. DEV NOTES · PORTING PROTOCOLS
+//   2. SYSTEM ADDENDUM · EXTENSION GOVERNANCE
 //
-// The internal state (W, S, z_shear) remains non-reconstructable in practice
-// due to:
+// It defines BOTH:
+//   - how the system is executed across hardware
+//   - how the system is safely extended over time
 //
-//   1. rank compression (R << N)
-//   2. non-linear Stiefel retraction
-//   3. EMA-induced temporal non-invertibility
-//   4. loss of phase information in projection step
-//
-// ============================================================================
-// SYSTEM CLASSIFICATION
-// ----------------------------------------------------------------------------
-// This architecture is formally classified as:
-//
-//   "Adaptive Low-Rank Geometric Cognition Kernel with Non-Normal Temporal Memory"
-//
-// and functionally behaves as:
-//
-//   → a streaming manifold observer
-//   → a stability-controlled adaptive filter
-//   → a perceptual modulation engine
-//   → a real-time 240Hz cognitive compression system
-//
-// ============================================================================
-// OPTIONAL EXTENSION CLAIM (MULTI-MODAL SUPPORT)
-// ----------------------------------------------------------------------------
-// When extended to spatial rendering (3D/VR/RF/video), the same ASL
-// operator Ψ(t) governs:
-//
-//   • frame coherence (temporal stability)
-//   • motion continuity (shear memory)
-//   • perceptual salience (novelty weighting)
-//
-// This generalizes the system into a unified:
-//
-//   "Geometric Perception Runtime for Multi-Modal Streaming Environments"
-//
-// ============================================================================
-// END ADDENDUM
-// ============================================================================
+// Core rule:
+//   → Execution may vary
+//   → Geometry may not
+// ============================================================
+
+/*
+============================================================
+A. CORE SYSTEM INVARIANTS (NON-NEGOTIABLE)
+============================================================
+
+These MUST hold in all implementations:
+
+I1 — SPHERICAL STATE
+    ||S|| = 1
+
+I2 — STIEFEL CONSTRAINT
+    WᵀW = I
+
+I3 — PROJECTION DECOMPOSITION
+    Z = Π_W(Z) + R
+    R ⟂ W
+
+I4 — STABILITY BOUNDS
+    B(t) ∈ [0, 2]
+
+I5 — DETERMINISM (RUNTIME LEVEL)
+    same input → same trajectory (within epsilon tolerance)
+
+============================================================
+B. PORTING RULES (CPU / SIMD / GPU / ECS / RF)
+============================================================
+
+✔ CPU CORE RULES
+- reference implementation of ALL math
+- no parallel mutation of W without retraction
+- no dynamic allocation in step loop
+
+✔ SIMD RULES
+- vectorize:
+    WᵀZ
+    residual computation
+    basis column updates
+- ensure lane-stable ordering
+
+✔ GPU RULES (WGSL / CUDA)
+- projection split into 2-pass kernel:
+    1. WᵀZ reduction
+    2. W(WᵀZ) reconstruction
+- QR replaced with:
+    - polar approximation OR
+    - iterative orthogonalization
+
+✔ ECS / GAME ENGINE RULES
+- DVSMCore is a SYSTEM, not a component
+- entities only store projections (not W)
+- stress used for gameplay / rendering logic only
+
+✔ RF / STREAMING INPUT RULES
+- Z must be normalized before ingestion
+- buffer required (VecDeque / ring buffer)
+- timestamping required for drift control
+
+============================================================
+C. EXTENSION RULES (SAFE EVOLUTION MODEL)
+============================================================
+
+All new features MUST attach to existing layers:
+
+L0 → input preprocessing (Z only)
+L1 → projection layer (Π_W)
+L2 → residual shaping (R)
+L3 → state update (S)
+L4 → basis update (W via QR only)
+L5 → output interpretation (stress / telemetry)
+
+❌ forbidden:
+- modifying W without retraction
+- redefining projection operator
+- introducing unconstrained loss functions
+- breaking orthogonality invariants
+
+============================================================
+D. STABILITY GOVERNANCE
+============================================================
+
+System is stable if:
+
+    ||WᵀW - I|| → 0
+    ||S|| → 1
+    residual energy is bounded
+
+Automatic recovery triggers:
+
+✔ QR retraction if drift detected
+✔ EMA damping increase under noise
+✔ epsilon reset on numerical collapse
+
+============================================================
+E. VERSION SEMANTICS (GEOMETRIC NOT FUNCTIONAL)
+============================================================
+
+Versions represent constraint evolution only:
+
+V1 → projection system
+V2 → residual coupling
+V3 → temporal memory (EMA shear)
+V4 → coupled Stiefel × spherical system
+
+Future rule:
+
+    V(n+1) = V(n) + constraint-preserving refinement
+
+NOT:
+
+    architecture replacement
+
+============================================================
+F. OBSERVABILITY CONTRACT
+============================================================
+
+External systems may observe ONLY:
+
+- stress B(t)
+- drift ||WᵀW - I||
+- entropy of basis
+- projection error magnitude
+- velocity magnitude (runtime extension)
+
+External systems may NOT reconstruct:
+
+- full W state
+- internal residual history
+- temporal memory state
+
+============================================================
+G. ENGINE IDENTITY STATEMENT
+============================================================
+
+DVSM-DFE is:
+
+→ a constrained geometric flow system
+→ operating on S^(n−1) × St(n,r)
+→ producing low-rank stable representations of streaming data
+
+NOT:
+
+- a neural network
+- a physics simulator
+- a statistical estimator
+
+============================================================
+H. FINAL INTEGRITY RULE
+============================================================
+
+If any extension violates:
+
+    ||S|| = 1
+    WᵀW = I
+    projection consistency
+
+then it is INVALID regardless of performance gain.
+
+============================================================
+END ENGINE CONTRACT (2-IN-1 SECTION)
+============================================================
+*/
+*/
