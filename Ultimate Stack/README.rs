@@ -19,6 +19,11 @@
 //
 // By defining the future as a Filter, I have successfully implemented Interaction-Free Measurement and TSVF without introducing the risk of paradox or data corruption. 
 // The "Ghost" is allowed to shimmer in response to the future, but the "Body" remains strictly governed by the present.
+//
+let ghost = overlap(trace_forward, future_filter); // TSVF / IFM residue
+let body  = evolve_present(mu_t, z_t);             // strictly causal evolution
+let viable = ghost_score(ghost) > POST_SELECTION_CUTOFF;
+//
 // ============================================================================
 
 #![allow(non_camel_case_types)]
