@@ -421,3 +421,305 @@ impl Projection2D {
 // );
 //
 // ============================================================================
+// ============================================================================
+// RP1 / ALG-P3 / A10 · FULL-STACK DEVELOPER ADDENDUM
+// ----------------------------------------------------------------------------
+// Purpose:
+//   This file is the "engineering translation layer" of the system.
+//
+// It maps:
+//   - 3D latent kernel (RP1Core)
+//   - 2D projection layer (screen/HUD)
+//   - security / GSD detection
+//   - runtime + GPU execution model
+//
+// into a deployable full-stack architecture.
+//
+// Constraint:
+//   Hard real-time 240Hz (4.167ms/frame)
+// ============================================================================
+
+// ============================================================================
+// STACK OVERVIEW (LOGICAL LAYERS)
+// ============================================================================
+//
+//  ┌────────────────────────────────────────────┐
+//  │ L4: Developer API (input/output bindings)  │
+//  ├────────────────────────────────────────────┤
+//  │ L3: Security (GSD / entropy / drift gate)  │
+//  ├────────────────────────────────────────────┤
+//  │ L2: Perception (2D projection / HUD)      │
+//  ├────────────────────────────────────────────┤
+//  │ L1: RP1 Core (low-rank manifold W, x, Z)   │
+//  ├────────────────────────────────────────────┤
+//  │ L0: Hardware (SIMD / GPU / FFI / timers)   │
+//  └────────────────────────────────────────────┘
+//
+// ============================================================================
+
+// ============================================================================
+// L4 · DEVELOPER API (INPUT / CONTROL PLANE)
+// ============================================================================
+
+pub mod api {
+
+    use nalgebra::DVector;
+
+    pub struct InputPacket {
+        pub sigma: DVector<f64>,   // excitation (player / sensor / AI input)
+        pub mode: u8,              // runtime mode selector
+        pub timestamp: u64,
+    }
+
+    pub struct OutputPacket {
+        pub frame_id: u64,
+        pub telemetry: String,     // serialized diagnostics
+        pub gpu_ready: bool,
+    }
+
+    // Input is NOT state-setting.
+    // It is a tangent perturbation of the manifold.
+    pub fn ingest_input(raw: InputPacket) -> DVector<f64> {
+        raw.sigma
+    }
+}
+
+// ============================================================================
+// L3 · SECURITY LAYER (GSD + ENTROPY GOVERNOR)
+// ============================================================================
+
+pub mod security {
+
+    use nalgebra::DVector;
+
+    pub fn spectral_entropy(v: &DVector<f64>) -> f64 {
+        let sum: f64 = v.iter().map(|x| x * x).sum();
+        -sum.max(1e-12).log2()
+    }
+
+    pub fn geometric_suchness_drift(
+        stress: f64,
+        entropy: f64,
+        drift: f64
+    ) -> bool {
+
+        // TRUE = anomaly detected
+        // system becomes "structurally blind" instead of reactive
+
+        entropy < 0.3 && stress < 0.1 && drift > 1e-4
+    }
+
+    // HARD PRINCIPLE:
+    // Security is NOT filtering.
+    // It is selective disengagement from unstable geometry.
+}
+
+// ============================================================================
+// L2 · PERCEPTION LAYER (2D / HUD / CONVEX SCREEN)
+// ============================================================================
+
+pub mod perception {
+
+    use super::*;
+
+    #[derive(Clone, Copy)]
+    pub struct Screen {
+        pub width: usize,
+        pub height: usize,
+        pub curvature: f64,
+    }
+
+    #[derive(Clone, Copy)]
+    pub struct Pixel {
+        pub u: f64,
+        pub v: f64,
+        pub intensity: f64,
+        pub stress: f64,
+    }
+
+    pub fn project_2d(
+        x: f64,
+        y: f64,
+        z: f64,
+        screen: &Screen,
+        stress: f64
+    ) -> Pixel {
+
+        let denom = 1.0 + screen.curvature * z.max(0.0);
+
+        Pixel {
+            u: x / denom,
+            v: y / denom,
+            intensity: 1.0 / denom,
+            stress,
+        }
+    }
+
+    // Convex perception is a lossy map:
+    // Π₂ : ℝ³ → ℝ²
+}
+
+// ============================================================================
+// L1 · RP1 CORE (LOW-RANK GEOMETRIC KERNEL)
+// ============================================================================
+
+pub mod kernel {
+
+    use nalgebra::{DMatrix, DVector};
+
+    pub struct Core {
+        pub x: DVector<f64>,
+        pub w: DMatrix<f64>,
+        pub z_shear: DVector<f64>,
+        pub eta: f64,
+        pub gamma: f64,
+        pub lambda: f64,
+        pub alpha: f64,
+    }
+
+    const DRIFT_EPS: f64 = 1e-6;
+
+    fn tangent_acceptance(drift: f64) -> f64 {
+        if drift < DRIFT_EPS {
+            1.0
+        } else {
+            (DRIFT_EPS / drift).powi(2)
+        }
+    }
+
+    impl Core {
+
+        pub fn step(&mut self, sigma: &DVector<f64>) -> f64 {
+
+            let w_old = self.w.clone();
+
+            let projection =
+                &self.w * (self.w.transpose() * &self.x);
+
+            let residual = sigma - &self.x;
+            let r_norm = residual.norm();
+
+            let drift =
+                (&self.w.transpose() * &self.w
+                    - DMatrix::identity(self.w.ncols(), self.w.ncols()))
+                .norm();
+
+            let eta_eff =
+                self.eta
+                * (1.0 + r_norm)
+                * tangent_acceptance(drift);
+
+            if r_norm > 1e-8 {
+
+                let r_hat = &residual / r_norm;
+                let p_hat = projection.normalize();
+
+                let generator =
+                    &r_hat * p_hat.transpose()
+                    - &p_hat * r_hat.transpose();
+
+                let w_new = &w_old + eta_eff * (generator * &w_old);
+                self.w = w_new;
+            }
+
+            let proposal =
+                &self.x
+                + eta_eff * &residual
+                + &self.z_shear
+                - self.lambda * &self.x;
+
+            self.x = proposal;
+
+            self.z_shear =
+                self.alpha * &self.z_shear
+                + (1.0 - self.alpha) * (&projection - &self.x);
+
+            r_norm
+        }
+    }
+
+    // Core invariant:
+    // system evolves without global optimization
+}
+
+// ============================================================================
+// L0 · FULL PIPELINE (240Hz EXECUTION LOOP)
+// ============================================================================
+
+pub fn runtime_loop(mut core: kernel::Core, screen: perception::Screen) {
+
+    loop {
+        let start = std::time::Instant::now();
+
+        // -----------------------------
+        // INPUT
+        // -----------------------------
+        let sigma = api::ingest_input(api::InputPacket {
+            sigma: nalgebra::DVector::from_element(8, 0.0),
+            mode: 0,
+            timestamp: 0,
+        });
+
+        // -----------------------------
+        // KERNEL (PHYSICS)
+        // -----------------------------
+        let novelty = core.step(&sigma);
+
+        // -----------------------------
+        // SECURITY (GSD CHECK)
+        // -----------------------------
+        let drift = 0.0; // placeholder for full telemetry
+        let entropy = security::spectral_entropy(&core.x);
+
+        let _anomaly =
+            security::geometric_suchness_drift(
+                novelty,
+                entropy,
+                drift
+            );
+
+        // -----------------------------
+        // PERCEPTION (2D PROJECTION)
+        // -----------------------------
+        let _frame: Vec<perception::Pixel> = core.x.iter().enumerate().map(|(i, v)| {
+            perception::project_2d(
+                *v,
+                core.z_shear[i],
+                *v * core.z_shear[i],
+                &screen,
+                novelty
+            )
+        }).collect();
+
+        // -----------------------------
+        // HARD REAL-TIME SYNC (240Hz)
+        // -----------------------------
+        let elapsed = start.elapsed().as_micros();
+        let budget = 4167u128;
+
+        if elapsed < budget {
+            std::thread::sleep(std::time::Duration::from_micros(
+                (budget - elapsed as u128) as u64
+            ));
+        }
+    }
+}
+
+// ============================================================================
+// FULL-STACK SUMMARY
+// ============================================================================
+//
+// This architecture defines:
+//
+// 1. API layer → tangent perturbation interface
+// 2. Security layer → geometric inconsistency detection
+// 3. Kernel layer → low-rank manifold evolution (no optimization)
+// 4. Perception layer → convex projection (lossy reality interface)
+// 5. Runtime layer → hard real-time 240Hz execution loop
+// 6. Hardware layer → SIMD/GPU mapping target
+//
+// Core principle:
+//   Reality is not simulated.
+//   It is streamed as a constrained geometric system.
+//
+// ============================================================================
