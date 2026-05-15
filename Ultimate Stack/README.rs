@@ -29,6 +29,44 @@ let viable = ghost_score(ghost) > POST_SELECTION_CUTOFF;
 let overlap  = dot(trace_forward, future_filter);      // <B|A>
 let ghost    = resonance(overlap, spectral_residue);   // non-normal shimmer
 let viable   = ghost.mul_add(BIAS, 0.0) > EPSILON;     // post-selection gate
+
+// ============================================================================
+// DVSM ARITHMETIC HOOK LAYER (MINIMAL CONTRACT PRIMITIVES)
+// ============================================================================
+
+pub struct DVSMArith;
+
+impl DVSMArith {
+
+    /// (1) Ontic drift operator: V_{t+1}
+    #[inline]
+    pub fn evolve(v: u64, sigma: u64) -> u64 {
+        let drift = sigma.wrapping_mul(1664525) ^ v.wrapping_shr(3);
+        v.wrapping_add(drift).wrapping_mul(1103515245)
+    }
+
+    /// (2) Spectral residue: ||Z - S||
+    #[inline]
+    pub fn residue(z: &[f64], s: &[f64]) -> f64 {
+        z.iter()
+            .zip(s.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt()
+    }
+
+    /// (3) Ghost projection (future-filtered scalar)
+    #[inline]
+    pub fn ghost(overlap: f64, residue: f64) -> f64 {
+        overlap * residue
+    }
+
+    /// (4) Viability gate (selection operator only)
+    #[inline]
+    pub fn gate(ghost: f64, beta: f64, epsilon: f64, u_max: f64, z_norm: f64) -> bool {
+        (ghost * beta > epsilon) && (z_norm < u_max)
+    }
+}
 //
 // ============================================================================
 
