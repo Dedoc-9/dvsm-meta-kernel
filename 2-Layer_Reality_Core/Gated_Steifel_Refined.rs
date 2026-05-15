@@ -277,3 +277,131 @@ impl DVSMRealityCore {
         self.w = q;
     }
 }
+// MANIFOLD GOVERNANCE LAYER
+// -------------------------
+// Integrates:
+//   • Drift-Calibrated Stability Thresholding
+//   • Adaptive Throttling Control (η_eff)
+//   • Air Gap Projection Integrity Protection
+//   • Confidence + Novelty Driven Adaptation
+
+impl DVSMRealityCore {
+
+    /// Integrated Adaptive Step with Drift-Calibrated Throttling
+    pub fn step_adaptive(&mut self, z: &DVector<f64>) -> TelemetryFrame {
+        let w_old = self.w.clone();
+
+        // ------------------------------------------------------------
+        // 1. AIR GAP PROJECTION (Reconstructive Isolation Layer)
+        // ------------------------------------------------------------
+        let wt_z = self.w.transpose() * z;
+        let z_proj = &self.w * &wt_z;
+        let residual = z - &z_proj;
+
+        let z_norm = z.norm();
+        let r_norm = residual.norm();
+
+        let novelty = if z_norm > self.cfg.eps_residual {
+            r_norm / z_norm
+        } else {
+            0.0
+        };
+
+        // ------------------------------------------------------------
+        // 2. MANIFOLD DRIFT (Orthogonality Integrity Signal)
+        // ------------------------------------------------------------
+        let drift_matrix =
+            &self.w.transpose() * &self.w
+            - DMatrix::identity(self.w.ncols(), self.w.ncols());
+
+        let drift = drift_matrix.norm();
+
+        // ------------------------------------------------------------
+        // 3. DRIFT-CALIBRATED STABILITY BOUND
+        // ------------------------------------------------------------
+        // Numerical tolerance scaled by manifold dimensionality.
+        //
+        // This defines when orthogonality loss is considered
+        // structurally significant (not floating-point noise).
+        let eps_drift =
+            (self.w.nrows() * self.w.ncols()) as f64
+            * f64::EPSILON.sqrt();
+
+        let stability_brake = if drift > eps_drift {
+            0.1
+        } else {
+            1.0
+        };
+
+        // ------------------------------------------------------------
+        // 4. ADAPTIVE LEARNING RATE (Throttled Geometry Update)
+        // ------------------------------------------------------------
+        let eta_eff =
+            self.cfg.eta
+            * (1.0 + novelty)
+            * stability_brake;
+
+        // ------------------------------------------------------------
+        // 5. MANIFOLD EVOLUTION (GROUSE-style Skew Flow)
+        // ------------------------------------------------------------
+        if r_norm > self.cfg.eps_residual && z_proj.norm() > self.cfg.eps_residual {
+            let r_hat = &residual / r_norm;
+            let p_hat = z_proj.normalize();
+
+            let delta =
+                &r_hat * p_hat.transpose()
+                - &p_hat * r_hat.transpose();
+
+            let w_new = &w_old + eta_eff * (delta * &w_old);
+            self.retract_stable(w_new, &w_old);
+        }
+
+        // ------------------------------------------------------------
+        // 6. IDENTITY UPDATE (Suchness Alignment)
+        // ------------------------------------------------------------
+        let z_eff =
+            self.cfg.tau * &z_proj
+            + (1.0 - self.cfg.tau) * &self.s;
+
+        if z_eff.norm() > self.cfg.eps_residual {
+            let blend =
+                self.cfg.alpha * self.s.normalize()
+                + (1.0 - self.cfg.alpha) * z_eff.normalize();
+
+            self.s = blend.normalize();
+        }
+
+        // ------------------------------------------------------------
+        // 7. TELEMETRY EXPORT (Air Gap Boundary)
+        // ------------------------------------------------------------
+        let stress =
+            1.0
+            - self.s.normalize()
+                .dot(&z_proj.normalize())
+                .clamp(-1.0, 1.0);
+
+        TelemetryFrame {
+            stress,
+            novelty,
+            drift,
+            timestamp: Instant::now(),
+        }
+    }
+
+    // ------------------------------------------------------------
+    // STABLE RETRACTION (Orthonormality Preservation)
+    // ------------------------------------------------------------
+    fn retract_stable(&mut self, w_new: DMatrix<f64>, w_old: &DMatrix<f64>) {
+        let qr = w_new.qr();
+        let mut q = qr.q();
+
+        // Sign consistency ensures stress continuity across frames
+        for j in 0..q.ncols() {
+            if q.column(j).dot(&w_old.column(j)) < 0.0 {
+                q.column_mut(j).scale_mut(-1.0);
+            }
+        }
+
+        self.w = q;
+    }
+}
