@@ -14,7 +14,7 @@
 //   It is NOT a model.
 //   It is a binding execution and interpretation contract of quantum logic
 //
-// Memory & Latency: For real-time spectral selection (especially audio), you may need set Windows to High Performance Mode and disable non-essential background services. 
+// Memory & Latency: For real-time spectral selection (especially audio), you may need to set Windows to High Performance Mode and disable non-essential background services. 
 // Solo developers often overlook that DDR5 and PCIe NVMe are foundational for asset streaming and stability at these frame rates
 // ============================================================================
 
