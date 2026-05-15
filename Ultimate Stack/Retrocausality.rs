@@ -21,6 +21,8 @@
 //
 // INTERPRETATION RULE:
 //   Future = constraint functional, not causal actor
+//
+// System → TraceLog → TSVF scoring → interpretation only
 // ============================================================================
 
 use std::marker::PhantomData;
