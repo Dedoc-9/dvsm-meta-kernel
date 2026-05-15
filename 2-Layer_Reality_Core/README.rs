@@ -1953,5 +1953,18 @@ pub mod security {
     // Security is not reactive filtering
     // It is structural inconsistency detection on Z(t)
 }
+// The "Terminal" Refinement (C/Rust Hybrid Logic) 
+In this version, the Stability Brake is no longer just a scalar multiplier; 
+it is a Tangent Gater.rust// The "Structural Difficulty" Gater
+
+let acceptance = if drift < eps_drift {
+    1.0 // Nominal tracking
+} else {
+    // Structural amortization: 
+    // The more inconsistent the geometry, the less we listen.
+    (eps_drift / drift).powi(2) 
+};
+
+let eta_eff = self.cfg.eta * (1.0 + novelty) * acceptance;
 
 */
