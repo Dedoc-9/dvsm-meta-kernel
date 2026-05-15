@@ -23,6 +23,12 @@
 let ghost = overlap(trace_forward, future_filter); // TSVF / IFM residue
 let body  = evolve_present(mu_t, z_t);             // strictly causal evolution
 let viable = ghost_score(ghost) > POST_SELECTION_CUTOFF;
+// ---
+// TSVF / IFM arithmetic hooks (evaluation-only; no ontic feedback)
+
+let overlap  = dot(trace_forward, future_filter);      // <B|A>
+let ghost    = resonance(overlap, spectral_residue);   // non-normal shimmer
+let viable   = ghost.mul_add(BIAS, 0.0) > EPSILON;     // post-selection gate
 //
 // ============================================================================
 
