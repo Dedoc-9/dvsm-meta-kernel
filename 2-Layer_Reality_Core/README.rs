@@ -1882,5 +1882,76 @@ extern void emit_splat(float x, float intensity);
 // ============================================================================
 // END HARDWARE MAPPING BLOCK
 // ============================================================================ 
+// ============================================================================
+// THE ALG-P3 / A10 TERMINAL ARCHETYPE
+// ----------------------------------------------------------------------------
+// A Unified Geometric Streaming Engine (240Hz Deterministic Manifold Core)
+// Complexity Target: O(N·R) + O(E)
+// Frame Budget: 4.167ms
+// ============================================================================
+//
+// CORE INVARIANT (IMPORTANT):
+//
+//      All subsystems observe the same latent manifold Z(t)
+//      under different projections Π_i.
+//
+//      Z(t) is NEVER duplicated, only re-interpreted.
+//
+// ============================================================================
+
+pub mod kernel {
+    // ------------------------------------------------------------------------
+    // THE DYNAMICAL CORE (A10 STREAMING LAW)
+    // ------------------------------------------------------------------------
+    // 1. GOVERNANCE LAYER:
+    //      η_eff = η · f(novelty, drift)
+    //      Stability Brake as a physical law, not heuristic
+    //
+    // 2. AIR-GAP BOUNDARY:
+    //      x_{t+1} = Π_M(F(x_t, σ_t))
+    //      Non-reversible projection ensures security isolation
+    //
+    // 3. SHEAR MEMORY:
+    //      z_shear = α z_shear + (1-α)(Z_t - x_t)
+    //      Non-normal temporal coherence (velocity of geometry)
+    //
+    // NOTE:
+    // Kernel defines "what exists"
+    // Everything else is interpretation
+}
+
+pub mod perception {
+    // ------------------------------------------------------------------------
+    // THE OBSERVATION LAYER (GEOMETRIC PROJECTION ENGINE)
+    // ------------------------------------------------------------------------
+    // 1. CONVEX RENDERER:
+    //      P(u,v) = Z_k(t) · sin(κ · d(u,v))
+    //      Curvature-aware sampling of latent field
+    //
+    // 2. INTERFACIAL STRESS:
+    //      B(t) = ⟨WᵀZ⟩ mismatch functional
+    //      Measures observer–field misalignment
+    //
+    // NOTE:
+    // Perception does NOT modify kernel state
+    // It is a lossy projection of Z(t)
+}
+
+pub mod security {
+    // ------------------------------------------------------------------------
+    // THE STRUCTURAL INTEGRITY LAYER (GEOMETRIC ANTI-CHEAT CORE)
+    // ------------------------------------------------------------------------
+    // 1. GSD GATER:
+    //      GSD = f(Hₘ, B, drift)
+    //      Detects non-human trajectory collapse patterns
+    //
+    // 2. SPECTRAL ENTROPY:
+    //      Hₘ = -Σ p_i log p_i over basis energy modes
+    //      Human input = high entropy, AI = over-compressed geometry
+    //
+    // NOTE:
+    // Security is not reactive filtering
+    // It is structural inconsistency detection on Z(t)
+}
 
 */
