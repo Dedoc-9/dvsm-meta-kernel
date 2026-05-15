@@ -514,3 +514,224 @@ impl DfeEngine {
 //   - adaptive coordinate system evolution
 //
 // ============================================================
+// ============================================================
+// DVSM-DFE · 3-IN-1 CURVATURE-STABILIZED ENGINE
+// ============================================================
+//
+// MODES (single system, 3 operational behaviors):
+//
+//   MODE 1 → RF SPECTRAL ENGINE (waveform scrambling)
+//   MODE 2 → FEATURE SECURITY ENGINE (structural hiding)
+//   MODE 3 → κ-KEYED DYNAMICAL OBSCURATION LAYER
+//
+// Core math stays identical:
+//   Z → Lie-bracket transport
+//   S → causal EMA memory
+//   W → Stiefel subspace adaptation
+//
+// ============================================================
+
+use nalgebra::{DMatrix, DVector};
+
+// ============================================================
+// MODE SELECTOR
+// ============================================================
+
+#[derive(Clone, Copy)]
+pub enum DfeMode {
+    RF_SPECTRAL,
+    FEATURE_SECURITY,
+    KAPPA_KEYED,
+}
+
+// ============================================================
+// §A OBSERVATION LAYER
+// ============================================================
+
+pub struct Observation {
+    pub n: usize,
+}
+
+impl Observation {
+    pub fn observe(&self, z: &DVector<f64>) -> DVector<f64> {
+        z.clone()
+    }
+}
+
+// ============================================================
+// §B TRANSFORM LAYER (LIE BRACKET DYNAMICS)
+// ============================================================
+
+pub struct Transform {
+    pub kappa: DMatrix<f64>,
+    pub lambda: f64,
+}
+
+impl Transform {
+
+    pub fn new(kappa: DMatrix<f64>, lambda: f64) -> Self {
+        Self { kappa, lambda }
+    }
+
+    pub fn lie_bracket(&self, z: &DVector<f64>, s: &DVector<f64>) -> DVector<f64> {
+        let n = z.len();
+        let mut out = DVector::from_element(n, 0.0);
+
+        for i in 0..n {
+            let mut acc = 0.0;
+            for j in 0..n {
+                acc += (z[i] * s[j] - z[j] * s[i]) * self.kappa[(i, j)];
+            }
+            out[i] = acc;
+        }
+
+        out
+    }
+
+    pub fn step(&self, z: &DVector<f64>, s: &DVector<f64>) -> DVector<f64> {
+        self.lie_bracket(z, s) - self.lambda * z
+    }
+}
+
+// ============================================================
+// §C ADAPTATION LAYER (EMA + STIEFEL BASIS)
+// ============================================================
+
+pub struct Adaptation {
+    pub alpha: f64,
+    pub s: DVector<f64>,
+    pub w: DMatrix<f64>,
+}
+
+impl Adaptation {
+
+    pub fn new(n: usize, r: usize, alpha: f64) -> Self {
+        Self {
+            alpha,
+            s: DVector::from_element(n, 0.0),
+            w: DMatrix::identity(n, r),
+        }
+    }
+
+    pub fn update_memory(&mut self, z: &DVector<f64>) {
+        self.s = &self.s * self.alpha + z * (1.0 - self.alpha);
+    }
+
+    pub fn project(&self, x: &DVector<f64>) -> DVector<f64> {
+        &self.w * (&self.w.transpose() * x)
+    }
+
+    pub fn residual(&self, x: &DVector<f64>) -> DVector<f64> {
+        x - self.project(x)
+    }
+
+    pub fn adapt_basis(&mut self, r: &DVector<f64>, c: &DVector<f64>, eta: f64) {
+        let n = r.len();
+        let k = c.len();
+
+        for i in 0..n {
+            for j in 0..k {
+                self.w[(i, j)] += eta * r[i] * c[j];
+            }
+        }
+
+        let qr = self.w.clone().qr();
+        self.w = qr.q();
+    }
+}
+
+// ============================================================
+// §D MAIN ENGINE (3-IN-1 BEHAVIOR SWITCH)
+// ============================================================
+
+pub struct DfeEngine {
+    pub obs: Observation,
+    pub trans: Transform,
+    pub adapt: Adaptation,
+    pub mode: DfeMode,
+}
+
+impl DfeEngine {
+
+    pub fn step(&mut self, z_raw: DVector<f64>) -> DVector<f64> {
+
+        // A: OBSERVATION
+        let z = self.obs.observe(&z_raw);
+
+        // B: TRANSFORM (mode-dependent behavior)
+        let z_enc = match self.mode {
+
+            // -------------------------------------------------
+            // MODE 1: RF SPECTRAL ENGINE
+            // strong spectral drift, fast basis scrambling
+            // -------------------------------------------------
+            DfeMode::RF_SPECTRAL => {
+                self.trans.step(&z, &self.adapt.s)
+            }
+
+            // -------------------------------------------------
+            // MODE 2: FEATURE SECURITY ENGINE
+            // suppress waveform identity, emphasize structure
+            // -------------------------------------------------
+            DfeMode::FEATURE_SECURITY => {
+                let z_t = self.trans.step(&z, &self.adapt.s);
+                self.adapt.project(&z_t)   // only structured projection survives
+            }
+
+            // -------------------------------------------------
+            // MODE 3: κ-KEYED DYNAMICAL OBSCURATION
+            // sensitive trajectory divergence layer
+            // -------------------------------------------------
+            DfeMode::KAPPA_KEYED => {
+                let mut z_t = self.trans.step(&z, &self.adapt.s);
+
+                // amplify non-normal sensitivity
+                z_t *= 1.0 + self.trans.kappa.norm();
+
+                z_t
+            }
+        };
+
+        // C1: MEMORY UPDATE (always causal)
+        self.adapt.update_memory(&z);
+
+        // C2: ADAPT BASIS
+        let r = self.adapt.residual(&z_enc);
+        let c = self.adapt.w.transpose() * &z_enc;
+
+        self.adapt.adapt_basis(&r, &c, 0.001);
+
+        z_enc
+    }
+}
+
+// ============================================================
+// CRYPTO-ADJACENT ENGINEERING INTERPRETATION (3-IN-1 VIEW)
+// ============================================================
+//
+// MODE 1 — RF SPECTRAL ENGINE
+//   • moving frequency basis
+//   • spectral whitening
+//   • anti-jam waveform distortion
+//
+// MODE 2 — FEATURE SECURITY ENGINE
+//   • transmits only subspace projections
+//   • removes phase-level reconstructability
+//   • used in telemetry / edge inference privacy
+//
+// MODE 3 — κ-KEYED OBSCURATION
+//   • parameter-sensitive divergence system
+//   • behaves like “dynamic key field”
+//   • NOT cryptographic security
+//
+// ============================================================
+//
+// HARD LIMITATIONS:
+//   ❌ not encryption
+//   ❌ not key exchange
+//   ❌ not signature system
+//
+// Because:
+//   deterministic + forward simulatable dynamics
+//
+// ============================================================
