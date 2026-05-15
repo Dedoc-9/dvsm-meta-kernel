@@ -78,3 +78,45 @@
     }
   }
 }
+// ===============================================================
+// DVSM-π+++ · STIEFEL-ANCHORED REBIRTH KERNEL (CONSISTENT FORM)
+// ===============================================================
+
+pub fn stiefel_rebirth_step(
+    z: &mut [f64],
+    s: &mut [f64],              // IMPORTANT: memory re-anchoring
+    w_stiefel: &[f64],          // W ∈ St(R, D)
+    ramp_val: f64,
+    seed: f64
+) {
+    for i in 0..R {
+
+        // ---------------------------------------------
+        // 1. Stiefel projection (structured perturbation)
+        // ---------------------------------------------
+        let mut projection = 0.0;
+
+        for j in 0..D {
+            let w = w_stiefel[i * D + j];
+            projection += w * gaussian_like(seed + j as f64);
+        }
+
+        // ---------------------------------------------
+        // 2. Controlled spectral injection
+        // (NOT raw overwrite — preserves Lie structure)
+        // ---------------------------------------------
+        let injected = ramp_val * NOISE_EPSILON * projection;
+
+        // ---------------------------------------------
+        // 3. Rebirth blending (critical stability step)
+        // ---------------------------------------------
+        let old_z = z[i];
+
+        z[i] = 0.85 * old_z + 0.15 * injected;
+
+        // ---------------------------------------------
+        // 4. Memory anchoring (prevents "cold start ghost")
+        // ---------------------------------------------
+        s[i] = 0.95 * s[i] + 0.05 * z[i];
+    }
+}
