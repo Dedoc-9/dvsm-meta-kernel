@@ -302,3 +302,185 @@ void dvsm_feature_map(dvsm_f64* out_vector);
 #endif
 
 #endif // DVSM_H
+
+// ============================================================================
+// DVSM-π+++ · GENERAL BINARY API ADDENDUM (C ABI)
+// ============================================================================
+// PURPOSE:
+//   Stable interface for external systems (audio, RF, crypto, ML)
+//   to interact with DVSM spectral-survival core.
+//
+// CORE ABSTRACTION:
+//   The system evolves a coupled state:
+//       μ_t : empirical measure (opaque / host-side only)
+//       Z_t : spectral field (engine state)
+//       S_t : memory hysteresis
+//       W_t : orthonormal geometric scaffold
+//
+//   Evolution is NOT prediction.
+//   It is survival filtering under non-normal dynamics.
+// ============================================================================
+
+#ifndef DVSM_H
+#define DVSM_H
+
+#include <stdint.h>
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ============================================================================
+// CORE TYPES
+// ============================================================================
+
+typedef struct {
+    double z;   // spectral amplitude
+    double s;   // memory coupling
+    double w0;  // basis projection (left / channel 0)
+    double w1;  // basis projection (right / channel 1)
+} DVSM_Frame;
+
+typedef struct {
+    uint32_t R;        // spectral rank
+    uint32_t D;        // geometric dimension
+    double U_max;      // kill-switch energy ceiling
+    double lambda;     // dissipation
+    double alpha;      // EMA memory
+} DVSM_Params;
+
+typedef enum {
+    DVSM_OK = 0,
+    DVSM_VACUUM_TRIGGERED = 1,
+    DVSM_INVALID_STATE = 2
+} DVSM_Status;
+
+typedef struct {
+    double left;
+    double right;
+} DVSM_StereoFrame;
+
+// ============================================================================
+// CONTEXT HANDLE (opaque engine state)
+// ============================================================================
+
+typedef struct DVSM_Handle DVSM_Handle;
+
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+
+DVSM_Handle* dvsm_create(const DVSM_Params* params);
+
+void dvsm_destroy(DVSM_Handle* ctx);
+
+// Reset spectral system (μ_t untouched conceptually, Z/S/W reset)
+void dvsm_reset(DVSM_Handle* ctx);
+
+// ============================================================================
+// CORE EVOLUTION STEP
+// ============================================================================
+//
+// Implements:
+//
+//     ∂Z = [Z,S]_A - λZ
+//     S  = αS + (1-α)Z
+//     projection onto W_t
+//     kill-switch if ||Z|| > U_max
+//
+// ============================================================================
+
+DVSM_Status dvsm_step(
+    DVSM_Handle* ctx,
+    const DVSM_Frame* input,
+    size_t n,
+    double dt
+);
+
+// ============================================================================
+// AUDIO INTERFACE (STEREO PROJECTION)
+// ============================================================================
+//
+// This is the "consumer-facing manifestation":
+// DVSM does NOT mix audio — it selects stable spectral projections.
+//
+// Mathematical form:
+//
+//   L = Σ_i Z_i · W_i0
+//   R = Σ_i Z_i · W_i1
+//
+// ============================================================================
+
+DVSM_StereoFrame dvsm_audio_frame(
+    DVSM_Handle* ctx
+);
+
+// ============================================================================
+// KILL-SWITCH / VACUUM STATE
+// ============================================================================
+
+int dvsm_is_vacuum(const DVSM_Handle* ctx);
+
+// Forces hard spectral reset (Exorcism protocol)
+void dvsm_vacuum(DVSM_Handle* ctx);
+
+// ============================================================================
+// GEOMETRIC STATE ACCESS (READ-ONLY)
+// ============================================================================
+
+const double* dvsm_get_Z(const DVSM_Handle* ctx);
+const double* dvsm_get_S(const DVSM_Handle* ctx);
+const double* dvsm_get_W(const DVSM_Handle* ctx);
+
+// ============================================================================
+// DIAGNOSTICS (POST-HOC ONLY)
+// ============================================================================
+
+typedef struct {
+    double energy;      // ||Z||^2
+    double burst;       // ||S|| / (||Z|| + ε)
+    double stability;   // derived damping metric
+    uint32_t vacuumed;  // kill-switch triggers
+} DVSM_Diagnostics;
+
+DVSM_Diagnostics dvsm_diagnostics(const DVSM_Handle* ctx);
+
+// ============================================================================
+// HIGH-LEVEL INTERPRETATION CONTRACT
+// ============================================================================
+//
+// 1. dvsm_step():
+//      Evolves spectral hypothesis field under Lie-bracket dynamics.
+//
+// 2. dvsm_audio_frame():
+//      Projects surviving manifold onto stereo output.
+//
+// 3. dvsm_vacuum():
+//      Hard resets unstable non-normal growth.
+//
+// 4. W_t:
+//      Immutable geometric scaffold (basis continuity across resets)
+//
+// 5. S_t:
+//      Memory of prior instability (hysteresis layer)
+//
+// 6. Z_t:
+//      Active hypothesis field (only layer allowed to explode)
+//
+// ============================================================================
+// SAFETY INVARIANTS
+// ============================================================================
+//
+// - Z_t may diverge temporarily (non-normal growth allowed)
+// - S_t is bounded by construction (EMA stability)
+// - W_t must remain orthonormal (Gram stability constraint)
+// - Any violation triggers VACUUM state
+//
+// ============================================================================
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // DVSM_H
