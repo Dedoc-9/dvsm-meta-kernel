@@ -1,177 +1,230 @@
-# DVSM-RF Refinements V2
-## Complex Spectral Dynamics & Predictive Instability Core
-### File 2 · MIT-Level Systems Review
-### Daniel J. Dillberg · 2026-05-14
-
----
-
-# PURPOSE
-
-This document defines the second architectural layer of DVSM-RF:
-the transition from a real-valued broadband anomaly detector into
-a complex-valued predictive spectral dynamics engine.
-
-File 1 DVSM Runtime RF Core established:
-
-- non-normal Lie-bracket RF transport
-- EMA shear memory
-- gain-regulated spectral flow
-- B(t) instability detection
-- adaptive Grassmann basis evolution
-
-This file 2 extends the architecture into:
-
-1. complex-domain spectral transport
-2. predictive instability geometry
-3. adaptive statistical thresholds
-4. orthogonal manifold stabilization
-5. information-theoretic anomaly metrics
-6. operational emitter tracking
-
-The focus is not feature expansion.
-The focus is mathematical closure.
-
-The objective is to preserve:
-
-- dissipative stability
-- bounded energy transport
-- real-time feasibility
-- explainable anomaly generation
-
-while extending the operator stack into
-phase-aware RF topology analysis.
-
----
+//! ============================================================
+//! DVSM-RF · UNIFIED SPECTRAL TRANSPORT ENGINE
+//! Single-file production-refactored architecture
+//! ============================================================
 //! ============================================================================
-//! DVSM-RF V2 · COMPLEX SPECTRAL TOPOLOGY RUNTIME CORE
-//! ----------------------------------------------------------------------------
-//! File        : dvsm_rf_v2_runtime.rs
-//! Author      : Daniel J. Dillberg
-//! Version     : 2.0
-//! Date        : 2026-05-14
-//! License     : Dual AGLP-3 / Commercial
-//!
-//! ============================================================================
-//! MATHEMATICAL FOUNDATION
+//! DVSM-RF · ENGINEERING INTRO BLOCK (FOR DEVELOPERS)
 //! ============================================================================
 //!
-//! DVSM-RF V2 models broadband RF environments as dissipative,
-//! non-normal spectral transport systems operating on a complex
-//! Hilbert field:
+//! This system is a layered non-normal spectral transport runtime.
+//! It is designed for engineers working on RF, DSP, anomaly detection,
+//! and structured dynamical systems.
 //!
-//!      Z ∈ ℂ^R
+//! ---------------------------------------------------------------------------
+//! WHAT THIS SYSTEM IS
+//! ---------------------------------------------------------------------------
+//!
+//! DVSM-RF treats a signal not as a static waveform, but as a *living
+//! dynamical field* evolving across three coupled spaces:
+//!
+//!     μ(t) → Z(t) → S(t) → W(t)
 //!
 //! where:
 //!
-//!      Z_k = A_k exp(iθ_k)
+//!   μ(t) : input spectral measure (raw signal → distribution)
+//!   Z(t) : latent spectral transport field (state dynamics)
+//!   S(t) : residual shear memory (history mismatch / hysteresis)
+//!   W(t) : adaptive basis geometry (learned projection manifold)
 //!
-//! represents the amplitude-phase state of frequency mode k.
+//! ---------------------------------------------------------------------------
+//! WHAT “GHOSTS” MEANS IN THIS SYSTEM
+//! ---------------------------------------------------------------------------
 //!
-//! The runtime evolves spectral topology using a complex-valued
-//! antisymmetric Lie-bracket operator:
+//! “Ghosts” are not metaphysical objects.
 //!
-//!      dZ_k/dt = Σ_j (Z_k conj(S_j) - Z_j conj(S_k))κ(k,j) - λZ_k
+//! They are mathematically defined residual structures:
 //!
-//! where:
+//!     G(t) = Z(t) − Π_W[Z(t)]
 //!
-//!      S_k = shear memory field
-//!      κ(k,j) = antisymmetric transport kernel
-//!      λ = dissipative spectral sink
+//! Interpretation:
 //!
-//! The antisymmetric transport conserves total spectral energy:
+//!   • Z(t) carries observed spectral energy
+//!   • W(t) defines what the system believes is “explainable”
+//!   • G(t) is what leaks through the model
 //!
-//!      d/dt ||Z||² = -2λ||Z||²
+//! These residuals behave like persistent structure in time:
 //!
-//! meaning:
+//!     S(t+1) = α S(t) + (1 − α) G(t)
 //!
-//!      • transient amplification possible
-//!      • spontaneous energy creation impossible
+//! So “ghosts” = *coherent prediction error stored in time*.
 //!
-//! The system therefore detects:
+//! They are not noise.
+//! They are *unmodeled transport geometry*.
 //!
-//!      • burst interference
-//!      • spectral deception
-//!      • modulation drift
-//!      • phase instability
-//!      • non-stationary emitter topology
+//! ---------------------------------------------------------------------------
+//! CORE ARITHMETIC (ENGINEERING FORM)
+//! ---------------------------------------------------------------------------
 //!
-//! without hallucinating internal energy generation.
+//! 1. NON-NORMAL TRANSPORT (core dynamics)
 //!
+//!     dZ_k/dt = Σ_j (Z_k S_j − Z_j S_k) κ(k,j) − λ Z_k
+//!
+//! Meaning:
+//!   energy is redistributed, not created
+//!   instability is structural, not random
+//!
+//! Energy bound:
+//!
+//!     d||Z||²/dt = −2λ||Z||²
+//!
+//! ---------------------------------------------------------------------------
+//!
+//! 2. RESIDUAL MEMORY (ghost accumulation)
+//!
+//!     S_k ← α S_k + (1 − α)(Z_k − W_k Z_k)
+//!
+//! This forms a hysteretic memory of mismatch.
+//!
+//! ---------------------------------------------------------------------------
+//!
+//! 3. INSTABILITY METRIC (system strain)
+//!
+//!     B(t) = ||S|| / (||Z|| + ε)
+//!
+//! Interpretation:
+//!   B small  → model explains signal
+//!   B large  → structure is drifting / unseen dynamics exist
+//!
+//! ---------------------------------------------------------------------------
+//!
+//! 4. GAIN REGULATION (stability clamp)
+//!
+//!     gain_k = min(1, T / |Z_k|)
+//!
+//! prevents local explosion while preserving global transport.
+//!
+//! ---------------------------------------------------------------------------
+//!
+//! 5. BASIS ADAPTATION (geometry update)
+//!
+//!     W ← Normalize(W + η (Z − S))
+//!
+//! W learns the explainable manifold.
+//!
+//! ---------------------------------------------------------------------------
+//! ENGINEERING INTUITION
+//! ---------------------------------------------------------------------------
+//!
+//! Think of the system as three coupled forces:
+//!
+//!   SIGNAL (Z)   → what exists now
+//!   MEMORY (S)   → what used to be unexplained
+//!   MODEL (W)    → what the system believes is normal
+//!
+//! The “ghost field” is:
+//!
+//!     G = mismatch between reality and learned geometry
+//!
+//! And DVSM-RF is a controlled way to:
+//!
+//!     1. measure it
+//!     2. store it
+//!     3. propagate it
+//!     4. adapt to it
+//!
+//! ---------------------------------------------------------------------------
+//! WHY THIS IS USEFUL IN PRACTICE
+//! ---------------------------------------------------------------------------
+//!
+//! This architecture is useful when:
+//!
+//!   • FFT features are stable but behavior is not
+//!   • anomalies are structural, not energetic
+//!   • drift is gradual, not spiky
+//!   • signal identity is in relationships, not amplitudes
+//!
+//! It detects:
+//!
+//!   • modulation drift
+//!   • emitter deformation
+//!   • interference structure
+//!   • hidden coupling changes
+//!   • non-stationary spectral topology
+//!
+//! ---------------------------------------------------------------------------
+//! KEY DESIGN RULE FOR ENGINEERS
+//! ---------------------------------------------------------------------------
+//!
+//! If you remove S(t), the system becomes a filter.
+//! If you remove W(t), it becomes a detector.
+//! If you remove Z(t), it becomes memory only.
+//!
+//! The system only works when all three coexist.
+//!
+//! ---------------------------------------------------------------------------
+//! END OF ENGINEERING INTRO
 //! ============================================================================
-//! ARCHITECTURE
-//! ============================================================================
+//! //! DVSM-RF · Vorticity (Non-Normal Spectral Definition)
 //!
-//! STAGE 1  : STFT spectral acquisition
-//! STAGE 2  : complex projection field Z
-//! STAGE 3  : Lie-bracket spectral transport
-//! STAGE 4  : gain compression + thermal regulation
-//! STAGE 5  : asymmetric EMA shear memory
-//! STAGE 6  : thermo-elastic basis adaptation
-//! STAGE 7  : Stiefel orthogonalization
-//! STAGE 8  : χ² instability metric
-//! STAGE 9  : adaptive threshold burst detection
+//! In classical DSP/CFD:
+//!     vorticity ≈ spatial curl or phase gradient (local derivative)
 //!
-//! ============================================================================
-//! IP POSITIONING
-//! ============================================================================
+//! In DVSM-RF:
+//!     vorticity is NOT geometric curl.
+//!     It is antisymmetric spectral energy circulation across modes.
 //!
-//! NOT independently protectable:
+//! ------------------------------------------------------------------
+//! CORE IDEA
+//! ------------------------------------------------------------------
 //!
-//!      FFT/STFT
-//!      EMA filters
-//!      Gram-Schmidt
-//!      χ² divergence
-//!      Kalman methods
-//!      Lie brackets
-//!      spectral kurtosis
+//! ω_k = Σ_j (Z_k * S_j − Z_j * S_k) κ(k,j)
 //!
-//! POTENTIALLY DEFENSIBLE COMPOSITION:
+//! This measures:
+//!   → directional energy imbalance
+//!   → cross-mode circulation strength
+//!   → non-normal rotational amplification
 //!
-//!      • Complex-valued non-normal RF transport
-//!      • Dissipative Lie-bracket spectral coupling
-//!      • EMA shear-memory topology tracking
-//!      • χ² instability geometry for RF anomaly detection
-//!      • Thermo-elastic Grassmann basis adaptation
-//!      • Unified Z-S-W spectral topology architecture
+//! Unlike classical methods:
+//!   • no spatial grid required
+//!   • no derivative operator
+//!   • rotation emerges from coupling topology κ
 //!
-//! IMPORTANT:
-//!
-//! The protectable value is NOT the mathematical primitives.
-//! The protectable value is the integrated operational stack,
-//! calibrated parameter topology, runtime convergence behavior,
-//! and application-domain tuning.
-//!
-//! Encrypt calibrated κ(i,j), α, λ, η, B_crit profiles.
-//! Do NOT rely on derived weights alone.
-//!
-//! ============================================================================
+//! ------------------------------------------------------------------
+
+pub fn dvsm_vorticity_k(
+    k: usize,
+    z: &[f64],
+    s: &[f64],
+    kappa: &[Vec<f64>],
+) -> f64 {
+    let mut vort = 0.0;
+
+    for j in 0..z.len() {
+        if j == k {
+            continue;
+        }
+
+        // antisymmetric transport contribution
+        let transport =
+            (z[k] * s[j]) - (z[j] * s[k]);
+
+        vort += transport * kappa[k][j];
+    }
+
+    vort
+}
+//! =============================================================================
 
 use std::f64::consts::PI;
 
-// ============================================================================
-// §0 CONFIGURATION
-// ============================================================================
+// ============================================================
+// §0 CONFIGURATION (SYSTEM PARAMETERS)
+// ============================================================
 
 pub const R: usize = 16;
 pub const DT: f64 = 1.0 / 60.0;
 
-pub const ALPHA_ATTACK: f64 = 0.90;
-pub const ALPHA_RELEASE: f64 = 0.995;
+pub const LAMBDA: f64 = 0.05;          // dissipation
+pub const ALPHA: f64 = 0.97;           // EMA memory
+pub const BETA: f64 = 0.25;            // elasticity coupling
+pub const ETA: f64 = 0.001;            // basis adaptation rate
 
-pub const LAMBDA: f64 = 0.05;
-pub const BASIS_LR: f64 = 0.001;
-pub const GAIN_THRESHOLD: f64 = 4.0;
+pub const B_CRIT: f64 = 2.0;
+pub const EPS: f64 = 1e-9;
 
-pub const THERMAL_DECAY: f64 = 0.995;
-pub const ELASTICITY_BETA: f64 = 0.25;
-
-pub const ADAPTIVE_WINDOW: usize = 64;
-
-pub const EPSILON: f64 = 1e-9;
-
-// ============================================================================
-// §1 COMPLEX TYPE
-// ============================================================================
+// ============================================================
+// §1 CORE TYPES
+// ============================================================
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Complex {
@@ -180,99 +233,52 @@ pub struct Complex {
 }
 
 impl Complex {
-    pub fn new(re: f64, im: f64) -> Self {
-        Self { re, im }
-    }
+    pub fn new(re: f64, im: f64) -> Self { Self { re, im } }
+
+    pub fn abs2(&self) -> f64 { self.re*self.re + self.im*self.im }
+    pub fn abs(&self) -> f64 { self.abs2().sqrt() }
 
     pub fn conj(&self) -> Self {
-        Self {
-            re: self.re,
-            im: -self.im,
-        }
-    }
-
-    pub fn abs2(&self) -> f64 {
-        self.re * self.re + self.im * self.im
-    }
-
-    pub fn abs(&self) -> f64 {
-        self.abs2().sqrt()
+        Self { re: self.re, im: -self.im }
     }
 }
 
+// arithmetic
 use std::ops::{Add, Sub, Mul};
 
 impl Add for Complex {
     type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            re: self.re + rhs.re,
-            im: self.im + rhs.im,
-        }
+    fn add(self, o: Self) -> Self {
+        Self::new(self.re + o.re, self.im + o.im)
     }
 }
 
 impl Sub for Complex {
     type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self {
-        Self {
-            re: self.re - rhs.re,
-            im: self.im - rhs.im,
-        }
+    fn sub(self, o: Self) -> Self {
+        Self::new(self.re - o.re, self.im - o.im)
     }
 }
 
 impl Mul for Complex {
     type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self {
-        Self {
-            re: self.re * rhs.re - self.im * rhs.im,
-            im: self.re * rhs.im + self.im * rhs.re,
-        }
+    fn mul(self, o: Self) -> Self {
+        Self::new(
+            self.re * o.re - self.im * o.im,
+            self.re * o.im + self.im * o.re,
+        )
     }
 }
 
-// ============================================================================
-// §2 BAND STATE
-// ============================================================================
+// ============================================================
+// §2 STATE LAYERS (μ → Z → S → W)
+// ============================================================
 
-#[derive(Clone, Debug)]
-pub struct BandState {
-    pub z: Complex,
-    pub s: Complex,
-
-    pub gain: f64,
-    pub temperature: f64,
-
-    pub m2: f64,
-    pub m4: f64,
-
-    pub kurtosis: f64,
+#[derive(Clone, Debug, Default)]
+pub struct Band {
+    pub z: Complex,   // spectral field Z
+    pub s: Complex,   // shear memory S
 }
-
-impl Default for BandState {
-    fn default() -> Self {
-        Self {
-            z: Complex::default(),
-            s: Complex::default(),
-
-            gain: 1.0,
-            temperature: 0.0,
-
-            m2: 0.0,
-            m4: 0.0,
-
-            kurtosis: 0.0,
-        }
-    }
-}
-
-// ============================================================================
-// §3 BASIS
-// ============================================================================
 
 #[derive(Clone, Debug)]
 pub struct Basis {
@@ -281,223 +287,182 @@ pub struct Basis {
 
 impl Default for Basis {
     fn default() -> Self {
-        Self {
-            w: [1.0, 0.5, 0.25, 0.125],
-        }
+        Self { w: [1.0, 0.5, 0.25, 0.125] }
     }
 }
 
-// ============================================================================
-// §4 SYSTEM CORE
-// ============================================================================
+// ============================================================
+// §3 Xi FEATURE VECTOR (INSTABILITY GEOMETRY)
+// ============================================================
 
-pub struct DvsmRfRuntime {
-    pub bands: Vec<BandState>,
+#[derive(Clone, Debug, Default)]
+pub struct Xi {
+    pub b: f64,       // instability magnitude
+    pub db: f64,      // velocity
+    pub d2b: f64,     // acceleration
+}
+
+// ============================================================
+// §4 SCHMITT HYSTERESIS
+// ============================================================
+
+#[derive(Clone, Debug)]
+pub struct Schmitt {
+    pub low: f64,
+    pub high: f64,
+    pub state: bool,
+}
+
+impl Schmitt {
+    pub fn new(low: f64, high: f64) -> Self {
+        Self { low, high, state: false }
+    }
+
+    pub fn update(&mut self, x: f64) -> bool {
+        if self.state && x < self.low {
+            self.state = false;
+        } else if !self.state && x > self.high {
+            self.state = true;
+        }
+        self.state
+    }
+}
+
+// ============================================================
+// §5 CORE RUNTIME
+// ============================================================
+
+pub struct DVSM {
+    pub bands: Vec<Band>,
     pub basis: Vec<Basis>,
     pub kappa: Vec<Vec<f64>>,
 
-    pub b_history: Vec<f64>,
+    pub prev_b: f64,
+    pub schmitt: Schmitt,
     pub frame: usize,
 }
 
-impl DvsmRfRuntime {
+impl DVSM {
 
-    // =========================================================================
+    // --------------------------------------------------------
     // INIT
-    // =========================================================================
-
+    // --------------------------------------------------------
     pub fn new() -> Self {
-
         let mut kappa = vec![vec![0.0; R]; R];
 
         for i in 0..R {
             for j in 0..R {
                 kappa[i][j] =
-                    ((i as f64) * 1.37 - (j as f64) * 1.73).sin();
+                    ((i as f64 * 1.37) - (j as f64 * 1.73)).sin();
             }
         }
 
         Self {
-            bands: vec![BandState::default(); R],
+            bands: vec![Band::default(); R],
             basis: vec![Basis::default(); R],
             kappa,
-            b_history: vec![],
+            prev_b: 0.0,
+            schmitt: Schmitt::new(0.55, 0.75),
             frame: 0,
         }
     }
 
-    // =========================================================================
-    // STAGE 1 + 2
-    // COMPLEX SPECTRAL PROJECTION
-    // =========================================================================
-
-    pub fn spectral_project(&mut self, samples: &[f64]) {
-
-        let n = samples.len() as f64;
+    // --------------------------------------------------------
+    // §1 μ → Z (SPECTRAL PROJECTION)
+    // --------------------------------------------------------
+    pub fn project(&mut self, samples: &[f64]) {
+        let n = samples.len().max(1) as f64;
 
         for k in 0..R {
-
             let mut re = 0.0;
             let mut im = 0.0;
 
-            let freq = (k as f64 + 1.0) * 100.0;
+            let freq = (k as f64 + 1.0) * 120.0;
 
             for (i, &x) in samples.iter().enumerate() {
-
                 let t = i as f64 / n;
+                let p = 2.0 * PI * freq * t;
 
-                let phase = 2.0 * PI * freq * t;
-
-                re += x * phase.cos();
-                im += x * phase.sin();
+                re += x * p.cos();
+                im += x * p.sin();
             }
 
             self.bands[k].z = Complex::new(re / n, im / n);
         }
     }
 
-    // =========================================================================
-    // STAGE 3
-    // COMPLEX LIE-BRACKET TRANSPORT
-    // =========================================================================
-
-    pub fn lie_bracket_step(&mut self) {
-
+    // --------------------------------------------------------
+    // §2 NON-NORMAL LIE TRANSPORT (Z evolution)
+    // --------------------------------------------------------
+    pub fn transport(&mut self) {
         let mut dz = vec![Complex::default(); R];
 
         for k in 0..R {
+            let zk = self.bands[k].z;
+            let sk = self.bands[k].s;
 
-            let z_k = self.bands[k].z;
-            let s_k = self.bands[k].s;
-
-            let mut coupling = Complex::default();
+            let mut acc = Complex::default();
 
             for j in 0..R {
-
                 if j == k { continue; }
 
-                let z_j = self.bands[j].z;
-                let s_j = self.bands[j].s;
+                let zj = self.bands[j].z;
+                let sj = self.bands[j].s;
 
                 let term =
-                    (z_k * s_j.conj())
-                    -
-                    (z_j * s_k.conj());
+                    (zk * sj.conj()) - (zj * sk.conj());
 
                 let scale = self.kappa[k][j];
 
-                coupling = coupling + Complex::new(
+                acc = acc + Complex::new(
                     term.re * scale,
                     term.im * scale,
                 );
             }
 
             dz[k] = Complex::new(
-                coupling.re - LAMBDA * z_k.re,
-                coupling.im - LAMBDA * z_k.im,
+                acc.re - LAMBDA * zk.re,
+                acc.im - LAMBDA * zk.im,
             );
         }
 
         for k in 0..R {
-
             self.bands[k].z.re += DT * dz[k].re;
             self.bands[k].z.im += DT * dz[k].im;
         }
     }
 
-    // =========================================================================
-    // STAGE 4
-    // GAIN + THERMAL REGULATION
-    // =========================================================================
-
-    pub fn gain_regulation(&mut self) {
-
+    // --------------------------------------------------------
+    // §3 EMA SHEAR MEMORY (S update)
+    // --------------------------------------------------------
+    pub fn memory(&mut self) {
         for k in 0..R {
+            let z = self.bands[k].z;
+            let s = &mut self.bands[k].s;
 
-            let mag = self.bands[k].z.abs();
-
-            self.bands[k].gain =
-                if mag > GAIN_THRESHOLD {
-                    GAIN_THRESHOLD / mag
-                } else {
-                    1.0
-                };
-
-            self.bands[k].z.re *= self.bands[k].gain;
-            self.bands[k].z.im *= self.bands[k].gain;
-
-            self.bands[k].temperature =
-                THERMAL_DECAY * self.bands[k].temperature
-                +
-                (1.0 - THERMAL_DECAY) * mag;
+            s.re = ALPHA * s.re + (1.0 - ALPHA) * z.re;
+            s.im = ALPHA * s.im + (1.0 - ALPHA) * z.im;
         }
     }
 
-    // =========================================================================
-    // STAGE 5
-    // ASYMMETRIC EMA SHEAR MEMORY
-    // =========================================================================
-
-    pub fn update_shear_memory(&mut self) {
-
-        for k in 0..R {
-
-            let zmag = self.bands[k].z.abs();
-            let smag = self.bands[k].s.abs();
-
-            let alpha =
-                if zmag > smag {
-                    ALPHA_ATTACK
-                } else {
-                    ALPHA_RELEASE
-                };
-
-            self.bands[k].s.re =
-                alpha * self.bands[k].s.re
-                +
-                (1.0 - alpha) * self.bands[k].z.re;
-
-            self.bands[k].s.im =
-                alpha * self.bands[k].s.im
-                +
-                (1.0 - alpha) * self.bands[k].z.im;
-        }
-    }
-
-    // =========================================================================
-    // STAGE 6
-    // THERMO-ELASTIC BASIS FLOW
-    // =========================================================================
-
+    // --------------------------------------------------------
+    // §4 BASIS ADAPTATION (W update)
+    // --------------------------------------------------------
     pub fn adapt_basis(&mut self) {
-
         for k in 0..R {
+            let z = self.bands[k].z.abs();
+            let s = self.bands[k].s.abs();
 
-            let t = self.bands[k].temperature;
-
-            let eta =
-                BASIS_LR
-                *
-                (1.0 + ELASTICITY_BETA * t);
-
-            let err =
-                self.bands[k].z.abs()
-                -
-                self.bands[k].s.abs();
+            let err = z - s;
 
             for j in 0..4 {
-
-                self.basis[k].w[j]
-                    += eta * err;
+                self.basis[k].w[j] += ETA * err;
             }
 
-            let norm =
-                self.basis[k].w
-                    .iter()
-                    .map(|x| x*x)
-                    .sum::<f64>()
-                    .sqrt()
-                    + EPSILON;
+            let norm = self.basis[k]
+                .w.iter()
+                .map(|x| x*x).sum::<f64>()
+                .sqrt() + EPS;
 
             for j in 0..4 {
                 self.basis[k].w[j] /= norm;
@@ -505,1205 +470,90 @@ impl DvsmRfRuntime {
         }
     }
 
-    // =========================================================================
-    // STAGE 7
-    // STIEFEL ORTHOGONALIZATION
-    // =========================================================================
-
-    pub fn orthogonalize_basis(&mut self) {
-
-        for k in 1..R {
-
-            for j in 0..k {
-
-                let dot =
-                    self.basis[k].w.iter()
-                    .zip(self.basis[j].w.iter())
-                    .map(|(a,b)| a*b)
-                    .sum::<f64>();
-
-                for d in 0..4 {
-                    self.basis[k].w[d]
-                        -= dot * self.basis[j].w[d];
-                }
-            }
-
-            let norm =
-                self.basis[k].w
-                    .iter()
-                    .map(|x| x*x)
-                    .sum::<f64>()
-                    .sqrt()
-                    + EPSILON;
-
-            for d in 0..4 {
-                self.basis[k].w[d] /= norm;
-            }
-        }
-    }
-
-    // =========================================================================
-    // STAGE 8
-    // KURTOSIS + χ² INSTABILITY
-    // =========================================================================
-
-    pub fn instability_metric(&mut self) -> f64 {
-
-        let mut chi2 = 0.0;
-
-        for k in 0..R {
-
-            let z = self.bands[k].z.abs();
-
-            self.bands[k].m2 =
-                0.99 * self.bands[k].m2
-                +
-                0.01 * z*z;
-
-            self.bands[k].m4 =
-                0.99 * self.bands[k].m4
-                +
-                0.01 * z*z*z*z;
-
-            self.bands[k].kurtosis =
-                self.bands[k].m4
-                /
-                (self.bands[k].m2 * self.bands[k].m2 + EPSILON)
-                -
-                3.0;
-
-            let dz =
-                self.bands[k].z.abs()
-                -
-                self.bands[k].s.abs();
-
-            chi2 +=
-                (dz * dz)
-                /
-                (self.bands[k].s.abs2() + EPSILON);
-        }
-
-        self.b_history.push(chi2);
-
-        chi2
-    }
-
-    // =========================================================================
-    // STAGE 9
-    // ADAPTIVE BURST DETECTOR
-    // =========================================================================
-
-    pub fn adaptive_threshold(&self) -> f64 {
-
-        if self.b_history.len() < 4 {
-            return 2.0;
-        }
-
-        let n = self.b_history.len()
-            .min(ADAPTIVE_WINDOW);
-
-        let slice =
-            &self.b_history[self.b_history.len()-n..];
-
-        let mean =
-            slice.iter().sum::<f64>() / n as f64;
-
-        let variance =
-            slice.iter()
-            .map(|x| (x-mean)*(x-mean))
-            .sum::<f64>()
-            / n as f64;
-
-        mean + 2.5 * variance.sqrt()
-    }
-
-    // =========================================================================
-    // STEP
-    // =========================================================================
-
-    pub fn step(&mut self, samples: &[f64]) {
-
-        self.spectral_project(samples);
-
-        self.lie_bracket_step();
-
-        self.gain_regulation();
-
-        self.update_shear_memory();
-
-        self.adapt_basis();
-
-        self.orthogonalize_basis();
-
-        let b = self.instability_metric();
-
-        let threshold = self.adaptive_threshold();
-
-        if b > threshold {
-
-            println!(
-                "[BURST] frame={} B={:.5} threshold={:.5}",
-                self.frame,
-                b,
-                threshold
-            );
-        }
-
-        self.frame += 1;
-    }
-
-    // =========================================================================
-    // OBSERVABLES
-    // =========================================================================
-
-    pub fn total_energy(&self) -> f64 {
-
-        self.bands.iter()
-            .map(|b| b.z.abs2())
-            .sum::<f64>()
-    }
-
-    pub fn spectral_entropy(&self) -> f64 {
-
-        let total =
-            self.total_energy() + EPSILON;
-
-        let mut h = 0.0;
+    // --------------------------------------------------------
+    // §5 Xi EXTRACTION (instability geometry)
+    // --------------------------------------------------------
+    pub fn xi(&self) -> Xi {
+        let mut z2 = 0.0;
+        let mut s2 = 0.0;
 
         for b in &self.bands {
-
-            let p = b.z.abs2() / total;
-
-            if p > EPSILON {
-                h -= p * p.ln();
-            }
+            z2 += b.z.abs2();
+            s2 += b.s.abs2();
         }
 
-        h
-    }
-}
+        let b = s2 / (z2 + EPS);
+        let db = b - self.prev_b;
 
-// ============================================================================
-// §5 TEST SIGNALS
-// ============================================================================
-
-pub fn signal_clean(frame: usize, n: usize) -> Vec<f64> {
-
-    let mut out = vec![0.0; n];
-
-    for i in 0..n {
-
-        let t =
-            frame as f64 * DT
-            +
-            i as f64 / n as f64;
-
-        out[i] =
-            0.5 * (2.0 * PI * 100.0 * t).sin()
-            +
-            0.3 * (2.0 * PI * 440.0 * t).sin();
-    }
-
-    out
-}
-
-pub fn signal_burst(frame: usize, n: usize) -> Vec<f64> {
-
-    let mut s = signal_clean(frame, n);
-
-    if frame > 60 && frame < 90 {
-
-        for i in 0..n {
-
-            let t = i as f64 / n as f64;
-
-            s[i] +=
-                2.0
-                *
-                (2.0 * PI * (200.0 + frame as f64) * t)
-                .sin();
-        }
-    }
-
-    s
-}
-
-// ============================================================================
-// §6 MAIN
-// ============================================================================
-
-fn main() {
-
-    println!("=================================================");
-    println!("DVSM-RF V2 · COMPLEX SPECTRAL TOPOLOGY ENGINE");
-    println!("Author: Daniel J. Dillberg");
-    println!("=================================================");
-
-    let mut runtime = DvsmRfRuntime::new();
-
-    for frame in 0..180 {
-
-        let signal = signal_burst(frame, 1024);
-
-        runtime.step(&signal);
-
-        println!(
-            "frame={} energy={:.5} entropy={:.5}",
-            frame,
-            runtime.total_energy(),
-            runtime.spectral_entropy(),
-        );
-    }
-
-    println!("=================================================");
-    println!("runtime complete");
-    println!("=================================================");
-}
-//! ============================================================
-//! DVSM-RF · DEFENSIBLE IP POSITIONING BLOCK
-//! ============================================================
-//!
-//! Author  : Daniel J. Dillberg
-//! Runtime : DVSM-RF Runtime Core
-//! Domain  : Broadband RF / Spectral Topology Analysis
-//!
-//! ============================================================
-//! MATHEMATICAL FUNDAMENTALS
-//! ============================================================
-//!
-//! Core state evolution:
-//!
-//!     dZ_k/dt = Σ_j (Z_k S_j − Z_j S_k) κ(k,j) − λZ_k
-//!
-//! where:
-//!
-//!     Z_k  = spectral transport field
-//!     S_k  = EMA shear-memory field
-//!     κ    = antisymmetric coupling topology
-//!     λ    = dissipative spectral sink
-//!
-//! χ² instability geometry:
-//!
-//!     B(t) = Σ_k (Z_k − S_k)^2 / (S_k^2 + ε)
-//!
-//! Grassmann adaptation:
-//!
-//!     W_k ← Normalize(W_k + η∇)
-//!
-//! ============================================================
-//! IP POSITIONING
-//! ============================================================
-//!
-//! NOT independently protectable:
-//!
-//!      FFT/STFT
-//!      EMA filters
-//!      Gram-Schmidt
-//!      χ² divergence
-//!      Kalman methods
-//!      Lie brackets
-//!      spectral kurtosis
-//!
-//! POTENTIALLY DEFENSIBLE COMPOSITION:
-//!
-//!      • Complex-valued non-normal RF transport
-//!      • Dissipative Lie-bracket spectral coupling
-//!      • EMA shear-memory topology tracking
-//!      • χ² instability geometry for RF anomaly detection
-//!      • Thermo-elastic Grassmann basis adaptation
-//!      • Unified Z-S-W spectral topology architecture
-//!
-//! IMPORTANT:
-//!
-//! The protectable value is NOT the mathematical primitives.
-//! The protectable value is the integrated operational stack,
-//! calibrated parameter topology, runtime convergence behavior,
-//! and application-domain tuning.
-//!
-//! Encrypt calibrated κ(i,j), α, λ, η, B_crit profiles.
-//! Do NOT rely on derived weights alone.
-//!
-//! ============================================================
-//! DEFENSIBLE SOFTWARE POSITION
-//! ============================================================
-//!
-//! A potentially defensible software position emerges when the
-//! runtime architecture demonstrates:
-//!
-//!     1. Stable dissipative convergence
-//!     2. Domain-specific RF calibration behavior
-//!     3. Persistent topology-memory coupling
-//!     4. Non-trivial spectral transport dynamics
-//!     5. Operational anomaly discrimination
-//!
-//! The strongest claim is NOT ownership of mathematics,
-//! but ownership of:
-//!
-//!     • the calibrated runtime topology,
-//!     • the convergence regime,
-//!     • the integrated spectral transport pipeline,
-//!     • and the operational deployment behavior.
-//!
-//! ============================================================
-
-pub const DEFENSIBLE_RUNTIME_STACK: [&str; 5] = [
-    "Complex-valued spectral transport",
-    "Non-normal Lie-bracket coupling",
-    "EMA shear-memory persistence",
-    "Adaptive Grassmann basis evolution",
-    "χ² instability anomaly geometry",
-];
-
-pub struct RuntimeCalibrationProfile {
-    pub lambda: f64,
-    pub alpha: f64,
-    pub eta: f64,
-    pub b_crit: f64,
-    pub encrypted_kappa_hash: [u8; 32],
-}
-
-impl RuntimeCalibrationProfile {
-    pub fn defensible_surface(&self) -> String {
-        format!(
-            "DVSM-RF calibrated runtime | λ={:.4} α={:.4} η={:.6} Bcrit={:.4}",
-            self.lambda,
-            self.alpha,
-            self.eta,
-            self.b_crit
-        )
-    }
-}
-//! ============================================================
-//! DEV NOTE · DVSM-RF RUNTIME CORE
-//! ============================================================
-//!
-//! This runtime is intentionally structured as a
-//! mathematically transparent operator system rather than a
-//! black-box ML classifier.
-//!
-//! DESIGN PHILOSOPHY
-//! ------------------------------------------------------------
-//!
-//! Traditional RF systems:
-//!     signal → FFT → threshold → classifier
-//!
-//! DVSM-RF instead models:
-//!
-//!     signal → spectral topology → transport dynamics
-//!            → memory shear → instability geometry
-//!
-//! The objective is not merely spectral decomposition.
-//! The objective is detection of structurally unexplained
-//! spectral evolution.
-//!
-//! ============================================================
-//! IMPORTANT IMPLEMENTATION NOTES
-//! ============================================================
-//!
-//! 1. κ(i,j) defines operational geometry
-//! ------------------------------------------------------------
-//!
-//! The coupling kernel is NOT a cosmetic parameter.
-//! It determines:
-//!
-//!     • cross-band transport behavior
-//!     • transient amplification structure
-//!     • convergence pathways
-//!     • burst propagation geometry
-//!
-//! Domain-specific κ calibration is one of the primary
-//! defensible components of the runtime.
-//!
-//! Encrypt calibrated κ profiles.
-//!
-//! ------------------------------------------------------------
-//! 2. B(t) is NOT an energy detector
-//! ------------------------------------------------------------
-//!
-//!     B(t) ≠ signal power
-//!
-//! B(t) measures:
-//!
-//!     unexplained spectral topology
-//!
-//! High B(t):
-//!     the learned basis W cannot explain current Z.
-//!
-//! This allows detection of:
-//!
-//!     • spectral drift
-//!     • emitter deformation
-//!     • frequency hopping
-//!     • spoofing
-//!     • non-stationary interference
-//!
-//! even when total RF power remains stable.
-//!
-//! ------------------------------------------------------------
-//! 3. The system is dissipative by construction
-//! ------------------------------------------------------------
-//!
-//! Energy evolution:
-//!
-#![allow(unused_doc_comments)]
-//! :contentReference[oaicite:0]{index=0}
-//!
-//! The Lie-bracket redistributes energy between modes
-//! but cannot generate energy internally.
-//!
-//! Operational implication:
-//!
-//!     internal runtime instability cannot fabricate
-//!     burst events without external excitation.
-//!
-//! ------------------------------------------------------------
-//! 4. Complex-valued extension is the next major upgrade
-//! ------------------------------------------------------------
-//!
-//! Current implementation:
-//!
-//!     Z_k ∈ ℝ
-//!
-//! Operational-grade RF implementation:
-//!
-//!     Z_k ∈ ℂ
-//!
-//! This unlocks:
-//!
-//!     • phase-coherence detection
-//!     • modulation discrimination
-//!     • jammer identification
-//!     • array interferometry
-//!     • directional estimation
-//!
-//! ------------------------------------------------------------
-//! 5. The strongest IP surface is runtime behavior
-//! ------------------------------------------------------------
-//!
-//! The mathematics themselves are largely public-domain,
-//! academically established, or obvious combinations.
-//!
-//! The strongest defensible position comes from:
-//!
-//!     • calibrated convergence profiles
-//!     • runtime transport geometry
-//!     • operational tuning
-//!     • domain-specific parameterization
-//!     • deployment-specific spectral adaptation
-//!
-//! NOT from ownership of:
-//!
-//!     FFTs
-//!     Lie brackets
-//!     EMAs
-//!     Gram-Schmidt
-//!     Kalman filters
-//!
-//! ------------------------------------------------------------
-//! 6. Runtime priorities moving forward
-//! ------------------------------------------------------------
-//!
-//! HIGH PRIORITY:
-//!
-//!     [ ] complex-valued spectral state
-//!     [ ] adaptive B_crit thresholding
-//!     [ ] Stiefel orthogonalization
-//!     [ ] spectral kurtosis regulator
-//!     [ ] asymmetric shear memory
-//!
-//! RESEARCH TRACK:
-//!
-//!     [ ] pseudospectrum prediction
-//!     [ ] Hopf bifurcation analysis
-//!     [ ] hyperbolic embeddings
-//!     [ ] transfer entropy transport
-//!
-//! ============================================================
-//! END DEV NOTE
-//! ============================================================
-// ============================================================
-// DVSM-RF · RUNTIME CORE CALIBRATION ADDENDUM
-// Hardened initialization of spectral transport parameters
-// ============================================================
-//
-// NOTE ON DESIGN INTENT:
-//
-// This module does NOT attempt to “protect mathematics” such as
-// FFTs, EMAs, or Lie brackets. Those are public primitives.
-//
-// The defensible component is the *coupled runtime behavior*:
-//
-//   • calibrated dissipation stability (λ)
-//   • memory hysteresis regime (α)
-//   • basis adaptation elasticity (η)
-//   • anomaly geometry thresholding (B_crit)
-//   • encrypted coupling topology (κ hash)
-//
-// The IP boundary (if any) lives in:
-//   → parameterization strategy
-//   → coupling topology encoding
-//   → system-level convergence behavior under load
-//
-// ============================================================
-
-#[derive(Clone, Debug)]
-pub struct RuntimeCalibrationProfile {
-    pub lambda: f64,                  // λ: spectral dissipation
-    pub alpha: f64,                  // α: EMA memory coefficient
-    pub eta: f64,                     // η: basis adaptation rate
-    pub b_crit: f64,                  // B_crit: instability threshold
-    pub encrypted_kappa_hash: [u8; 32], // κ topology (encrypted/hashed)
-}
-
-impl RuntimeCalibrationProfile {
-    /// Hardened constructor with stability constraints.
-    ///
-    /// These constraints enforce minimal dynamical-system validity:
-    ///
-    ///   λ > 0   → ensures dissipative spectral flow
-    ///   α ∈ (0,1) → ensures stable EMA memory evolution
-    ///   η > 0    → ensures basis can adapt (no frozen manifold)
-    ///   B_crit > 0 → ensures meaningful anomaly boundary
-    ///
-    pub fn new_hardened(
-        l: f64,
-        a: f64,
-        e: f64,
-        b: f64,
-        hash: [u8; 32],
-    ) -> Result<Self, String> {
-
-        // --------------------------------------------------------
-        // Dissipation constraint (energy stability requirement)
-        // --------------------------------------------------------
-        // d||Z||²/dt = -2λ||Z||²
-        if l <= 0.0 {
-            return Err("Stability Violation: λ must be > 0".into());
-        }
-
-        // --------------------------------------------------------
-        // EMA memory stability constraint
-        // --------------------------------------------------------
-        // α outside (0,1) breaks exponential moving average semantics
-        if a <= 0.0 || a >= 1.0 {
-            return Err("Memory Violation: α must be in (0,1)".into());
-        }
-
-        // --------------------------------------------------------
-        // Basis adaptation constraint
-        // --------------------------------------------------------
-        // η controls Grassmann flow speed; must remain positive
-        if e <= 0.0 {
-            return Err("Adaptation Violation: η must be > 0".into());
-        }
-
-        // Optional practical upper bound (prevents numerical instability)
-        if e > 1.0 {
-            return Err("Adaptation Violation: η must be ≤ 1".into());
-        }
-
-        // --------------------------------------------------------
-        // Anomaly threshold constraint
-        // --------------------------------------------------------
-        if b <= 0.0 {
-            return Err("Detection Violation: B_crit must be > 0".into());
-        }
-
-        Ok(Self {
-            lambda: l,
-            alpha: a,
-            eta: e,
-            b_crit: b,
-            encrypted_kappa_hash: hash,
-        })
-    }
-}
-
-// ============================================================
-// REFINED DEFENSIBLE IP ARCHITECTURE (RUNTIME ANNOTATION BLOCK)
-// DVSM-RF · Spectral Transport System
-// ============================================================
-//
-// This file-level annotation defines the conceptual boundary
-// between:
-//   (A) public mathematical primitives
-//   (B) system-level emergent behavior (potential IP surface)
-//
-// IMPORTANT:
-//
-// Nothing in this system attempts to claim ownership of:
-//   - transforms
-//   - estimators
-//   - filters
-//   - divergences
-//   - algebraic operators
-//
-// The only meaningful novelty exists in *composition dynamics*:
-// how these elements interact under coupled evolution.
-//
-// ============================================================
-
-/// ============================================================
-/// PUBLIC DOMAIN / PRIOR ART (Individually)
-/// ============================================================
-///
-/// These components are well-established in scientific and
-/// engineering literature:
-///
-/// - FFT / STFT / wavelet transforms
-/// - EMA / exponential smoothing filters
-/// - Gram-Schmidt / Stiefel / Grassmann projections
-/// - χ² / KL / MSE distance measures
-/// - Kalman / particle filtering methods
-/// - Lie algebra commutators (antisymmetric brackets)
-///
-/// Individually:
-///     → not novel
-///     → not protectable
-///     → widely used across DSP, control theory, ML
-///
-/// ============================================================
-///
-/// DEFENSIBLE IP SURFACE (System-Level Coupling Only)
-/// ============================================================
-///
-/// 1. NON-NORMAL SPECTRAL TRANSPORT COUPLING
-///
-/// The latent spectral field Z and memory field S are coupled via
-/// a non-normal Lie-bracket evolution:
-///
-///     dZ = [Z, S]_κ − λZ
-///
-/// Key property:
-///     → antisymmetric redistribution
-///     → global energy contraction preserved
-///     → local transient amplification permitted
-///
-/// The novelty is NOT the bracket itself,
-/// but the *closed-loop instability structure under dissipation*.
-///
-///
-/// 2. KAPPA-TOPOLOGY ENCODING (κ-matrix as spectral keyspace)
-///
-/// κ(i,j) defines structured coupling between frequency bands.
-///
-/// If encrypted / learned:
-///     → acts as a transport topology key
-///     → defines privileged spectral pathways
-///
-/// This turns standard band interaction into:
-///     "controlled anisotropic spectral flow"
-///
-///
-/// 3. STABILITY-REGULATED CLOSED LOOP
-///
-/// Coupling between:
-///
-///     λ → dissipation (energy sink)
-///     α → memory persistence (EMA hysteresis)
-///     gain → per-band compression (nonlinearity)
-///
-/// This triad enforces:
-///
-///     contraction under burst conditions
-///     bounded spectral energy evolution
-///     controlled non-normal amplification
-///
-/// The IP is in the *joint constraint system*, not the filters.
-///
-///
-/// 4. EMERGENT INSTABILITY GEOMETRY (B(t))
-///
-/// B(t) = ||S|| / ||Z||
-///
-/// Not merely a threshold detector, but:
-///
-///     → a coordinate on a stability manifold
-///     → encoding mismatch between memory and excitation
-///
-/// Interpretation:
-///     low B(t)  → coherent spectral alignment
-///     high B(t) → structural mismatch / anomaly stress
-///
-/// The geometry of B(t) trajectories encodes signal class.
-///
-///
-/// 5. TRIPLE-LAYER MANIFOLD EVOLUTION (Z, S, W)
-///
-/// The system evolves three coupled objects:
-///
-///     Z → spectral field (observed dynamics)
-///     S → memory / hysteresis field
-///     W → adaptive basis geometry
-///
-/// Feedback loop:
-///
-///     Z → drives S (residual stress accumulation)
-///     S → drives Z (non-normal coupling feedback)
-///     Z,S → drive W (Grassmann adaptation)
-///
-/// This forms a closed variational system:
-///     not a filter chain, but a coupled manifold flow.
-///
-///
-/// ============================================================
-/// CORE THESIS (SYSTEM CLAIM)
-// ============================================================
-///
-/// The mathematical primitives are not novel.
-///
-/// The *emergent behavior* of the coupled dynamical system is:
-///
-///     "Structural anomaly detection via stress accumulation
-///      in a non-normal dissipative spectral manifold."
-///
-/// Value is located in:
-///     → convergence behavior under perturbation
-///     → κ-encoded transport geometry
-///     → stability-constrained feedback loops
-///     → observable B(t) manifold deformation
-///
-/// ======================================================================
-/// IP ANNOTATION: B(t) FINGERPRINT INSTRUMENTATION
-/// ======================================================================
-///
-/// This layer defines the transformation of the B(t) stability metric 
-/// from a scalar threshold into a hardware-specific anomaly signature.
-///
-/// DEFENSIBLE CORE:
-///
-///   1. DEVICE-INVARIANT EMBEDDING DISTORTION:
-///      The B(t) trajectory is treated as a "stress curve" of the 
-///      embedding geometry. Even if raw signal levels vary, the 
-///      deformation profile of the S-Z manifold is a device-invariant 
-///      signature of the underlying physical state.
-///
-///   2. ANOMALY FEATURE VECTOR (Ξ):
-///      We instrument the B(t) manifold via its differential geometry:
-///      Ξ = { dB/dt, d²B/dt², entropy(B), κ-flux_divergence }
-///
-///      The novelty is mapping this vector to specific hardware states 
-///      (fatigue, thermal drift, or adversarial spoofing) rather than 
-///      simple energy detection.
-///
-///   3. PERTURBATION STABILITY SIGNATURE:
-///      The system's IP is located in the **stability profile**:
-///      How the (Z, S, W) manifold recovers from a controlled impulse.
-///      The "recovery curve" in B-space is the defensible system fingerprint.
-///
-/// THESIS: 
-///   I do not claim the B(t) metric; I claim the use of the **B(t) 
-///   distortion manifold** as a high-fidelity diagnostic for 
-///   hardware-level structural changes.
-///
-/// ======================================================================
-// This Rust implementation defines the \(\Xi \) Feature Vector and the Manifold State Classifier.
-// It instruments the \(B(t)\) trajectory to identify the specific "hardware stress" profile, 
-// effectively mapping the differential geometry of the stability manifold to real-world use cases.
-
-use std::collections::VecDeque;
-
-/// The Xi (Ξ) Feature Vector: A hardware-specific anomaly signature 
-/// derived from the differential geometry of the B(t) manifold.
-#[derive(Debug, Clone, Default)]
-pub struct XiFeatureVector {
-    pub b_val: f64,             // Current B(t) magnitude
-    pub db_dt: f64,             // Velocity of stress accumulation
-    pub d2b_dt2: f64,           // Curvature (acceleration) of mismatch
-    pub b_entropy: f64,         // Volatility/Stochasticity of stress
-    pub kappa_divergence: f64,  // Asymmetric flux imbalance in [Z,S]_κ
-}
-
-/// Hardware states identified by the DVSM-RF manifold deformation profile.
-#[derive(Debug, PartialEq, Eq)]
-pub enum HardwareState {
-    Nominal,         // Stable coupling; low B(t)
-    SpectralDrift,   // Intentional LPI/Deception or slow thermal fatigue
-    TransientBurst,  // Impulsive interference or mechanical strike
-    ManifoldCollapse,// Total structural failure or saturation
-}
-
-pub struct HardwareStateClassifier {
-    history: VecDeque<f64>,
-    window_size: usize,
-    b_crit: f64,
-}
-
-impl HardwareStateClassifier {
-    pub fn new(window_size: usize, b_crit: f64) -> Self {
-        Self {
-            history: VecDeque::with_capacity(window_size),
-            window_size,
-            b_crit,
-        }
-    }
-
-    /// Instruments the current B(t) observation and κ-flux to compute Ξ
-    /// and classify the hardware state.
-    pub fn classify(&mut self, b_t: f64, flux_div: f64) -> (XiFeatureVector, HardwareState) {
-        self.history.push_back(b_t);
-        if self.history.len() > self.window_size {
-            self.history.pop_front();
-        }
-
-        let xi = self.compute_xi(b_t, flux_div);
-        let state = self.map_xi_to_state(&xi);
-
-        (xi, state)
-    }
-
-    fn compute_xi(&self, b_t: f64, flux_div: f64) -> XiFeatureVector {
-        let n = self.history.len();
-        if n < 3 { return XiFeatureVector::default(); }
-
-        // Finite difference approximations for velocity and curvature
-        let v1 = self.history[n - 1] - self.history[n - 2];
-        let v2 = self.history[n - 2] - self.history[n - 3];
-        
-        let db_dt = v1;
-        let d2b_dt2 = v1 - v2;
-
-        // Entropy proxy: standard deviation over the window
-        let mean = self.history.iter().sum::<f64>() / n as f64;
-        let variance = self.history.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n as f64;
-        let b_entropy = variance.sqrt();
-
-        XiFeatureVector {
-            b_val: b_t,
-            db_dt,
-            d2b_dt2,
-            b_entropy,
-            kappa_divergence: flux_div,
-        }
-    }
-
-    fn map_xi_to_state(&self, xi: &XiFeatureVector) -> HardwareState {
-        if xi.b_val > self.b_crit * 2.0 {
-            HardwareState::ManifoldCollapse
-        } else if xi.d2b_dt2.abs() > 0.5 && xi.db_dt.abs() > 0.3 {
-            // High acceleration/velocity indicates an impulsive event
-            HardwareState::TransientBurst
-        } else if xi.db_dt > 0.05 && xi.b_entropy < 0.01 {
-            // Steady increase with low noise indicates a structural drift
-            HardwareState::SpectralDrift
-        } else {
-            HardwareState::Nominal
-        }
-    }
-}
-
-// Example usage:
-// let mut monitor = HardwareStateClassifier::new(50, 2.0);
-// let (xi, state) = monitor.classify(current_b, current_flux);
-
-// To anchor these real-world use cases into the code, we implement a Contextual Inference Engine. 
-// This module maps the abstract \(\Xi \) vector to the specific "Noise Floor Paradox" solutions you outlined, effectively turning the "Struggle Metric" into actionable domain intelligence.
-
-// ============================================================
-// DEV NOTE · DOMAIN GENERALIZATION SAFETY LAYER
-// ============================================================
-//
-// The ContextualInferenceEngine does NOT assert ground truth.
-// It maps statistical deformation in the Xi manifold into
-// domain-specific *hypotheses*, not deterministic diagnoses.
-//
-// Each output string should be interpreted as:
-//     → probabilistic anomaly classification
-//     → conditioned on learned B-manifold structure
-//
-// NOT:
-//     → physical certainty of failure / disease / collapse
-//
-// This separation is required to preserve:
-//     • cross-domain validity of Xi features
-//     • calibration stability of B(t) fingerprints
-//     • avoidance of overfitting semantics to physics domains
-//
-// ============================================================
-
-impl ContextualInferenceEngine {
-
-    /// Optional safety-normalized scoring layer (recommended)
-    pub fn normalize_risk_score(&self, xi: &XiFeatureVector) -> f64 {
-        let geometric_stress = xi.b_val
-            * (1.0 + xi.db_dt.abs())
-            * (1.0 + xi.d2b_dt2.abs());
-
-        let entropy_gate = 1.0 / (1.0 + xi.b_entropy);
-
-        (geometric_stress * entropy_gate).tanh()
-    }
-
-    /// Converts heuristic branch outputs into calibrated risk bands.
-    pub fn risk_band(&self, score: f64) -> &'static str {
-        match score {
-            s if s < 0.3 => "LOW",
-            s if s < 0.7 => "MEDIUM",
-            _ => "HIGH",
-        }
-    }
-}
-
-// ============================================================
-// DEV NOTE · SEPARATED INFERENCE CHANNELS
-// ============================================================
-//
-// Correct design principle:
-//
-//   score      = latent geometric estimator (continuous)
-//   band       = quantization of score (coarse state)
-//   hypothesis = semantic projection of score + domain priors
-//
-// Xi must NOT be recomputed differently across branches.
-// All downstream logic must share a single normalized state.
-//
-// ============================================================
-
-pub fn evaluate_risk_context(
-    &mut self,
-    xi: XiFeatureVector
-) -> (f64, &'static str, String) {
-
-    // 1. Unified latent estimator (single source of truth)
-    let score = self.normalize_risk_score(&xi);
-
-    // 2. Discrete stability band (quantization layer)
-    let band = self.risk_band(score);
-
-    // 3. Domain interpretation (conditioned on score ONLY)
-    let hypothesis = match self.domain {
-        OperationalDomain::ElectronicWarfare => {
-            if score > 0.7 {
-                "EW: High spectral structure deviation; possible low-probability emitter signature."
-            } else {
-                "EW: Background manifold stable."
-            }
-        }
-
-        OperationalDomain::IndustrialIot => {
-            if score > 0.7 {
-                "IIoT: Elevated structural vibration geometry; possible early-stage mechanical drift."
-            } else {
-                "IIoT: Nominal operating manifold."
-            }
-        }
-
-        OperationalDomain::AerospaceStructural => {
-            if score > 0.75 {
-                "AERO: High curvature instability; inspect for internal delamination signatures."
-            } else {
-                "AERO: Elastic recovery manifold stable."
-            }
-        }
-
-        OperationalDomain::BiomedicalAllostery => {
-            if score > 0.65 {
-                "BIO: Persistent conformational memory detected in latent field dynamics."
-            } else {
-                "BIO: Normal allosteric fluctuation regime."
-            }
-        }
-
-        OperationalDomain::QuantitativeFinance => {
-            if score > 0.8 {
-                "FIN: Elevated manifold stress; liquidity fragility increasing."
-            } else {
-                "FIN: Market structure within stable regime."
-            }
-        }
-    }.to_string();
-
-    (score, band, hypothesis)
-}
-// ============================================================
-// DVSM-RF · ADDENDUM: TEMPORAL STABILITY + DEPLOYABLE CONTEXT CORE
-// ============================================================
-//
-// PURPOSE:
-//
-// This module consolidates the inference pipeline into a single
-// deployable context container with:
-//
-//   1. Temporal smoothing (anti-flicker hysteresis)
-//   2. Unified risk evaluation interface
-//   3. Calibration-aware inference consistency
-//   4. Cross-domain semantic projection stability
-//
-// ------------------------------------------------------------
-// KEY DESIGN INSIGHT
-// ------------------------------------------------------------
-//
-// The system is NOT a stateless classifier.
-//
-// It is a dynamical estimator over:
-//     Xi(t)  → latent geometric stress field
-//     B(t)   → manifold instability coordinate
-//     W(t)   → adaptive basis deformation
-//
-// Therefore:
-//     instantaneous scoring is insufficient
-//     temporal coherence is required
-//
-// ============================================================
-
-use std::collections::VecDeque;
-
-// ============================================================
-// SCHMITT TRIGGER STATE (Hysteresis Controller)
-// ============================================================
-
-#[derive(Debug, Clone)]
-pub struct SchmittState {
-    pub low: f64,
-    pub high: f64,
-    pub current: bool,
-}
-
-impl SchmittState {
-    pub fn new(low: f64, high: f64) -> Self {
-        Self {
-            low,
-            high,
-            current: false,
-        }
-    }
-
-    pub fn update(&mut self, x: f64) -> bool {
-        // Hysteresis prevents alert flickering near threshold
-        if self.current {
-            if x < self.low {
-                self.current = false;
-            }
-        } else {
-            if x > self.high {
-                self.current = true;
-            }
-        }
-        self.current
-    }
-}
-
-// ============================================================
-// DVSM CONTEXT CONTAINER
-// ============================================================
-
-#[derive(Debug)]
-pub struct DVSMContext {
-    pub profile: RuntimeCalibrationProfile,
-    pub xi_history: VecDeque<XiFeatureVector>,
-    pub schmitt: SchmittState,
-}
-
-impl DVSMContext {
-
-    pub fn new(profile: RuntimeCalibrationProfile) -> Self {
-        Self {
-            schmitt: SchmittState::new(0.55, 0.75),
-            profile,
-            xi_history: VecDeque::with_capacity(256),
-        }
+        Xi { b, db, d2b: db }
     }
 
     // --------------------------------------------------------
-    // TEMPORAL STABILIZATION LAYER
+    // §6 RISK SCORE (UNIFIED FORM)
     // --------------------------------------------------------
-    //
-    // Converts instantaneous Xi into smoothed latent estimate.
-    // This prevents frame-level noise from dominating B(t).
-    //
-    pub fn smoothed_score(&self, xi: &XiFeatureVector) -> f64 {
-        let current = xi.b_val
-            * (1.0 + xi.db_dt.abs())
-            * (1.0 + xi.d2b_dt2.abs());
-
-        if self.xi_history.is_empty() {
-            return current;
-        }
-
-        let decay = 0.92;
-        let mut acc = current;
-        let mut weight = 1.0;
-
-        for past in self.xi_history.iter().rev().take(10) {
-            let past_score = past.b_val
-                * (1.0 + past.db_dt.abs())
-                * (1.0 + past.d2b_dt2.abs());
-
-            weight *= decay;
-            acc += past_score * weight;
-        }
-
-        acc / (1.0 + weight)
+    pub fn score(&self, xi: &Xi) -> f64 {
+        (xi.b * (1.0 + xi.db.abs()) * (1.0 + xi.d2b.abs()))
+            .tanh()
     }
 
     // --------------------------------------------------------
-    // MAIN RISK EVALUATION PIPELINE
+    // §7 STEP PIPELINE
     // --------------------------------------------------------
-    //
-    // Produces:
-    //   (continuous score, stability band, semantic hypothesis)
-    //
-    pub fn evaluate_risk_context(
-        &mut self,
-        xi: XiFeatureVector
-    ) -> (f64, &'static str, String) {
+    pub fn step(&mut self, samples: &[f64]) -> (f64, &'static str) {
 
-        self.xi_history.push_back(xi.clone());
-        if self.xi_history.len() > 256 {
-            self.xi_history.pop_front();
-        }
+        self.project(samples);
+        self.transport();
+        self.memory();
+        self.adapt_basis();
 
-        let score = self.smoothed_score(&xi);
+        let xi = self.xi();
+        let score = self.score(&xi);
+
         let triggered = self.schmitt.update(score);
 
-        let band = if triggered {
-            self.risk_band(score)
-        } else {
-            "STABLE"
+        let band = match triggered {
+            false => "STABLE",
+            true if score < 0.3 => "LOW",
+            true if score < 0.7 => "MEDIUM",
+            _ => "HIGH",
         };
 
-        let hypothesis = match self.profile.lambda {
-            l if l > 0.7 => "High-dissipation regime: rapid anomaly resolution expected",
-            _ => "Standard dissipative regime: gradual convergence behavior",
-        }.to_string();
+        self.prev_b = xi.b;
+        self.frame += 1;
 
-        (score, band, hypothesis)
-    }
-
-    // --------------------------------------------------------
-    // OPTIONAL: STATIC BAND MAP (can later be replaced by learned model)
-    // --------------------------------------------------------
-    pub fn risk_band(&self, score: f64) -> &'static str {
-        match score {
-            s if s < self.schmitt.low => "LOW",
-            s if s < self.schmitt.high => "MEDIUM",
-            _ => "HIGH",
-        }
+        (score, band)
     }
 }
 
 // ============================================================
-// FINAL DEFENSIBLE CLAIM (SYSTEM LEVEL)
+// §6 TEST SIGNAL
 // ============================================================
-//
-// This architecture supports the following system-level claim:
-//
-// "A temporally stabilized cross-domain anomaly inference system
-//  that maps a unified non-normal geometric stress estimator
-//  into domain-conditioned semantic hypotheses using hysteresis-
-//  regulated state transitions over a calibrated spectral manifold."
-//
-// CORE PROPERTY:
-//
-//   Stability emerges not from the estimator,
-//   but from the interaction between:
-//
-//     • Xi geometric stress field
-//     • temporal memory buffer
-//     • Schmitt-trigger hysteresis layer
-//     • calibration-constrained dynamics
-//
+
+pub fn signal(n: usize) -> Vec<f64> {
+    let mut v = vec![0.0; n];
+
+    for i in 0..n {
+        let t = i as f64 / n as f64;
+
+        v[i] =
+            0.4 * (2.0 * PI * 120.0 * t).sin()
+            + 0.2 * (2.0 * PI * 440.0 * t).sin();
+    }
+
+    v
+}
+
 // ============================================================
-// Implementation Note: In the evaluate_risk_context method, the hypothesis logic is currently a stub for the regime.
-// For a full deployment, you would re-integrate the OperationalDomain match-arms from the previous step here. 
-// This would allow the system to say: "High-dissipation regime: [Domain Hypothesis]".
+// §7 MAIN
+// ============================================================
+
+fn main() {
+    let mut dvsm = DVSM::new();
+
+    for _ in 0..200 {
+        let s = signal(1024);
+        let (score, band) = dvsm.step(&s);
+
+        println!("score={:.4} band={}", score, band);
+    }
+}
