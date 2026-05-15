@@ -183,3 +183,122 @@ pub extern "C" fn dvsm_init() {
         ENGINE = Some(DVSMCore::new());
     }
 }
+// ===============================================================
+// dvsm.h · DVSM UNIVERSAL SELECTION ENGINE C-ABI HEADER
+// ===============================================================
+//
+// PURPOSE:
+// --------
+// This header defines the public interface for the DVSM
+// Universal Selection Engine binary.
+//
+// The system exposes a deterministic spectral selection core:
+//
+//   • Audio projection (VST / DAW)
+//   • Cryptographic survival hash (ZIID)
+//   • Feature map extraction (ML / DSP)
+//
+// The underlying system is NOT a DSP library.
+// It is a non-normal dynamical selection engine.
+//
+// ===============================================================
+
+#ifndef DVSM_H
+#define DVSM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ===============================================================
+// TYPE DEFINITIONS
+// ===============================================================
+
+typedef double dvsm_f64;
+
+// ===============================================================
+// LIFECYCLE MANAGEMENT
+// ===============================================================
+//
+// Initializes the internal global DVSM engine.
+// Must be called before any projection function.
+//
+
+void dvsm_init(void);
+
+// ===============================================================
+// PROJECTION A — AUDIO (STEREO OUTPUT)
+// ===============================================================
+//
+// Purpose:
+//   Real-time stereo projection of the survival manifold.
+//
+// Usage:
+//   Called per audio frame (e.g., 48kHz host buffer).
+//
+
+void dvsm_audio_frame(dvsm_f64* out_left,
+                       dvsm_f64* out_right);
+
+// ===============================================================
+// PROJECTION B — CRYPTOGRAPHIC SURVIVAL HASH (ZIID)
+// ===============================================================
+//
+// Purpose:
+//   Produces a scalar invariant representing the
+//   current survival state of spectral hypotheses.
+//
+// Interpretation:
+//   Higher stability → higher coherence score.
+//
+
+void dvsm_key_survival_hash(dvsm_f64* out_hash);
+
+// ===============================================================
+// PROJECTION C — FEATURE MAP (ML / SIGNAL PROCESSING)
+// ===============================================================
+//
+// Purpose:
+//   Extracts instantaneous spectral feature vector.
+//
+// Output size:
+//   R elements (engine-defined spectral rank)
+//
+// Use cases:
+//   • embeddings
+//   • adaptive filtering
+//   • anomaly detection
+//
+
+void dvsm_feature_map(dvsm_f64* out_vector);
+
+// ===============================================================
+// OPTIONAL EXTENSION HOOK (FUTURE GPU BINDING)
+// ===============================================================
+//
+// Reserved for WGSL / CUDA / Vulkan backend alignment.
+//
+
+// void dvsm_gpu_dispatch(...);
+
+// ===============================================================
+// DESIGN CONTRACT
+// ===============================================================
+//
+// The DVSM engine guarantees:
+//
+//   1. Deterministic execution given identical state
+//   2. Bounded spectral energy via vacuum operator
+//   3. No external memory mutation outside API calls
+//
+// The system is defined as:
+//
+//   Selection under non-normal Lie-bracket dynamics.
+//
+// ===============================================================
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // DVSM_H
