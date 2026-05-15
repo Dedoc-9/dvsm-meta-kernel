@@ -4807,7 +4807,561 @@ pub fn run_sealed(mut runtime: DVSMRuntime) {
     shutdown(&mut runtime);
 }      
 
+```text
+DVSM-π+++ · SINGLE FILE KERNEL (CONDENSED EXECUTION EDITION)
+FILE: dvsm_pi_plusplus_single_kernel.rs
 
+============================================================
+INTRODUCTION
+============================================================
+
+DVSM-π+++ is a layered stochastic operator runtime over
+probability measures in ℝ³ with coupled spectral,
+geometric, and containment dynamics.
+
+This single-file edition merges:
+
+    • stochastic measure evolution
+    • non-normal spectral dynamics
+    • GPU containment enforcement
+    • Stiefel geometric rebirth
+    • air-gapped execution logic
+    • deterministic recovery protocols
+    • VR-compatible execution timing
+    • geometric hypothesis survival logic (ZIID)
+
+into one deployable runtime architecture.
+
+------------------------------------------------------------
+SYSTEM PURPOSE
+------------------------------------------------------------
+
+The runtime is designed as:
+
+    • a deterministic spectral containment engine
+    • a bounded non-normal evolution framework
+    • a GPU-safe operator execution stack
+    • a geometric hypothesis survival system
+    • a VR-safe high-frequency execution runtime
+
+This edition additionally supports:
+
+    • geometric encryption research
+    • immutable substrate execution
+    • interaction-free hypothesis filtering
+    • structured spectral selection
+    • air-gapped containment architectures
+
+============================================================
+CORE STATE
+============================================================
+
+GLOBAL STATE OBJECT:
+
+    (μ_t, Z_t, S_t, W_t)
+
+where:
+
+μ_t
+    immutable substrate measure
+
+Z_t
+    spectral latent field
+
+S_t
+    EMA hysteresis memory
+
+W_t
+    Stiefel / Grassmann orthonormal scaffold
+
+------------------------------------------------------------
+GEOMETRIC ENCRYPTION INTERPRETATION
+------------------------------------------------------------
+
+The system does NOT perform classical symbolic decryption.
+
+Instead:
+
+    hypotheses survive or collapse
+    under constrained spectral evolution.
+
+The geometry itself acts as the security boundary.
+
+------------------------------------------------------------
+ZIID INTERPRETATION
+------------------------------------------------------------
+
+ZIID:
+    Zero-Interaction Invisible Decryption
+
+Reclassified as:
+
+    Structured Hypothesis Survival Engine
+
+Meaning:
+
+    candidate hypotheses evolve spectrally,
+    unstable hypotheses collapse,
+    stable manifold-aligned hypotheses survive.
+
+------------------------------------------------------------
+SECURITY MAPPING
+------------------------------------------------------------
+
+μ_t
+    immutable ciphertext substrate
+
+Z_t
+    spectral probe field
+
+S_t
+    delayed hysteresis memory
+
+W_t
+    geometric interferometer scaffold
+
+============================================================
+MATHEMATICAL FOUNDATION
+============================================================
+
+------------------------------------------------------------
+LIE-BRACKET FIELD EVOLUTION
+------------------------------------------------------------
+
+dZ/dt = [Z,S]_A - λZ + G(Z)
+
+where:
+
+[Z,S]_A
+=
+Σ_j (Z_i S_j - Z_j S_i) κ(i,j)
+
+Properties:
+
+    • non-normal
+    • transiently amplifying
+    • globally dissipative
+    • spectrally selective
+
+------------------------------------------------------------
+EMA MEMORY
+------------------------------------------------------------
+
+S_t
+=
+αS_{t-1} + (1-α)Z_t
+
+Purpose:
+
+    • temporal hysteresis
+    • delayed resonance memory
+    • burst persistence
+    • transient amplification shaping
+
+------------------------------------------------------------
+STIEFEL GEOMETRY
+------------------------------------------------------------
+
+W_t ∈ St(R,D)
+
+Constraint:
+
+    W_t^T W_t = I
+
+Meaning:
+
+    the scaffold defines
+    geometrically admissible evolution directions.
+
+------------------------------------------------------------
+REBIRTH EQUATION
+------------------------------------------------------------
+
+After containment:
+
+    Z_new = ε · W_t · ξ
+
+where:
+
+    ε
+        rebirth injection scalar
+
+    W_t
+        preserved orthonormal scaffold
+
+    ξ
+        deterministic seeded noise
+
+Meaning:
+
+    rebirth occurs ONLY
+    inside the preserved geometric manifold.
+
+============================================================
+GEOMETRIC ENCRYPTION MODEL
+============================================================
+
+------------------------------------------------------------
+CLASSICAL ENCRYPTION
+------------------------------------------------------------
+
+Traditional systems:
+
+    key + ciphertext → plaintext
+
+------------------------------------------------------------
+DVSM-ZIID MODEL
+------------------------------------------------------------
+
+DVSM instead performs:
+
+    spectral hypothesis evolution
+    under geometric survivability constraints.
+
+The "correct key" is:
+
+    the surviving stable manifold.
+
+------------------------------------------------------------
+NON-NORMAL SELECTION
+------------------------------------------------------------
+
+Incorrect hypotheses produce:
+
+    ||Z|| > U_MAX
+
+which triggers:
+
+    • spectral collapse
+    • containment vacuum
+    • kill-switch activation
+    • hypothesis annihilation
+
+Correct hypotheses remain bounded.
+
+------------------------------------------------------------
+AIR-GAP SECURITY
+------------------------------------------------------------
+
+CPU MAY:
+
+    • send control instructions
+    • read diagnostics
+    • read SyncState
+
+CPU MAY NOT:
+
+    • mutate μ_t
+    • reconstruct transient spectral buffers
+    • bypass containment
+    • directly read geometric key states
+
+This creates:
+
+    one-way information filtering.
+
+============================================================
+CONTAINMENT LAW
+============================================================
+
+if ||Z|| > U_MAX:
+
+    kill_flag = 1
+    Z := 0
+    enter VACUUM state
+
+Purpose:
+
+    • prevent NaN propagation
+    • prevent runaway transient growth
+    • isolate unstable hypotheses
+    • protect GPU memory integrity
+
+============================================================
+SYNC STATE MACHINE
+============================================================
+
+enum SyncState {
+
+    IDLE,
+    RUNNING,
+    KILLED,
+    VACUUMING,
+    REBIRTHING,
+    RAMPING,
+    STABLE
+
+}
+
+------------------------------------------------------------
+STATE PURPOSES
+------------------------------------------------------------
+
+IDLE
+    system initialized
+
+RUNNING
+    active spectral evolution
+
+KILLED
+    containment triggered
+
+VACUUMING
+    spectral field purge
+
+REBIRTHING
+    Stiefel-anchored reconstruction
+
+RAMPING
+    controlled gain restoration
+
+STABLE
+    bounded evolution resumed
+
+============================================================
+240Hz EXECUTION TARGET
+============================================================
+
+dt = 1 / 240
+
+Requirements:
+
+    • fused WGSL kernel
+    • persistent GPU buffers
+    • no CPU hot-loop readback
+    • inline kill-switch logic
+    • deterministic rebirth timing
+    • async diagnostics only
+
+============================================================
+PRECISION LAYERS
+============================================================
+
+FP32 Layer:
+
+    • rendering
+    • VR field evolution
+    • visual manifold synthesis
+
+Fixed128 Layer:
+
+    • containment logic
+    • kill-switch verification
+    • deterministic thresholding
+    • spectral integrity enforcement
+
+------------------------------------------------------------
+FIXED128 MOTIVATION
+------------------------------------------------------------
+
+FP32 alone is unsafe under:
+
+    extreme non-normal amplification
+
+because:
+
+    transient growth
+        → INF
+        → NaN propagation
+
+Q64.64 arithmetic prevents:
+
+    • containment ambiguity
+    • false-positive rebirth
+    • threshold instability
+
+============================================================
+FIXED128 STRUCTURE
+============================================================
+
+struct Fixed128 {
+
+    lo: u64,
+    hi: u64,
+
+}
+
+------------------------------------------------------------
+FIXED-POINT MULTIPLICATION
+------------------------------------------------------------
+
+fn mul_q64(a: Fixed128, b: Fixed128) -> Fixed128 {
+
+    // deterministic Q64.64 arithmetic
+
+}
+
+============================================================
+SPECTRAL GHOST MODEL
+============================================================
+
+"Ghosts" are NOT entities.
+
+They are:
+
+    transient non-normal instability classes.
+
+------------------------------------------------------------
+GHOST CONDITIONS
+------------------------------------------------------------
+
+Ghost state occurs when:
+
+    transient amplification
+        exceeds containment damping.
+
+Mathematically:
+
+    pseudospectral growth
+        dominates dissipative decay.
+
+------------------------------------------------------------
+BURST METRIC
+------------------------------------------------------------
+
+B(t)
+=
+||S_t|| / (||Z_t|| + ε)
+
+Interpretation:
+
+    high B(t)
+        → strong hysteresis mismatch
+
+    low B(t)
+        → stable manifold alignment
+
+============================================================
+HARDWARE CONTAINMENT
+============================================================
+
+WGSL inline containment executes:
+
+    AFTER Lie-bracket update
+    BEFORE state writeback
+
+Logic:
+
+    if norm(Z_next) > U_MAX:
+
+        zero field
+        atomicStore(kill_flag, 1)
+
+This guarantees:
+
+    GPU-local containment
+    before corruption propagates.
+
+============================================================
+WGSL LINK POINTS
+============================================================
+
+Embedded shader constants:
+
+    const FUSED_KERNEL_SHADER: &str
+    const KILL_SWITCH_SHADER: &str
+    const REDUCTION_SHADER: &str
+    const REBIRTH_SHADER: &str
+    const VR_FIELD_SHADER: &str
+
+============================================================
+VR FIELD MAPPING
+============================================================
+
+Z_t
+    → vertex displacement
+
+W_t
+    → manifold orientation basis
+
+S_t
+    → temporal motion blur / hysteresis
+
+Result:
+
+    bounded 3D manifold rendering
+    at 240Hz-compatible timing.
+
+============================================================
+EXECUTION LAYERS
+============================================================
+
+LAYER 1
+    immutable substrate μ_t
+
+LAYER 2
+    spectral evolution Z_t
+
+LAYER 3
+    hysteresis memory S_t
+
+LAYER 4
+    Stiefel scaffold W_t
+
+LAYER 5
+    containment + rebirth
+
+LAYER 6
+    VR manifold projection
+
+============================================================
+LINKED SYSTEM RELATION
+============================================================
+
+DVSM-π+++ SINGLE FILE KERNEL
+    ↓
+
+DVSM-π+++ GPU CONTAINMENT LAYER
+    ↓
+
+DVSM-π+++ FUSED WGSL EXECUTION SYSTEM
+    ↓
+
+DVSM-π+++ VR FIELD RENDERER
+    ↓
+
+DVSM-π+++ FULL CPU/GPU/VR ENGINE
+
+============================================================
+DEVELOPER GOALS
+============================================================
+
+Primary goals:
+
+    • deterministic containment
+    • bounded spectral evolution
+    • reproducible rebirth cycles
+    • GPU-safe execution
+    • deployable VR runtime
+    • geometric hypothesis filtering
+    • immutable substrate safety
+    • air-gapped execution integrity
+
+============================================================
+FINAL INTERPRETATION
+============================================================
+
+DVSM-π+++ SINGLE FILE KERNEL is:
+
+    a condensed deterministic operator runtime
+    for bounded non-normal spectral evolution
+    with GPU-enforced containment,
+    Stiefel-anchored recovery mechanics,
+    and geometric hypothesis survivability
+    under immutable substrate constraints.
+
+Or more compactly:
+
+    DVSM-π+++ =
+        spectral selection
+        + geometric containment
+        + deterministic rebirth
+        + GPU-safe bounded evolution
+        + air-gapped manifold survivability
+
+============================================================
+END OF CONDENSED EXECUTION EDITION
+============================================================
 
 
 
