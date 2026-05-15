@@ -365,3 +365,116 @@ pub fn render_1440p_tiled(
 /// ============================================================================
 /// END 1440p ADDENDUM
 /// ============================================================================
+// ============================================================================
+// ALG-P3 / A10 · GEOMETRIC ANTI-CHEAT LAYER (Hₘ GATING MODULE)
+// ----------------------------------------------------------------------------
+// Function: Detect Non-Human Suchness via Manifold Entropy Collapse
+// Mode: READ-ONLY DIAGNOSTIC (NO FEEDBACK INTO KERNEL)
+// Complexity: O(R²) max (safe at 240Hz)
+// ============================================================================
+
+#[derive(Debug, Clone, Copy)]
+pub struct AntiCheatSignal {
+    pub entropy_hm: f64,     // Manifold entropy (human noise signature)
+    pub stress_b: f64,      // Interfacial stress alignment
+    pub drift: f64,         // Basis instability proxy
+    pub gsd_score: f64,     // Geometric Suchness Divergence
+    pub flag_ai: bool,      // Classification bit
+}
+
+// --------------------------------------------------------------------------
+// ENTROPY CORE (Hₘ)
+// --------------------------------------------------------------------------
+// Interprets the basis W as a probability distribution over spectral energy.
+// Human input → high entropy
+// AI input → low entropy (over-optimized trajectories)
+// --------------------------------------------------------------------------
+
+#[inline(always)]
+pub fn manifold_entropy(w_cols: &[f64]) -> f64 {
+    let mut sum = 0.0;
+
+    for &e in w_cols {
+        sum += e;
+    }
+
+    let mut h = 0.0;
+
+    for &e in w_cols {
+        let p = if sum > 1e-12 { e / sum } else { 0.0 };
+
+        if p > 1e-12 {
+            h -= p * p.log2();
+        }
+    }
+
+    h
+}
+
+// --------------------------------------------------------------------------
+// GSD (Geometric Suchness Divergence)
+// --------------------------------------------------------------------------
+// Combines:
+//   - entropy collapse (Hₘ)
+//   - stress coherence (B)
+//   - drift suppression (W stability)
+// --------------------------------------------------------------------------
+
+#[inline(always)]
+pub fn compute_gsd(
+    entropy_hm: f64,
+    stress_b: f64,
+    drift: f64,
+) -> f64 {
+
+    // Normalized collapse metric
+    let entropy_term = 1.0 - entropy_hm.clamp(0.0, 1.0);
+
+    // Perfect aim / zero noise = suspicious
+    let stress_term = 1.0 - stress_b.clamp(0.0, 1.0);
+
+    // Instability penalty
+    let drift_term = drift.clamp(0.0, 1.0);
+
+    // Weighted geometric divergence
+    (entropy_term * 0.5)
+        + (stress_term * 0.3)
+        + (drift_term * 0.2)
+}
+
+// --------------------------------------------------------------------------
+// MAIN GATER
+// --------------------------------------------------------------------------
+// Pure observer: does NOT influence ALG-P3 state evolution
+// --------------------------------------------------------------------------
+
+#[inline(always)]
+pub fn evaluate_anticheat(
+    w_basis: &Vec<Vec<f64>>, // R columns of basis energy
+    stress_b: f64,
+    drift: f64,
+) -> AntiCheatSignal {
+
+    // Flatten basis columns into scalar energy per mode
+    let mut col_energy = vec![0.0; w_basis.len()];
+
+    for (i, col) in w_basis.iter().enumerate() {
+        for &v in col {
+            col_energy[i] += v * v;
+        }
+    }
+
+    let entropy_hm = manifold_entropy(&col_energy);
+    let gsd = compute_gsd(entropy_hm, stress_b, drift);
+
+    // Threshold logic (tunable, NOT hardcoded for gameplay fairness)
+    let flag_ai = gsd > 0.72 && entropy_hm < 0.25;
+
+    AntiCheatSignal {
+        entropy_hm,
+        stress_b,
+        drift,
+        gsd_score: gsd,
+        flag_ai,
+    }
+}
