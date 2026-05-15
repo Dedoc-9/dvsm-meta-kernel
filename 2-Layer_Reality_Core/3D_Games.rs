@@ -17,7 +17,7 @@
 //    - 120–240fps deterministic update loop
 //    - GPU-mappable SoA layout (engine runtime core)
 //
-// 2. ALG-P3 / REALITYCORE COGNITIVE MODEL (ABSTRACT LAYER)
+// 2. REALITYCORE COGNITIVE MODEL (ABSTRACT LAYER)
 //    - Stiefel manifold dynamics (W ∈ St(n,r))
 //    - Identity state tracking (S)
 //    - Adaptive sensing operator Ψ(t)
@@ -36,6 +36,10 @@
 // AGSK executes the world in real time.
 // ALG-P3 defines how it is interpreted.
 // ASL determines what is perceived as signal vs noise.
+
+// ALG-P3: Adaptive Low-Rank Geometry Protocol (Phase 3)
+// Interprets DVSM-DFE as a drift-governed, mean-field + EMA shear system
+// where all dynamics are constrained to low-rank projections on a Stiefel manifold.
 // ----------------------------------------------------------------------------
 
 #![allow(non_snake_case)]
