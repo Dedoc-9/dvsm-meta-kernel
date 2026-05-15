@@ -120,3 +120,442 @@ pub fn stiefel_rebirth_step(
         s[i] = 0.95 * s[i] + 0.05 * z[i];
     }
 }
+// ===============================================================
+// DVSM-π+++ · FIXED128 ANALYSIS ADDENDUM
+// ===============================================================
+//
+// FILE:
+// dvsm_fixed128_precision_layer.rs
+//
+// PURPOSE:
+// Evaluate whether Q64.64 fixed-point arithmetic is necessary
+// for the DVSM spectral kernel stack.
+//
+// ===============================================================
+//
+// SHORT ANSWER
+// ===============================================================
+//
+// YES — but only for specific layers.
+//
+// Fixed128 arithmetic is NOT required for:
+//
+//     ✔ standard VR rendering
+//     ✔ visualization shaders
+//     ✔ normal Lie-bracket evolution
+//     ✔ consumer GPU execution
+//     ✔ 240 FPS rendering
+//
+// Fixed128 IS useful for:
+//
+//     ✔ deterministic replay
+//     ✔ long-horizon spectral accumulation
+//     ✔ cross-platform reproducibility
+//     ✔ air-gapped audit systems
+//     ✔ CLT diagnostics at large N
+//     ✔ NaN-proof containment systems
+//     ✔ military / scientific deterministic builds
+//
+// ===============================================================
+// WHY FLOATS BECOME DANGEROUS
+// ===============================================================
+//
+// The DVSM spectral layer is NON-NORMAL:
+//
+//     dZ/dt = [Z,S]_A - λZ
+//
+// Non-normal systems exhibit:
+//
+//     transient amplification
+//
+// even when:
+//
+//     Re(λ_i) < 0
+//
+// This means:
+//
+//     ||Z|| may spike massively
+//
+// despite asymptotic stability.
+//
+// ---------------------------------------------------------------
+// FLOAT FAILURE MODES
+// ---------------------------------------------------------------
+//
+// FP32:
+//
+//     overflow
+//     denormals
+//     NaN propagation
+//     INF cascade
+//
+// FP64:
+//
+//     safer,
+//     but still platform-dependent
+//
+// GPU vendors differ in:
+//
+//     FMA ordering
+//     reduction ordering
+//     flush-to-zero policy
+//     transcendental approximation
+//
+// Therefore:
+//
+//     same simulation != same result
+//
+// ===============================================================
+// FIXED128 PURPOSE
+// ===============================================================
+//
+// Q64.64 provides:
+//
+//     deterministic arithmetic
+//
+// with:
+//
+//     no NaN
+//     no INF
+//     no denormal
+//     identical replay
+//
+// ===============================================================
+// Q64.64 STRUCTURE
+// ===============================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct Fixed128 {
+    pub lo: u64,
+    pub hi: i64,
+}
+
+// ===============================================================
+// REPRESENTATION
+// ===============================================================
+//
+// Value:
+//
+//     x = hi + lo / 2^64
+//
+// Example:
+//
+//     hi = 3
+//     lo = 0x8000000000000000
+//
+// gives:
+//
+//     3.5
+//
+// ===============================================================
+// WHEN TO USE FIXED128
+// ===============================================================
+//
+// LAYER ANALYSIS
+//
+// ---------------------------------------------------------------
+// 1. PARTICLE LAYER μ_t
+// ---------------------------------------------------------------
+//
+// NOT REQUIRED
+//
+// Reason:
+//
+// stochastic noise dominates precision
+//
+// FP64 sufficient.
+//
+// ---------------------------------------------------------------
+// 2. SPECTRAL LAYER Z_t
+// ---------------------------------------------------------------
+//
+// SOMETIMES REQUIRED
+//
+// Especially when:
+//
+//     trap_gain ↑
+//     non-normal amplification ↑
+//     λ ↓
+//     long-horizon accumulation
+//
+// This is the PRIMARY candidate.
+//
+// ---------------------------------------------------------------
+// 3. EMA MEMORY S_t
+// ---------------------------------------------------------------
+//
+// VERY GOOD CANDIDATE
+//
+// EMA accumulates subtle errors over time.
+//
+// Deterministic replay benefits heavily.
+//
+// ---------------------------------------------------------------
+// 4. STIEFEL / GRASSMANN W_t
+// ---------------------------------------------------------------
+//
+// EXCELLENT candidate.
+//
+// Orthonormal drift is sensitive.
+//
+// Fixed arithmetic preserves:
+//
+//     WᵀW ≈ I
+//
+// more reliably over long replay windows.
+//
+// ---------------------------------------------------------------
+// 5. GPU KILL SWITCH
+// ---------------------------------------------------------------
+//
+// CRITICAL.
+//
+// Fixed arithmetic guarantees:
+//
+//     no NaN explosion
+//
+// making:
+//
+//     atomic kill-switch logic reliable
+//
+// ===============================================================
+// MOST IMPORTANT INSIGHT
+// ===============================================================
+//
+// Fixed128 is NOT about precision.
+//
+// It is about:
+//
+//     TOPOLOGICAL STABILITY
+//
+// in a non-normal operator system.
+//
+// ===============================================================
+// RECOMMENDED HYBRID MODEL
+// ===============================================================
+//
+// BEST PRACTICAL ARCHITECTURE:
+//
+// ---------------------------------------------------------------
+// GPU SHADERS
+// ---------------------------------------------------------------
+//
+// FP32:
+//
+//     rendering
+//     visualization
+//     manifold displacement
+//
+// FP64:
+//
+//     spectral core
+//     reduction passes
+//
+// ---------------------------------------------------------------
+// CPU AUDIT MODE
+// ---------------------------------------------------------------
+//
+// Fixed128:
+//
+//     deterministic replay
+//     validation
+//     CLT diagnostics
+//     air-gap execution
+//
+// ===============================================================
+// SUGGESTED DVSM PRECISION MODES
+// ===============================================================
+
+#[derive(Clone, Copy, Debug)]
+pub enum PrecisionMode {
+
+    // Consumer VR
+    Fp32Fast,
+
+    // Stable GPU spectral runtime
+    Fp64Stable,
+
+    // Deterministic scientific replay
+    Fixed128Deterministic,
+}
+
+// ===============================================================
+// FIXED MULTIPLICATION
+// ===============================================================
+//
+// Q64.64:
+//
+//     (a * b) >> 64
+//
+// ===============================================================
+
+pub fn mul_q64(a: Fixed128, b: Fixed128) -> Fixed128 {
+
+    // Reconstruct full signed integers
+    let a128: i128 =
+        ((a.hi as i128) << 64) | (a.lo as i128);
+
+    let b128: i128 =
+        ((b.hi as i128) << 64) | (b.lo as i128);
+
+    // Full precision multiply
+    let prod = (a128 * b128) >> 64;
+
+    Fixed128 {
+        hi: (prod >> 64) as i64,
+        lo: prod as u64,
+    }
+}
+
+// ===============================================================
+// WHY THIS HELPS DVSM
+// ===============================================================
+//
+// Lie-bracket term:
+//
+//     z_i s_j - z_j s_i
+//
+// involves:
+//
+//     subtraction of near-equal values
+//
+// which is numerically unstable in FP32.
+//
+// Fixed-point:
+//
+//     preserves cancellation deterministically
+//
+// ===============================================================
+// FIXED128 GHOST CONTAINMENT BENEFIT
+// ===============================================================
+//
+// Current WGSL kill-switch:
+//
+//     if energy > U_MAX
+//
+// assumes:
+//
+//     energy calculation valid
+//
+// Floating point failure:
+//
+//     NaN > U_MAX == false
+//
+// catastrophic.
+//
+// Fixed-point:
+//
+//     impossible to produce NaN
+//
+// therefore:
+//
+//     containment invariant becomes HARD.
+//
+// ===============================================================
+// AIR-GAP SECURITY BENEFIT
+// ===============================================================
+//
+// Deterministic replay allows:
+//
+//     hash-verifiable execution
+//
+// Example:
+//
+//     hash(Z_t) == expected_hash
+//
+// Useful for:
+//
+//     scientific audit
+//     offline execution
+//     military replay
+//     regulated bioscience
+//
+// ===============================================================
+// PERFORMANCE REALITY
+// ===============================================================
+//
+// Fixed128 is MUCH slower.
+//
+// ---------------------------------------------------------------
+// FP32
+// ---------------------------------------------------------------
+//
+// ~1x baseline
+//
+// ---------------------------------------------------------------
+// FP64
+// ---------------------------------------------------------------
+//
+// ~2–8x slower on consumer GPUs
+//
+// ---------------------------------------------------------------
+// Fixed128
+// ---------------------------------------------------------------
+//
+// ~20–100x slower
+//
+// CPU-only realistic.
+//
+// ===============================================================
+// FINAL RECOMMENDATION
+// ===============================================================
+//
+// DO NOT replace entire DVSM stack with Fixed128.
+//
+// INSTEAD:
+//
+//     FP32  -> rendering
+//     FP64  -> live spectral runtime
+//     Fixed128 -> audit / replay / CLT verification
+//
+// ===============================================================
+// BEST DEPLOYMENT STRUCTURE
+// ===============================================================
+//
+// Consumer VR:
+//
+//     FP32/FP64 hybrid
+//
+// Scientific Workstation:
+//
+//     FP64 runtime
+//     Fixed128 replay validation
+//
+// Air-Gapped Research:
+//
+//     full deterministic Fixed128 mode
+//
+// ===============================================================
+// FINAL CLASSIFICATION
+// ===============================================================
+//
+// Fixed128 is:
+//
+//     ✔ useful
+//     ✔ mathematically justified
+//     ✔ valuable for deterministic replay
+//     ✔ strong for containment systems
+//
+// but:
+//
+//     ✘ NOT required for standard VR
+//     ✘ NOT suitable for high-FPS GPU rendering
+//     ✘ NOT appropriate for fused WGSL kernels
+//
+// ===============================================================
+// NEXT POSSIBLE FILES
+// ===============================================================
+//
+// 1. dvsm_fixed128_full_math.rs
+//    → add/sub/div/sqrt/vector ops
+//
+// 2. dvsm_deterministic_replay.rs
+//    → replay hashing + audit chain
+//
+// 3. dvsm_fp64_gpu_core.wgsl
+//    → realistic GPU-safe production kernel
+//
+// 4. dvsm_precision_scheduler.rs
+//    → dynamic FP32/FP64/fixed runtime switching
+//
+// ===============================================================
