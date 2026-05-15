@@ -6,7 +6,6 @@ AUTHOR BLOCK
 ---------------------------------------------------------------------------
 Author: Daniel J. Dillberg
 Project: DVSM-DFE Runtime Geometry Core
-Version: ALG-P3 Runtime Architecture
 Language: Rust
 Domain: Streaming Geometric Intelligence / Zero-Trust Telemetry
 License: Proprietary / Research License / Dual License (select as needed)
