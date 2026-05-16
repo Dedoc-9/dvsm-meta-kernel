@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dvsm-core",
+    "crates/dvsm-gpu",
+    "crates/dvsm-rf",
+    "crates/dvsm-bio",
+    "crates/dvsm-gaming",
+]
+
+[workspace.package]
+version = "1.1.0"
+edition = "2021"
+authors = ["Daniel J. Dillberg"]
+license = "MIT"
+repository = https://github.com/Dedoc-9/dvsm-meta-kernel/tree/main/dvsm-pi-plus/Crates/dvsm%20core
+description = "DVSM-π+++ / DQSDv2 — Deterministic spectral arbitration kernel"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[profile.release.package.dvsm-core]
+overflow-checks = false
