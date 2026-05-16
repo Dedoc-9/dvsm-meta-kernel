@@ -511,3 +511,139 @@ impl DVSMAnalogues {
 // ============================================================
 // END SYSTEM INTRO BLOCK
 // ============================================================
+// ============================================================
+// DVSM-π+++ / DQSDv2 · SOFTWARE SUPPORT & INTEGRATION MODEL
+// Rust Spec Translation (from governance ontology JSON)
+// ============================================================
+
+pub const PROJECT: &str = "DVSM-π+++ / DQSDv2";
+
+pub const THESIS: &str =
+    "The most effective software for DVSM is not generative (creators), but gubernative (governors).";
+
+// ============================================================
+// SOFTWARE CLASSIFICATION LAYERS
+// ============================================================
+
+pub struct SoftwareCategoryClash;
+
+impl SoftwareCategoryClash {
+
+    // -----------------------------
+    // TIER 1: GOVERNOR LAYER
+    // -----------------------------
+    pub const TIER_1_GOVERNOR_DEFINITION: &str =
+        "Middleware between raw data and final output";
+
+    pub const TIER_1_GOVERNOR_EXAMPLES: [&str; 3] = [
+        "NVIDIA DLSS SDK",
+        "Unreal Engine RenderGraph (RDG)",
+        "JUCE Audio SDK",
+    ];
+
+    pub const TIER_1_DVSM_ROLE: &str =
+        "Arbitrator of frame/sample viability";
+
+    pub const TIER_1_FIT: &str =
+        "High-frequency real-time systems (240Hz+)";
+
+    // -----------------------------
+    // TIER 2: ANALYST LAYER
+    // -----------------------------
+    pub const TIER_2_ANALYST_DEFINITION: &str =
+        "Forensic auditing and signal stability tools";
+
+    pub const TIER_2_ANALYST_EXAMPLES: [&str; 3] = [
+        "MATLAB",
+        "LabVIEW",
+        "Wireshark (RF interpretation)",
+    ];
+
+    pub const TIER_2_DVSM_ROLE: &str =
+        "Non-normal resonance detector and manifold auditor";
+
+    pub const TIER_2_FIT: &str =
+        "Medical, Cybersecurity, Aerospace";
+
+    // -----------------------------
+    // TIER 3: EXECUTIONER LAYER
+    // -----------------------------
+    pub const TIER_3_EXECUTIONER_DEFINITION: &str =
+        "Hard-real-time safety and control layers";
+
+    pub const TIER_3_EXECUTIONER_EXAMPLES: [&str; 3] = [
+        "QNX",
+        "VxWorks",
+        "ROS",
+    ];
+
+    pub const TIER_3_DVSM_ROLE: &str =
+        "Kinematic/Thermal stability clamp (Containment)";
+
+    pub const TIER_3_FIT: &str =
+        "Robotics and Edge Compute";
+}
+
+// ============================================================
+// NON-RENDER JUSTIFICATION MODEL
+// ============================================================
+
+pub struct NonRenderJustification;
+
+impl NonRenderJustification {
+
+    pub const POINT: &str =
+        "DVSM must NOT render or generate geometry";
+
+    pub const COUNTERPOINT: &str =
+        "Generative systems are probabilistic and heavy; DVSM must remain deterministic and low-latency";
+
+    pub const RESOLUTION: &str =
+        "DVSM outputs a Stability Mask; renderers consume it";
+}
+
+// ============================================================
+// PIPELINE ARCHITECTURE
+// ============================================================
+
+pub struct IntegrationArchitecture;
+
+impl IntegrationArchitecture {
+
+    pub const INPUT_STAGE: &str =
+        "Raw Sensor / GBuffer Substrate";
+
+    pub const DVSM_STAGE: &str =
+        "Spectral Filtering + Stability Gating";
+
+    pub const OUTPUT_STAGE: &str =
+        "Clean Stable Prior for Rendering or Actuation";
+}
+
+// ============================================================
+// TARGET PERSONA MODEL
+// ============================================================
+
+pub struct TargetPersonaExploration;
+
+impl TargetPersonaExploration {
+
+    pub const GRAPHICS_ENGINEER: &str =
+        "Uses DVSM to eliminate DLSS ghosting";
+
+    pub const AUDIO_ENGINEER: &str =
+        "Uses DVSM for spectral unmasking";
+
+    pub const SECURITY_ARCHITECT: &str =
+        "Uses DVSM for interaction-free key recovery analysis";
+
+    pub const ROBOTICS_LEAD: &str =
+        "Uses DVSM to prevent actuator instability and blowout";
+}
+
+// ============================================================
+// FINAL AXIOM
+// ============================================================
+
+pub const FINAL_AXIOM: &str =
+    "DVSM-compatible software is defined by its ability to accept a deterministic Stability Mask from a C-ABI binary and gate its own generative instability.";
