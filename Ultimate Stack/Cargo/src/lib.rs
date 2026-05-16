@@ -268,3 +268,76 @@ pub extern "C" fn dvsm_step(
 pub extern "C" fn dvsm_free(_h: *mut DVSM_Handle) {
     unsafe { CORE = None; }
 }
+// ── GEOMETRY: MODIFIED GRAM-SCHMIDT + SIGN-LOCK (UE5/DLSS TAILORED) ────────
+
+impl DvsmCore {
+    /// Stage 11 & 12: Retract to Stiefel Manifold and Lock Phase
+    pub fn maintain_manifold(&mut self) {
+        let r = self.r as usize;
+        let n = self.n as usize;
+
+        // --- STAGE 11: MODIFIED GRAM-SCHMIDT ---
+        for k in 0..r {
+            let base_k = k * R;
+            
+            // Orthogonalize against previous vectors
+            for j in 0..k {
+                let base_j = j * R;
+                let mut dot_kj = 0.0f32;
+                for i in 0..n {
+                    dot_kj += self.w[base_k + i] * self.w[base_j + i];
+                }
+                for i in 0..n {
+                    self.w[base_k + i] -= dot_kj * self.w[base_j + i];
+                }
+            }
+
+            // Normalize current vector
+            let mut norm_sq = 0.0f32;
+            for i in 0..n {
+                norm_sq += self.w[base_k + i] * self.w[base_k + i];
+            }
+            let norm = norm_sq.sqrt().max(EPS);
+            for i in 0..n {
+                self.w[base_k + i] /= norm;
+            }
+        }
+
+        // --- STAGE 12: PHASE SIGN-LOCK ---
+        // Prevents the basis from 'flipping' 180 degrees
+        for k in 0..r {
+            let base = k * R;
+            let mut dot_with_prev = 0.0f32;
+            for i in 0..n {
+                dot_with_prev += self.w[base + i] * self.w_prev[base + i];
+            }
+
+            // If the vector flipped orientation, flip it back
+            if dot_with_prev < 0.0 {
+                for i in 0..n {
+                    self.w[base + i] *= -1.0;
+                }
+            }
+        }
+
+        // Commit current basis to prev for the next frame's comparison
+        self.w_prev.copy_from_slice(&self.w);
+    }
+
+    /// Frobenius Norm of Orthogonality Error (Budget Scaling)
+    pub fn get_ortho_error(&self) -> f32 {
+        let r = self.r as usize;
+        let mut error_sq = 0.0f32;
+        for i in 0..r {
+            for j in 0..r {
+                let mut dot_val = 0.0f32;
+                for k in 0..self.n as usize {
+                    dot_val += self.w[i * R + k] * self.w[j * R + k];
+                }
+                let target = if i == j { 1.0f32 } else { 0.0f32 };
+                error_sq += (dot_val - target).powi(2);
+            }
+        }
+        error_sq.sqrt()
+    }
+}
