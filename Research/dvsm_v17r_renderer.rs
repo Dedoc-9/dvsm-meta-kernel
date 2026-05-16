@@ -1,6 +1,7 @@
 // dvsm-core/src/v17r_render.rs
 // V17-R · Deterministic Manifold Projection → Render Layer
 // Author: Daniel J. Dillberg · License: (AGPL-3.0) contact: Bigdilly95@gmail.com
+// Use with NextGenStack.rs
 //
 // CLASSIFICATION: Computational Visualization System
 //   NOT physics, NOT optics, NOT holography, NOT wave synthesis.
