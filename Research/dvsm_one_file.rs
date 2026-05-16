@@ -20,20 +20,68 @@
 //!   Audio/Media  — latent spectral field rendering, temporal
 //!                  hysteresis visualization, adaptive filter banks
 //!
-//! CORE EQUATION:
-//!   dZ/dt = [Z, S]_κ − λZ
-//!   d‖Z‖²/dt = −2λ‖Z‖²  (energy conservation under antisymmetric κ)
-//!
-//! PROPERTIES:
-//!   no_std · zero-alloc hot path · f32 or Q16.16 fixed-point
-//!   deterministic pipeline (13 stages) · ABI-stable C FFI
-//!   page-aligned state · SIMD-auto-vectorizable loops
-//!
-//! Author: Daniel J. Dillberg
-//! Contact: BigDilly95@gmail.com
-
 // dvsm-core/src/dvsm_one_file.rs
 // DVSM-π+++ consolidated kernel · no_std · zero-alloc · ABI-stable
+//
+// CORE EQUATION:
+//   dZ/dt = [Z, S]_κ − λZ
+//   [Z,S]_κ[k] = Σⱼ (Z_k S_j − Z_j S_k) κ(k,j)    [antisymmetric Lie bracket]
+//   S = α S + (1−α) Z                                 [EMA memory operator]
+//
+// ENERGY LAW:
+//   d‖Z‖²/dt = −2λ‖Z‖²  (κ antisymmetric → coupling is energy-neutral)
+//   All burst behavior = inter-mode redistribution, never amplification
+//
+// HOOKS (where the core equation connects to each pipeline stage):
+//
+//   Step 1  CONTAINMENT     ‖Z‖² > U_MAX² triggers kill
+//                           ↳ energy law guarantees: if ‖Z‖ exceeds bound,
+//                             it was injected externally (not self-generated)
+//
+//   Step 2  PROJECTION      c = WᵀZ; R = Z − Wc
+//                           ↳ R is orthogonal to span(W) by construction
+//                           ↳ drives basis adaptation (step 5) and velocity (step 7)
+//
+//   Step 3  LIE EVOLUTION   Z += dt·([Z,S]_κ − λZ)
+//                           ↳ THE core equation. Antisymmetric κ precomputed at init.
+//                           ↳ energy law enforced here: λ term is sole dissipation
+//                           ↳ [Z,S] term redistributes energy between modes
+//
+//   Step 4  EMA MEMORY      S = αS + (1−α)Z
+//                           ↳ makes [Z,S] ≠ 0 (without lag, [Z,Z]=0 by antisymmetry)
+//                           ↳ frozen during containment (S preserves last stable state)
+//
+//   Step 5  BASIS ADAPT     W += η · R⊗(c/‖c‖)
+//                           ↳ residual R from step 2 drives W toward signal subspace
+//                           ↳ tangent projection is redundant (R ⊥ W by construction)
+//
+//   Step 6  MANIFOLD        orthonormalize(W); sign_lock(W, W_prev)
+//                           ↳ enforces WᵀW = I (Stiefel constraint)
+//                           ↳ sign_lock prevents projection discontinuities
+//
+//   Step 7  VELOCITY+OMEGA  V = V·γ + (R+S)·η; X += V·dt
+//                           Ω = (Ω + Z·α·dt)·decay
+//                           ↳ V drives output X (NEVER Z — energy law preserved)
+//                           ↳ Ω is isolated witness (Z→Ω only, no backfeed)
+//                           ↳ Vajra decoupling: V reactive, Ω contemplative
+//
+//   Step 8  CLASSIFY        ghost = f(B, ν, δ, H, ‖Ω‖/‖Z‖)
+//                           ↳ B(t) = ‖S‖/‖Z‖ (energy law: B peaks at max redistribution)
+//                           ↳ ‖Ω‖/‖Z‖ > 1 → slow drift exceeds fast field → Ghost::Trap
+//
+//   Step 9  STATE COMMIT    W_prev ← W; frame += 1
+//                           ↳ AFTER all evolution; BEFORE next cycle's sign_lock
+//
+//   Step 10 STIFFNESS       K = |Δ‖Z‖²/Δε| along residual direction
+//                           ↳ shadow-state probe (no mutation of Z)
+//                           ↳ energy law: K measures how close Z is to redistribution event
+//
+//   Step 11 EMIT            TraceFrame if |Δν| > ε
+//                           ↳ delta-encoded: skips stable frames
+//
+// DOMAINS: gaming/VR · RF/SIGINT · deep-space · submarine VLF · bioscience · audio
+// Author: Daniel J. Dillberg · License: (AGPL-3.0)
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub const RMAX: usize = 16;
@@ -244,20 +292,30 @@ impl DvsmCore {
         if drift > 1e-6 { orthonormalize(&mut self.w, N, r); }
         sign_lock(&mut self.w, &self.w_prev, N, r);
 
-        // 7. VELOCITY (damped, clamped, includes shear)
-        i = 0; while i < in_n {
-            let nv = self.v[i] * self.params.velocity_damp + (self.res[i] + self.s[i]) * eta;
+        // 7. VELOCITY & OMEGA (Vajra decoupling — fused, single pass)
+        // V driven by residual + shear → updates X (output), NEVER Z
+        // Ω driven by Z → isolated drift witness, NEVER feeds V or Z
+        let v_damp = self.params.velocity_damp;
+        let o_decay = self.params.omega_decay;
+        i = 0; while i < r {
+            // velocity: reactive (residual + shear coupling)
+            let nv = self.v[i] * v_damp + (self.res[i] + self.s[i]) * eta;
             self.v[i] = if nv > u_max { u_max } else if nv < -u_max { -u_max } else { nv };
+            // X driven by V, not Z — energy conservation preserved
+            self.x[i] += self.v[i] * dt;
+            // omega: isolated witness (Z → Ω only, α coupling, no backfeed)
+            self.omega[i] = (self.omega[i] + self.z[i] * alpha * dt) * o_decay;
+            i += 1;
+        }
+        // fill remainder if in_n > r (X tracks full input dimension)
+        while i < in_n {
+            let nv = self.v[i] * v_damp + self.res[i] * eta;
+            self.v[i] = if nv > u_max { u_max } else if nv < -u_max { -u_max } else { nv };
+            self.x[i] += self.v[i] * dt;
             i += 1;
         }
 
-        // 8. OMEGA (no Ω→V backfeed)
-        k = 0; while k < r {
-            self.omega[k] = (self.omega[k] + self.z[k]*alpha*dt) * self.params.omega_decay;
-            k += 1;
-        }
-
-        // 9. CLASSIFY
+        // 8. CLASSIFY + KINETIC PROBE
         let z_n = norm_safe_arr(&self.z, r);
         let s_n = norm_safe_arr(&self.s, r);
         let stress = s_n / z_n;
@@ -267,6 +325,9 @@ impl DvsmCore {
         let entropy = spectral_entropy(&self.z, r, self.frames_since_rebirth);
         let o_n = norm_safe_arr(&self.omega, r);
         let omega_ratio = o_n / z_n;
+        // resonance peak: max mode amplitude (replaces undefined V16 peak)
+        let resonance = { let mut mx=0.0f32; k=0; while k<r {
+            let a=self.z[k].abs(); if a>mx{mx=a;} k+=1; } mx };
         let denat = self.rebirth_mode == RebirthMode::HighEntropy
             && self.frames_since_rebirth < RAMP_FRAMES;
         let ghost = classify_ghost(stress, novelty, drift_safe, entropy, omega_ratio, killed, denat);
@@ -293,9 +354,6 @@ impl DvsmCore {
         let delta = novelty - self.prev_novelty;
         let emit = delta > 1e-4 || delta < -1e-4 || killed || self.frame < 2;
         self.prev_novelty = novelty;
-
-        let resonance = { let mut mx = 0.0f32; k=0; while k<r {
-            let a = self.z[k].abs(); if a > mx { mx = a; } k += 1; } mx };
 
         BinaryFrame {
             frame: self.frame, energy: z_n, novelty, stress, stiffness,
