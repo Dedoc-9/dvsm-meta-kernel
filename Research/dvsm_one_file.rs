@@ -539,3 +539,4 @@ fn sign_lock(w: &mut [f32; RMAX*N], wp: &[f32; RMAX*N], stride: usize, r: usize)
     #[cfg(feature = "std")]
     if !core.is_null() { drop(Box::from_raw(core)); }
 }
+
