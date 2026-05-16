@@ -1,8 +1,8 @@
-// ============================================================
-// DVSM-π+++ / DQSDv2 · CORE KERNEL (cdylib)
-// Author: Daniel J. Dillberg
-// Contact: BigDilly95@gmail.com
-// ============================================================
+//! ============================================================
+//! DVSM-π+++ / DQSDv2 · CORE KERNEL (cdylib)
+//! Author: Daniel J. Dillberg
+//! Contact: BigDilly95@gmail.com
+//! ============================================================
 // PURPOSE: Spectral Arbitration Kernel (pre-visual filter)
 // ============================================================
 
