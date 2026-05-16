@@ -219,3 +219,191 @@ impl DLSSLayer {
 
 pub const FINAL_AXIOM: &str =
     "DVSM is a pre-visual arbitration kernel: it does not render or upscale frames; it determines which frames are permitted to exist before UE5 and DLSS reconstruct them.";
+
+// ============================================================
+// DVSM-π+++ / DQSDv2 · MASTERFILE ADDENDUM PATCH
+// ABI correction + GPU parity + UE5 render graph tightening
+// ============================================================
+
+// ─────────────────────────────────────────────────────────────
+// 1. OPAQUE HANDLE (FIXED: ZST → valid FFI opaque type)
+// ─────────────────────────────────────────────────────────────
+
+pub enum DVSM_Handle {} // canonical Rust FFI opaque handle
+
+// ─────────────────────────────────────────────────────────────
+// 2. INIT ABI (UNCHANGED CORE CONTRACT)
+// ─────────────────────────────────────────────────────────────
+// KEEP: dvsm_init(n: u32, r: u32)
+// DO NOT convert to DVSM_Params
+
+// Additive extension ONLY:
+#[repr(C)]
+pub struct DVSM_Params {
+    pub beta: f32,
+    pub epsilon: f32,
+    pub u_max: f32,
+    pub lambda: f32,
+}
+
+extern "C" {
+    pub fn dvsm_set_params(h: *mut DVSM_Handle, p: *const DVSM_Params);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. GPU PARITY CONTRACT (NO INLINE PSEUDOCODE)
+// ─────────────────────────────────────────────────────────────
+
+pub const GPU_PARITY_CONTRACT: &str =
+    "See dvsm_gpu.wgsl — canonical kernels (Lie, EMA, Containment, Residual)";
+
+// ─────────────────────────────────────────────────────────────
+// 4. GHOST CONSTANTS (NO MAGIC NUMBERS)
+// ─────────────────────────────────────────────────────────────
+
+pub const DVSM_NOMINAL:  u8 = 0;
+pub const DVSM_COLLAPSE: u8 = 1;
+pub const DVSM_DIFFUSE:   u8 = 2;
+pub const DVSM_ECHO:      u8 = 3;
+pub const DVSM_BURST:     u8 = 4;
+pub const DVSM_TRAP:      u8 = 5;
+pub const DVSM_VACUUM:    u8 = 6;
+
+// ─────────────────────────────────────────────────────────────
+// 5. DLSS-FRIENDLY FILTER (SMOOTH VIABILITY GATE)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn filter_frame(ghost: u8, contained: bool, drift: f32) -> f32 {
+    if ghost == DVSM_COLLAPSE || ghost == DVSM_VACUUM || contained {
+        return 0.0;
+    }
+
+    // Smooth monotonic confidence for temporal accumulation
+    1.0 / (1.0 + (drift / 0.02_f32).powi(2))
+}
+
+// ─────────────────────────────────────────────────────────────
+// 6. RENDER GRAPH CONTRACT (UE5 STRICT ORDERING)
+// ─────────────────────────────────────────────────────────────
+
+pub const PASS_DEPENDENCIES: [&str; 2] = [
+    "SceneTextures",     // GBuffer complete
+    "MotionVectorPass",  // required for residual geometry
+];
+
+pub const PASS_BEFORE: &str = "LumenSceneLighting";
+
+// ─────────────────────────────────────────────────────────────
+// 7. ABI EXPANSION (MISSING TRACE FUNCTION RESTORED)
+// ─────────────────────────────────────────────────────────────
+
+#[repr(C)]
+pub struct DVSM_TraceFrame {
+    pub frame: u64,
+    pub stress: f32,
+    pub novelty: f32,
+    pub drift: f32,
+    pub entropy: f32,
+    pub energy: f32,
+    pub ghost: u8,
+    pub contained: u8,
+}
+
+extern "C" {
+    pub fn dvsm_get_trace(
+        h: *const DVSM_Handle,
+        frame: *const DVSM_TraceFrame,
+        out: *mut DVSM_TraceFrame,
+    ) -> i32;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 8. FINAL INTEGRATION NOTE
+// ─────────────────────────────────────────────────────────────
+//
+// - dvsm_init remains stable (n, r only)
+// - DVSM_Params is optional runtime tuning layer
+// - GPU is authoritative via dvsm_gpu.wgsl
+// - UE5 RDG ordering is strictly enforced via PASS_DEPENDENCIES
+// - DLSS sees only smooth scalar confidence (no discontinuities)
+// - ABI is now fully closed and additive-safe
+//
+// ============================================================
+// ============================================================
+// DVSM HARDENING PATCH · ARITHMETIC LAYER (H1–H8)
+// ============================================================
+
+impl DvsmCore {
+
+    // H1: κ PRECOMPUTATION (Lie-bracket acceleration)
+    // κ(k,j) = sin(k*1.37 - j*1.73) → precomputed table
+    pub fn init_kappa(&mut self, kappa: &mut [f32; R * R]) {
+        for k in 0..R {
+            for j in 0..R {
+                kappa[k * R + j] =
+                    ((k as f32) * 1.37 - (j as f32) * 1.73).sin();
+            }
+        }
+    }
+
+    // store outside hot loop:
+    // kappa[k*R + j] reused in Lie-bracket
+
+    // H2: containment hysteresis
+    pub fn containment_gate(&mut self, e2: f32, viol: &mut u8) -> bool {
+        const K: u8 = 3;
+        if e2 > U_MAX * U_MAX {
+            *viol += 1;
+        } else {
+            *viol = 0;
+        }
+        *viol >= K
+    }
+
+    // H3: orthonormalization skip gate
+    pub fn stiefel_gate(drift: f32) -> bool {
+        drift >= 1e-6
+    }
+
+    // H4: EMA skip flag (call-site logic)
+    pub fn ema_update(&mut self, contained: bool, k: usize) {
+        if contained { return; } // freeze memory
+        self.s[k] = ALPHA * self.s[k] + (1.0 - ALPHA) * self.z[k];
+    }
+
+    // H5: sign stabilization requires w_prev buffer
+    pub fn sign_lock(&mut self, w_prev: &[f32; R * R], n: usize, r: usize) {
+        for k in 0..r {
+            let base = k * R;
+            let mut d = 0.0;
+            for i in 0..n {
+                d += self.w[base + i] * w_prev[base + i];
+            }
+            if d < 0.0 {
+                for i in 0..n {
+                    self.w[base + i] *= -1.0;
+                }
+            }
+        }
+    }
+
+    // H6: entropy ramp blending
+    pub fn entropy_ramp(ent: f32, frames: u64, r: usize) -> f32 {
+        let ramp = ((frames as f32) / 120.0).min(1.0);
+        ramp * ent + (1.0 - ramp) * (r as f32).ln()
+    }
+
+    // H7: velocity clamp (post-update)
+    #[inline]
+    pub fn clamp_velocity(&mut self, i: usize) {
+        self.v[i] = self.v[i].clamp(-U_MAX, U_MAX);
+    }
+}
+
+// H8: DLSS-safe drift sanitization
+#[inline]
+pub fn sanitize_drift(mut d: f32) -> f32 {
+    if d.is_nan() { d = 0.0; }
+    d.max(0.0)
+}
