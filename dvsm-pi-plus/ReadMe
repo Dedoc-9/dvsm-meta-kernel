@@ -1,0 +1,28 @@
+Author: Daniel J. Dillberg
+Contact: BigDilly95@@gmail.com
+------------------------------------------------------------------------------
+
+STEP  EQUATION / OPERATION                              MODULE          O(·)
+──────────────────────────────────────────────────────────────────────────────
+1.    ‖Z‖²>U²_MAX for K frames → kill; mode←f(H,‖S‖)  containment     O(r)
+      Z,S,V,Ω ← rebirth(W, mode)                       containment     O(nr)
+
+2.    c = WᵀZ; p = Wc; R = Z−p; r_norm = ‖R‖          pipeline        O(nr)
+
+3.    Z += dt·(Σⱼ(ZₖSⱼ−ZⱼSₖ)κₖⱼ − λZₖ)              pipeline        O(r²)
+
+4.    if !frozen: S = αS + (1−α)Z                       pipeline        O(r)
+
+5.    if r_norm>ε: W += η·R⊗(c/‖c‖)                    pipeline        O(nr)
+
+6.    if drift>1e-6: MGS(W); sign_lock(W, W_prev)       manifold        O(nr²)
+
+7.    V = clamp(V·γ + (R+S)·η, ±U_MAX); X += V·dt      pipeline        O(n)
+
+8.    Ω = (Ω + Z·α·dt)·decay                            pipeline        O(r)
+
+9.    ghost = f(B, ν, δ, H, ‖Ω‖/‖Z‖)                   ghost           O(1)
+
+10.   W_prev ← W; frame += 1; t += dt                   state_commit    O(nr)
+
+11.   emit if |Δν| > ε                                   trace           O(1)
