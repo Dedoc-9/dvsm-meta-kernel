@@ -472,3 +472,110 @@ pub fn handle_containment(
 // Measurement layers MUST NEVER become dynamics.
 //
 // ============================================================
+// ============================================================
+// LIE EVOLUTION OPERATOR
+// ============================================================
+//
+// PURPOSE:
+// Deterministic anti-symmetric manifold flow.
+//
+// FORM:
+//
+//     Ż = [Z,S]κ − λZ
+//
+// where:
+//
+//     [Z,S]κ = Σⱼ (ZₖSⱼ − ZⱼSₖ) κₖⱼ
+//
+// ============================================================
+//
+// HARDENING INVARIANTS
+// ============================================================
+//
+// 1. κ MUST remain skew-symmetric:
+//
+//        κ[k,j] = -κ[j,k]
+//
+// 2. λ MUST remain constant during execution:
+//
+//        ∂λ / ∂ν = 0
+//
+//    Novelty ν may influence adaptation logic,
+//    but MUST NEVER modulate Suchness decay.
+//
+// 3. The Lie bracket redistributes energy internally
+//    but does not generate unbounded energy growth
+//    under valid λ > 0.
+//
+// 4. Coupling occurs ONLY across spectral rank r,
+//    never full spatial dimension n.
+//
+// ============================================================
+//
+// AIR-GAP DIAMOND RULE
+// ============================================================
+//
+// Forbidden:
+//
+//     lambda = f(novelty)
+//     lambda = f(residual)
+//     lambda = f(acoustic)
+//
+// Allowed:
+//
+//     lambda = constant
+//
+// λ is a geometric dissipation constant,
+// not an adaptive feedback channel.
+//
+// ============================================================
+
+#[inline(always)]
+pub fn lie_step(
+    z: &mut [f32],
+    s: &[f32],
+    kappa: &[f32],
+    lambda: f32, // immutable Suchness decay
+    dt: f32,
+    r: usize,
+) {
+
+    for k in 0..r {
+
+        let mut torque = 0.0;
+
+        for j in 0..r {
+
+            let idx =
+                k * RMAX + j;
+
+            torque +=
+                (
+                    z[k] * s[j]
+                    - z[j] * s[k]
+                )
+                * kappa[idx];
+        }
+
+        // ----------------------------------------------------
+        // Suchness decay
+        // ----------------------------------------------------
+        //
+        // λ remains invariant during execution.
+        //
+        // Novelty ν MUST NOT influence λ.
+        //
+        // This preserves:
+        //
+        //     ∂λ / ∂ν = 0
+        //
+        // ----------------------------------------------------
+
+        z[k] +=
+            dt
+            * (
+                torque
+                - lambda * z[k]
+            );
+    }
+}
