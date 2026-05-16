@@ -1,6 +1,7 @@
 // ============================================================
 // DVSM-π+++ / DQSDv2 · TIGHTENED CORE
 // Author: Daniel J. Dillberg · ABI-stable · allocation-free hot path
+// Contact: BigDilly95@gmail.com
 // ============================================================
 // INVARIANT: μ_t immutable (no host mutation)
 // INVARIANT: W^T W = I after every step
