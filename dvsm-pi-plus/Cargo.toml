@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "1.1.0"
+edition = "2021"
+authors = ["Daniel J. Dillberg"]
+license = "MIT"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[profile.release.package.dvsm-core]
+# core is no_std — ensure no unwinding
+panic = "abort"
+overflow-checks = false
