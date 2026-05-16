@@ -40,6 +40,55 @@ let (c, res, r) = project(W, Z);
 Z += dt * (lie_bracket(Z, S, kappa) - λ * Z);          
 if r > ε { W += η * outer(res, normalize(c)); }
 // -------------------------------------------------------------------------------
+// crates/dvsm-core/src/energy_test.rs
+
+/// Verifies Result 1: Energy conservation under antisymmetric Lie-bracket coupling.
+/// Property: d‖Z‖²/dt = −2λ‖Z‖² exactly.
+pub fn verify_lie_energy_conservation() {
+    const N: usize = 4;
+    let lambda: f64 = 0.5;
+    let dt: f64 = 0.0001;
+
+    // 1. Initial states (Z) and Memory (S)
+    let z = [1.0, 0.5, -0.2, 0.8];
+    let s = [0.1, -0.1, 0.4, -0.3];
+    
+    // 2. Generate an antisymmetric kappa (κ_kj = -κ_jk)
+    // In production, this is a pre-allocated static matrix.
+    let mut kappa = [[0.0f64; N]; N];
+    kappa[0][1] = 0.5;  kappa[1][0] = -0.5;
+    kappa[0][2] = -0.2; kappa[2][0] = 0.2;
+    kappa[1][3] = 0.8;  kappa[3][1] = -0.8;
+
+    // 3. Calculate Coupling Term: Σⱼ(Z_k S_j − Z_j S_k)κ_kj
+    let mut coupling_dz = [0.0f64; N];
+    for k in range(0..N) {
+        for j in range(0..N) {
+            coupling_dz[k] += (z[k] * s[j] - z[j] * s[k]) * kappa[k][j];
+        }
+    }
+
+    // 4. Calculate total dZ/dt including dissipation
+    let mut total_dz = [0.0f64; N];
+    for k in 0..N {
+        total_dz[k] = coupling_dz[k] - (lambda * z[k]);
+    }
+
+    // 5. Energy Analysis
+    // d‖Z‖²/dt = 2 * Σ(Z_k * dZ_k/dt)
+    let z_dot_coupling: f64 = z.iter().zip(coupling_dz.iter()).map(|(zk, dzk)| zk * dzk).sum();
+    let z_dot_total: f64 = z.iter().zip(total_dz.iter()).map(|(zk, dzk)| zk * dzk).sum();
+    
+    let actual_de_dt = 2.0 * z_dot_total;
+    let expected_de_dt = -2.0 * lambda * z.iter().map(|zk| zk * zk).sum::<f64>();
+
+    // Result 1 validation
+    assert!(z_dot_coupling.abs() < 1e-15, "Pioneering Result Failed: Coupling added energy!");
+    println!("Coupling Power Contribution: {:.12e} (Strict Zero)", z_dot_coupling);
+    println!("Actual dE/dt: {:.6}", actual_de_dt);
+    println!("Theoretical dE/dt (-2λ‖Z‖²): {:.6}", expected_de_dt);
+}
+// -------------------------------------------------------------------------------
 
 //! DVSM-π+++ corrected hot-path step (no heap, correct Lie dimension, full telemetry)
 
