@@ -385,3 +385,94 @@ pub fn drift_update(
 //     unresolved manifold information
 //
 // ============================================================
+// ============================================================
+// NOVELTY GUARDRAIL (AIR-GAP DIAMOND)
+// ============================================================
+//
+// CRITICAL INVARIANT:
+//
+// Novelty ν is a DERIVED OBSERVABLE,
+// never a persistent dynamical state.
+//
+// ------------------------------------------------------------
+// FORM
+// ------------------------------------------------------------
+//
+//     ν = ||Z - W(WᵀZ)||
+//
+// ν is computed transiently from:
+//
+// - current latent state Z
+// - current manifold basis W
+//
+// and MUST NOT:
+//
+// - accumulate over time
+// - feed back into velocity V
+// - modify Ω drift directly
+// - alter Lie evolution coefficients
+// - persist as manifold memory
+//
+// ------------------------------------------------------------
+// INTERPRETATION
+// ------------------------------------------------------------
+//
+// Novelty is:
+//
+//     a thermometer, not the heat
+//
+// It measures unresolved manifold distance,
+// but is NOT itself a causal force.
+//
+// ------------------------------------------------------------
+// AIR-GAP DIAMOND RULE
+// ------------------------------------------------------------
+//
+// Forbidden:
+//
+//     Ω ← Ω + ν
+//     V ← V + ν
+//     Z ← Z + ν
+//
+// Allowed:
+//
+//     ν = observe(Z, W)
+//
+//     if ν > ε:
+//         adapt_basis(...)
+//
+//
+// ν may TRIGGER adaptation logic,
+// but never become part of the state algebra.
+//
+// ------------------------------------------------------------
+// WHY THIS MATTERS
+// ------------------------------------------------------------
+//
+// If ν becomes stateful:
+//
+// - observability contaminates dynamics
+// - measurement becomes feedback
+// - the manifold self-amplifies novelty
+// - resonance collapses into instability
+//
+// This violates:
+//
+//     ∂V / ∂Ω = 0
+//
+// and breaks the Air-Gap Diamond.
+//
+// ------------------------------------------------------------
+// CORRECT MENTAL MODEL
+// ------------------------------------------------------------
+//
+// Z  = energy
+// Ω  = memory drift
+// W  = geometry
+// ν  = unresolved geometric distance
+//
+// ν observes the mismatch.
+//
+// It does NOT become the mismatch.
+//
+// ============================================================
