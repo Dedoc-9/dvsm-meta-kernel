@@ -3,6 +3,32 @@
 RUSTFLAGS="-C target-cpu=native -C llvm-args=-force-vector-width=16 -C link-arg=-zrelro -C link-arg=-znow"
 cargo build --release
 
+STEP  EQUATION                                          MODULE
+─────────────────────────────────────────────────────────────────
+1.    ‖Z‖² > U²_MAX for K frames → kill                containment
+      mode ← f(entropy, ‖S‖)                           containment
+      Z,S,V,Ω ← rebirth(W, mode)                       containment
+
+2.    c = WᵀZ                    O(nr)                  pipeline
+      p = Wc                     O(nr)                  pipeline
+      R = Z − p                  O(n)                   pipeline
+
+3.    Z += dt·(Σⱼ(ZₖSⱼ−ZⱼSₖ)κₖⱼ − λZₖ)  O(r²)      pipeline
+
+4.    S = αS + (1−α)Z            O(r)                   pipeline
+
+5.    W += η·R⊗(c/‖c‖)          O(nr)                  pipeline
+      if drift > 1e-6: MGS(W)   O(nr²)                 manifold
+      sign_lock(W, W_prev)      O(nr)                  manifold
+
+7.    V = clamp(V·γ + (R+S)·η)  O(n)                   pipeline
+      X += V·dt                  O(n)                   pipeline
+
+8.    Ω = (Ω + Z·α·dt)·decay    O(r)                   pipeline
+
+9.    ghost = f(B,ν,δ,H,Ω/Z)    O(1)                   ghost
+
+11.   emit if |Δν| > ε           O(1)                   trace
 
 // src/abi.rs — C FFI boundary (stable, 5 functions)
 use crate::core::DvsmCore;
