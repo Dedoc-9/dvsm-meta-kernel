@@ -4,6 +4,8 @@
 //
 // DVSM-π+++ / DQSDv2 CORE ARITHMETIC ENGINE
 //
+// Author: Daniel J. Dillberg
+//
 // ============================================================
 // INTRODUCTION (USE CASES)
 // ============================================================
