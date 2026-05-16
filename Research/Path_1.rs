@@ -399,3 +399,10 @@ pub fn acoustic_observe(state: &State) -> AcousticFrame {
         resonance_peak,
     }
 }
+
+step(&mut state);
+let acoustic = acoustic_observe(&state);
+
+if acoustic.resonance_peak > 10.0 {
+    println!("[V16] System Resonating: Peak Amplitude {:.4}", acoustic.resonance_peak);
+}
