@@ -57,7 +57,7 @@
 //   Step 11 EMIT            TraceFrame if |Δν| > ε
 //                           ↳ delta-encoded: skips stable frames
 //
-// DOMAINS: gaming/VR · RF/SIGINT · deep-space · submarine VLF · bioscience · audio
+// DOMAINS: gaming/VR · RF/SIGINT · deep-space · submarine VLF · bioscience · audio · 3D gaming 240hz · Air Gap
 // Author: Daniel J. Dillberg · License: (AGPL-3.0) Contact: BigDilly95@gmail.com
 
 #![cfg_attr(not(feature = "std"), no_std)]
