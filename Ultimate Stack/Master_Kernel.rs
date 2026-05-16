@@ -393,3 +393,121 @@ impl DVSMAnalogues {
 //   "stable state extractor under constraint geometry"
 //
 // ============================================================
+// ============================================================
+// DVSM-π+++ / DQSDv2 · SYSTEM INTRO BLOCK (ENGINEER EDITION)
+// ============================================================
+//
+// SYSTEM IDENTITY:
+//   DVSM = Deterministic Spectral Arbitration Kernel
+//   Purpose: Pre-visual frame viability filter (NOT renderer, NOT ML model)
+//
+// CORE FUNCTION:
+//   Evaluates whether a computed state (Z, W, S) is:
+//     - numerically stable
+//     - temporally coherent
+//     - safe for downstream rendering (UE5 / DLSS / GPU pipelines)
+//
+// OUTPUT:
+//   - viability scalar (0.0 → 1.0)
+//   - containment flag
+//   - spectral diagnostics (stress, drift, entropy)
+//
+// ============================================================
+// DOMAIN MAPPING (WHAT THIS SYSTEM *IS* USED FOR)
+// ============================================================
+//
+// BIOLOGY / NEURO:
+//   - models excitation vs inhibition balance
+//   - Lie-bracket ≈ competing neural populations
+//   - containment ≈ homeostatic reset / seizure prevention gate
+//
+// MEDICAL / IMAGING:
+//   - stability gate for reconstruction fields (MRI / CT denoising analog)
+//   - entropy ≈ signal corruption / noise floor estimate
+//   - residual field ≈ reconstruction error map
+//
+// RADIO / RF / SIGNAL PROCESSING:
+//   - W = basis projection of signal subspace
+//   - Z = carrier-state energy distribution
+//   - drift = coherence loss / phase instability metric
+//   - containment = saturation / clipping protection
+//
+// GAMING / REALTIME RENDERING (UE5 / DLSS):
+//   - governs temporal accumulation stability
+//   - prevents ghosting / shimmer / unstable GI
+//   - drives DLSS viability mask (frame acceptance filter)
+//
+// EDGE / IOT / LOW-LATENCY SYSTEMS:
+//   - acts as watchdog for sensor fusion stability
+//   - rejects corrupted or non-coherent frames
+//   - ensures deterministic behavior under constrained compute
+//
+// ============================================================
+// ARITHMETIC MODEL SELECTION (IMPORTANT)
+// ============================================================
+//
+// USE CASE → MATH MODEL:
+//
+// 1. STABLE GEOMETRIC SYSTEMS (UE5 / Nanite / DLSS)
+//    → Stiefel manifold optimization
+//    → orthonormal constraint: WᵀW = I
+//    → numerical method: projected gradient + Gram-Schmidt
+//
+// 2. SIGNAL EVOLUTION / WAVE SYSTEMS (RF / AUDIO / SENSOR)
+//    → Lie-bracket dynamics
+//    → antisymmetric coupling κ(i,j)
+//    → dissipative flow: d||Z||²/dt < 0
+//
+// 3. NOISY MEASUREMENT FIELDS (MEDICAL / EDGE SENSOR)
+//    → EMA (exponential moving average)
+//    → residual projection (W Wᵀ Z)
+//    → robust L2 + clipping containment
+//
+// 4. HIGH-FAILURE / SAFETY CRITICAL (EDGE / REALTIME CONTROL)
+//    → hard containment bounds (U_MAX)
+//    → monotonic filters only (no oscillatory outputs)
+//    → deterministic fallback (zero-state vacuum)
+//
+// ============================================================
+// NON-PORTING / SAFETY CONTRACT
+// ============================================================
+//
+// THIS SYSTEM MUST NOT BE:
+//
+// 1. Ported as a learning model (NO training, NO backprop)
+// 2. Interpreted as biological simulation of life processes
+// 3. Used as probabilistic AI or stochastic generator
+// 4. Modified into recursive self-improving system
+//
+// THIS SYSTEM IS:
+//   - deterministic linear-algebra kernel
+//   - bounded-energy dynamical system
+//   - closed-form update loop
+//
+// ALL EXTENSIONS MUST:
+//
+//   ✔ preserve WᵀW = I constraint
+//   ✔ preserve containment guarantee (U_MAX hard bound)
+//   ✔ preserve no-backfeed rule (output → state forbidden)
+//   ✔ remain ABI-stable if exposed via C interface
+//
+// ============================================================
+// NUMERICAL STABILITY RULE
+// ============================================================
+//
+// If any of the following occur:
+//
+//   - NaN detected
+//   - norm(Z) > U_MAX
+//   - orthonormal drift > threshold
+//
+// THEN:
+//
+//   → enter vacuum state
+//   → zero Z
+//   → freeze S
+//   → mark frame as invalid
+//
+// ============================================================
+// END SYSTEM INTRO BLOCK
+// ============================================================
