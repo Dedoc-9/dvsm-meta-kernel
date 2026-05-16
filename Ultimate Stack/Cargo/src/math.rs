@@ -4,21 +4,8 @@
 //! author: Daniel J. Dillberg
 //! Contact: Bigdillly95@gmail.com
 //! ============================================================
-//
-// PURPOSE:
-// Core deterministic arithmetic layer for:
-//   - Lie-bracket evolution
-//   - Stiefel manifold maintenance
-//   - Orthogonality enforcement
-//   - Procedural κ-field generation
-//
-// DESIGN:
-//   - no_std-safe arithmetic
-//   - allocation-free
-//   - deterministic execution order
-//   - SIMD-friendly contiguous memory layout
-//
-// ============================================================
+//! Spectral Math Kernel + κ Field System
+//! ============================================================
 
 #![allow(dead_code)]
 
@@ -27,66 +14,49 @@ pub const KAPPA_SCALE_A: f32 = 1.37;
 pub const KAPPA_SCALE_B: f32 = 1.73;
 
 // ============================================================
-// DOT PRODUCT
+// DOT / NORM CORE
 // ============================================================
 
 #[inline(always)]
 pub fn dot(a: &[f32], b: &[f32], n: usize) -> f32 {
-    let mut s = 0.0f32;
+    let mut s = 0.0;
+    let mut i = 0;
 
-    for i in 0..n {
+    while i < n {
         s += a[i] * b[i];
+        i += 1;
     }
 
     s
 }
-
-// ============================================================
-// L2 NORM²
-// ============================================================
 
 #[inline(always)]
 pub fn norm2(a: &[f32], n: usize) -> f32 {
     dot(a, a, n)
 }
 
-// ============================================================
-// SAFE NORM
-// ============================================================
-
 #[inline(always)]
 pub fn norm_safe(a: &[f32], n: usize) -> f32 {
     norm2(a, n).sqrt().max(EPS)
 }
 
-// ============================================================
-// NORMALIZE VECTOR
-// ============================================================
-
 #[inline(always)]
 pub fn normalize(v: &mut [f32], n: usize) {
     let inv = 1.0 / norm_safe(v, n);
 
-    for i in 0..n {
+    let mut i = 0;
+    while i < n {
         v[i] *= inv;
+        i += 1;
     }
 }
 
 // ============================================================
-// PROCEDURAL κ FIELD GENERATOR
+// κ FIELD (ANALYTIC)
 // ============================================================
 //
-// κ(i,j) defines the non-normal coupling field used by
-// the Lie-bracket evolution kernel.
-//
-// PROPERTIES:
-//   - deterministic
-//   - antisymmetric
-//   - allocation-free
-//   - no RNG dependency
-//
+// Antisymmetric deterministic coupling:
 // κ(i,j) = sin(iA - jB)
-//
 // ============================================================
 
 #[inline(always)]
@@ -95,36 +65,24 @@ pub fn kappa(i: usize, j: usize) -> f32 {
         return 0.0;
     }
 
-    (
-        i as f32 * KAPPA_SCALE_A
-        - j as f32 * KAPPA_SCALE_B
-    ).sin()
+    let x = (i as f32 * KAPPA_SCALE_A) - (j as f32 * KAPPA_SCALE_B);
+    x.sin()
 }
 
 // ============================================================
-// PRECOMPUTE κ MATRIX
-// ============================================================
-//
-// Layout:
-//   κ[i * r + j]
-//
-// Called once during init.
-//
+// PRECOMPUTED κ MATRIX (OPTIONAL CACHE)
 // ============================================================
 
 pub fn generate_kappa<const R: usize>() -> [f32; R * R] {
     let mut out = [0.0f32; R * R];
 
     let mut i = 0;
-
     while i < R {
         let mut j = 0;
-
         while j < R {
             out[i * R + j] = kappa(i, j);
             j += 1;
         }
-
         i += 1;
     }
 
@@ -137,38 +95,46 @@ pub fn generate_kappa<const R: usize>() -> [f32; R * R] {
 //
 // dZ/dt = [Z,S]_κ - λZ
 //
+// Notes:
+// - uses snapshot of Z for stability
+// - avoids in-place contamination
 // ============================================================
 
 #[inline(always)]
 pub fn evolve_lie<const R: usize>(
     z: &mut [f32; R],
     s: &[f32; R],
-    kappa_table: &[f32; R * R],
+    kappa_table: Option<&[f32; R * R]>,
     dt: f32,
     lambda: f32,
     r: usize,
 ) {
-    let prev = *z;
+    let z_prev = *z;
 
-    for k in 0..r {
+    let use_table = kappa_table.is_some();
 
-        let mut acc = 0.0f32;
+    let table = kappa_table.unwrap_or(&[[0.0; R * R]; 1][0]);
 
-        for j in 0..r {
+    let mut k = 0;
+    while k < r {
+        let mut acc = 0.0;
 
-            if j == k {
-                continue;
+        let mut j = 0;
+        while j < r {
+            if j != k {
+                let κ = if use_table {
+                    table[k * R + j]
+                } else {
+                    kappa(k, j)
+                };
+
+                acc += (z_prev[k] * s[j] - z_prev[j] * s[k]) * κ;
             }
-
-            let κ = kappa_table[k * R + j];
-
-            acc += (
-                prev[k] * s[j]
-                - prev[j] * s[k]
-            ) * κ;
+            j += 1;
         }
 
-        z[k] += dt * (acc - lambda * z[k]);
+        z[k] = z_prev[k] + dt * (acc - lambda * z_prev[k]);
+        k += 1;
     }
 }
 
@@ -183,10 +149,11 @@ pub fn ema_update(
     alpha: f32,
     r: usize,
 ) {
-    for i in 0..r {
-        s[i] =
-            alpha * s[i]
-            + (1.0 - alpha) * z[i];
+    let mut i = 0;
+
+    while i < r {
+        s[i] = alpha * s[i] + (1.0 - alpha) * z[i];
+        i += 1;
     }
 }
 
@@ -195,34 +162,37 @@ pub fn ema_update(
 // ============================================================
 //
 // ||WᵀW - I||_F
-//
 // ============================================================
 
 pub fn frobenius_ortho_error<const R: usize>(
     w: &[f32; R * R],
     r: usize,
 ) -> f32 {
+    let mut err = 0.0;
 
-    let mut err = 0.0f32;
+    let mut i = 0;
+    while i < r {
 
-    for i in 0..r {
+        let mut j = 0;
+        while j < r {
 
-        for j in 0..r {
+            let mut d = 0.0;
 
-            let mut d = 0.0f32;
-
-            for k in 0..r {
+            let mut k = 0;
+            while k < r {
                 d += w[i * R + k] * w[j * R + k];
+                k += 1;
             }
 
-            let target =
-                if i == j { 1.0f32 }
-                else { 0.0f32 };
-
+            let target = if i == j { 1.0 } else { 0.0 };
             let delta = d - target;
 
             err += delta * delta;
+
+            j += 1;
         }
+
+        i += 1;
     }
 
     err.sqrt()
