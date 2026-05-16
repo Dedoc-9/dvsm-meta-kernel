@@ -647,3 +647,184 @@ impl TargetPersonaExploration {
 
 pub const FINAL_AXIOM: &str =
     "DVSM-compatible software is defined by its ability to accept a deterministic Stability Mask from a C-ABI binary and gate its own generative instability.";
+
+// DVSM-π+++ · EXECUTION ORDER CORRECTION PATCH (E1–E6)
+// 🔴 PRIMARY FIX: FRAME PHASE ALIGNMENT
+// ❗ Canonical rule
+
+// All derived quantities (residual, drift inputs, velocity, stress, novelty) must be computed from the same frame snapshot.
+
+// That means:
+
+pub fn step(&mut self, input: &[f32]) -> TraceFrame {
+    let n = self.n as usize;
+    let r = self.r as usize;
+    let in_n = input.len().min(n);
+
+    // ============================================================
+    // 1. H2 — Containment + Rebirth (state gating)
+    // ============================================================
+    let mut violation = norm2(&self.z, r) > U_MAX * U_MAX || !self.z.iter().all(|v| v.is_finite());
+
+    if violation {
+        self.contain_fail_count += 1;
+    } else {
+        self.contain_fail_count = 0;
+    }
+
+    if self.contain_fail_count >= 3 {
+        self.alive = 0;
+    }
+
+    if self.alive == 0 {
+        rebirth(self);
+        self.frames_since_rebirth = 0; // E3 FIX
+    }
+
+    self.frames_since_rebirth += 1;
+
+    // ============================================================
+    // 2. PROJECTION (E1/E2 FIX — MUST BE FIRST DATA STAGE)
+    // ============================================================
+    for k in 0..r {
+        self.c[k] = dot(&self.w[k * R..], input, in_n);
+    }
+
+    for i in 0..in_n {
+        self.p[i] = 0.0;
+    }
+
+    let mut r_n2 = 0.0f32;
+
+    for k in 0..r {
+        for i in 0..in_n {
+            self.p[i] += self.w[k * R + i] * self.c[k];
+        }
+    }
+
+    for i in 0..in_n {
+        self.res[i] = input[i] - self.p[i];
+        r_n2 += self.res[i] * self.res[i];
+    }
+
+    let r_norm = r_n2.sqrt();
+
+    // ============================================================
+    // 3. LIE BRACKET EVOLUTION
+    // ============================================================
+    for k in 0..r {
+        let mut acc = 0.0f32;
+
+        for j in 0..r {
+            if j == k { continue; }
+            acc += (self.z[k] * self.s[j] - self.z[j] * self.s[k])
+                * self.kappa[k * R + j];
+        }
+
+        self.z[k] += DT * (acc - LAMBDA * self.z[k]);
+    }
+
+    // ============================================================
+    // 4. EMA (H4 FIX — skip during vacuum)
+    // ============================================================
+    if self.contain_fail_count == 0 {
+        for k in 0..r {
+            self.s[k] = ALPHA * self.s[k] + (1.0 - ALPHA) * self.z[k];
+        }
+    }
+
+    // ============================================================
+    // 5. BASIS UPDATE (E4 FIX — WAS MISSING)
+    // ============================================================
+    if r_norm > EPS {
+        let c_norm = norm_safe(&self.c, r);
+
+        for k in 0..r {
+            let sc = self.c[k] / c_norm;
+
+            for i in 0..in_n {
+                self.w[k * R + i] += ETA * self.res[i] * sc;
+            }
+        }
+    }
+
+    // ============================================================
+    // 6. ORTHONORMALIZATION (H3)
+    // ============================================================
+    let drift = stiefel_drift(&self.w, R, r);
+
+    if drift > 1e-6 {
+        orthonormalize(&mut self.w, R, r);
+    }
+
+    // ============================================================
+    // 7. SIGN LOCK (H5)
+    // ============================================================
+    for k in 0..r {
+        let base = k * R;
+
+        let mut dotp = 0.0f32;
+        for i in 0..n {
+            dotp += self.w[base + i] * self.w_prev[base + i];
+        }
+
+        if dotp < 0.0 {
+            for i in 0..n {
+                self.w[base + i] *= -1.0;
+            }
+        }
+    }
+
+    self.w_prev = self.w;
+
+    // ============================================================
+    // 8. VELOCITY UPDATE (H7 FIX)
+    // ============================================================
+    for i in 0..in_n {
+        let dx = self.res[i] + self.s[i];
+
+        self.v[i] = (self.v[i] * DAMPING + dx * ETA)
+            .clamp(-U_MAX, U_MAX);
+
+        self.x[i] += self.v[i] * DT;
+    }
+
+    // ============================================================
+    // 9. EMISSION (E5 FIX — reuse computed scalars)
+    // ============================================================
+    let stress = norm2(&self.s, r).sqrt() / norm_safe(&self.z, r);
+    let novelty = r_norm / norm_safe(input, in_n);
+
+    let entropy = compute_entropy(&self.z, r);
+    let drift_safe = drift.max(0.0);
+
+    self.frame += 1;
+
+    TraceFrame {
+        frame: self.frame,
+        stress,
+        novelty,
+        drift: drift_safe,
+        entropy,
+        energy: norm_safe(&self.z, r),
+        ghost: classify(stress, novelty, drift_safe, entropy) as u8,
+        contained: (self.contain_fail_count >= 3) as u8,
+    }
+}
+
+// 🔧 REBIRTH PATCH (E3/E6 FIX)
+
+fn rebirth(c: &mut DvsmCore) {
+    let r = c.r as usize;
+
+    for k in 0..r {
+        c.z[k] = EPS * c.w[k * R + (k % (c.n as usize))];
+    }
+
+    c.s = [0.0; R];
+    c.v = [0.0; R];
+
+    c.contain_fail_count = 0;
+    c.frames_since_rebirth = 0;
+    c.alive = 1;
+}
