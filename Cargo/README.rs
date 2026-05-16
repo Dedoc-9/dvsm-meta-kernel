@@ -2,3 +2,63 @@
 
 RUSTFLAGS="-C target-cpu=native -C llvm-args=-force-vector-width=16 -C link-arg=-zrelro -C link-arg=-znow"
 cargo build --release
+
+
+// src/abi.rs — C FFI boundary (stable, 5 functions)
+use crate::core::DvsmCore;
+use crate::trace::TraceFrame;
+use crate::constants::*;
+
+#[cfg(feature = "std")]
+extern crate alloc;
+
+#[no_mangle]
+pub extern "C" fn dvsm_init(n: u32, r: u32) -> *mut DvsmCore {
+    #[cfg(feature = "std")]
+    {
+        let mut c = Box::new(unsafe { core::mem::zeroed::<DvsmCore>() });
+        c.n = n.min(R as u32) as u16;
+        c.r = (r.min(n)).min(R as u32) as u16;
+        c.alive = 1;
+        c.frames_since_rebirth = u32::MAX;
+        let rr = c.r as usize;
+        let mut k = 0;
+        while k < rr { c.w[k*R+k] = 1.0; k += 1; }
+        c.w_prev = c.w;
+        c.init_kappa();
+        Box::into_raw(c)
+    }
+    #[cfg(not(feature = "std"))]
+    { core::ptr::null_mut() } // bare-metal: use static instance
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn dvsm_step(
+    core: *mut DvsmCore, input: *const f32, len: u32, out: *mut TraceFrame,
+) -> i32 {
+    let c = match core.as_mut() { Some(c) => c, None => return -1 };
+    let n = if (c.n as u32) < len { c.n as usize } else { len as usize };
+    if input.is_null() || n == 0 { return -2; }
+    let inp = core::slice::from_raw_parts(input, n);
+    let tf = c.step(inp);
+    if let Some(o) = out.as_mut() { *o = tf; }
+    0
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn dvsm_is_vacuum(core: *const DvsmCore) -> u8 {
+    match core.as_ref() { Some(c) => (c.alive == 0) as u8, None => 1 }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn dvsm_get_trace(
+    _c: *const DvsmCore, f: *const TraceFrame, o: *mut TraceFrame,
+) -> i32 {
+    match (f.as_ref(), o.as_mut()) { (Some(f), Some(o)) => { *o = *f; 0 }, _ => -1 }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn dvsm_free(core: *mut DvsmCore) {
+    #[cfg(feature = "std")]
+    if !core.is_null() { drop(Box::from_raw(core)); }
+}
