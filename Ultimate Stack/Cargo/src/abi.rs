@@ -1,10 +1,5 @@
 //! ============================================================
-//! DVSM-π+++ / DQSDv2 · ABI LAYER (FINAL)
-//! ============================================================
-//! PURPOSE:
-//! - Stable FFI boundary for UE5 / C / external engines
-//! - Zero physics logic (pure interface layer)
-//! - Ownership + safety enforcement
+//! DVSM-π+++ / DQSDv2 · ABI LAYER (FINAL HARDENED)
 //! ============================================================
 
 use core::{ptr, slice};
@@ -17,18 +12,6 @@ use crate::{
     DVSM_NOMINAL,
     RMAX,
 };
-
-// ============================================================
-// SAFETY CONTRACT
-// ============================================================
-//
-// RULES:
-// - no allocation here
-// - no math here
-// - no branching physics logic here
-// - only state forwarding
-//
-// ============================================================
 
 // ============================================================
 // INIT
@@ -66,9 +49,10 @@ pub unsafe extern "C" fn dvsm_init(
         fail_counter: 0,
     });
 
-    // identity initialization (deterministic basis seed)
+    // deterministic identity seed
     let r = p.r as usize;
     let mut i = 0;
+
     while i < r {
         state.W[i * RMAX + i] = 1.0;
         state.W_prev[i * RMAX + i] = 1.0;
@@ -109,7 +93,6 @@ pub unsafe extern "C" fn dvsm_step(
         contained: 0,
     };
 
-    // delegated execution (NO LOGIC HERE)
     crate::core_step(state, input_slice, &mut trace);
 
     if !trace_out.is_null() {
@@ -120,7 +103,7 @@ pub unsafe extern "C" fn dvsm_step(
 }
 
 // ============================================================
-// RECALIBRATION
+// RECALIBRATE
 // ============================================================
 
 #[no_mangle]
@@ -134,7 +117,8 @@ pub unsafe extern "C" fn dvsm_recalibrate(
 
     let state = &mut *(handle as *mut CoreState);
 
-    crate::maintain_manifold(state, state.params.r as usize);
+    // IMPORTANT: single-arg contract only
+    crate::maintain_manifold(state);
 
     0
 }
