@@ -1,17 +1,13 @@
-// src/lib.rs
-// ============================================================
-// DVSM-π+++ / DQSDv2 · FINALIZED CDYLIB CORE
-// ============================================================
-// BUILD TARGET: cdylib
-// PURPOSE:
-// Spectral Arbitration Kernel (Pre-Visual Temporal Governor)
-//
-// AUTHOR:
-// Daniel J. Dillberg
-// Contact: BigDilly95@gmail.com
-// ============================================================
-// DVSM-π+++ / DQSDv2 · FINALIZED CDYLIB CORE
-// ============================================================
+//! src/lib.rs
+//! ============================================================
+//! DVSM-π+++ / DQSDv2 · FINALIZED CDYLIB CORE
+//! ============================================================
+//! BUILD TARGET: cdylib
+//! PURPOSE: Spectral Arbitration Kernel (Pre-Visual Temporal Governor)
+//!
+//! AUTHOR: Daniel J. Dillberg
+//! Contact: BigDilly95@gmail.com
+//! ============================================================
 
 #![no_std]
 #![allow(non_snake_case)]
