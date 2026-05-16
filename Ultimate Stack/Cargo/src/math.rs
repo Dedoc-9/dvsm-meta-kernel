@@ -32,3 +32,6 @@ v
 }
 }
 //! add mod math; to your root file and call them as math::dot(...)
+mod math;
+
+use math::*;
