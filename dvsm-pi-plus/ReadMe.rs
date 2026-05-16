@@ -27,18 +27,18 @@
 
 // 11.   emit if |Δν| > ε                                   trace           O(1)
 
-let c = W.t() * Z;                                    // O(nr)
-let res = Z - W * c;                                   // O(nr)
-let r = norm(res);                                     // O(n)
-Z += dt * (lie_bracket(Z, S, kappa) - λ * Z);          // O(r²)
-if r > ε { W += η * outer(res, c / (norm(c) + ε)); }  // O(nr)
+fn project(W, Z) -> (c, res, r) {
+    let c   = W.t() * Z;        // O(nr)
+    let res = Z - W * c;        // O(nr)
+    let r   = norm(res);        // O(n)
+    (c, res, r)
+}
 
 // otherwise:
 
-let (c, res, r) = project(W, Z);                       // c=WᵀZ, res=Z-Wc, r=‖res‖
-Z += dt * (lie_bracket(Z, S, kappa) - λ * Z);
-if r > ε { W += η * outer(res, c / (norm(c) + ε)); }
-
+let (c, res, r) = project(W, Z);                       
+Z += dt * (lie_bracket(Z, S, kappa) - λ * Z);          
+if r > ε { W += η * outer(res, normalize(c)); }
 // -------------------------------------------------------------------------------
 
 //! DVSM-π+++ corrected hot-path step (no heap, correct Lie dimension, full telemetry)
