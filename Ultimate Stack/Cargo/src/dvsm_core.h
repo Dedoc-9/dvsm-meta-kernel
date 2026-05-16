@@ -5,15 +5,21 @@
 extern "C" {
 #endif
 
-//! ============================================================
-//! DVSM-π+++ / DQSDv2
-//! Stable C ABI Surface
-//! Author: Daniel J. Dillberg
-//! Contact: BigDilly95@gmail.com
-//! ============================================================
+// ============================================================
+// DVSM-π+++ / DQSDv2 · STABLE C ABI SURFACE (FINAL)
+// ============================================================
+// PURPOSE:
+// - Cross-language deterministic ABI (Rust / UE5 / C++)
+// - No assumptions about Rust layout
+// - No logic leakage
+//
+// Author: Daniel J. Dillberg
+// ============================================================
+
+#include <stdint.h>
 
 // ------------------------------------------------------------
-// Ghost Space
+// GHOST SPACE (STATE MACHINE ENUM)
 // ------------------------------------------------------------
 
 #define DVSM_NOMINAL   0
@@ -25,67 +31,67 @@ extern "C" {
 #define DVSM_VACUUM    6
 
 // ------------------------------------------------------------
-// Opaque Handle
+// OPAQUE HANDLE (RUST OWNED)
 // ------------------------------------------------------------
 
 typedef struct DVSM_Handle DVSM_Handle;
 
 // ------------------------------------------------------------
-// Parameters
+// PARAMETERS (ABI STABLE)
 // ------------------------------------------------------------
 
 typedef struct DVSM_Params {
-float dt;
-float alpha;
-float lambda;
-float u_max;
-unsigned int r;
+    float dt;
+    float alpha;
+    float lambda;
+    float u_max;
+    uint32_t r;
 } DVSM_Params;
 
 // ------------------------------------------------------------
-// Trace Frame
+// TRACE FRAME (FIXED LAYOUT)
 // ------------------------------------------------------------
 
 typedef struct DVSM_TraceFrame {
-unsigned long long frame;
+    uint64_t frame;
 
-```
-float stress;
-float novelty;
-float drift;
-float entropy;
-float energy;
+    float stress;
+    float novelty;
+    float drift;
+    float entropy;
+    float energy;
 
-unsigned char ghost;
-unsigned char contained;
-```
+    uint8_t ghost;
+    uint8_t contained;
 
+    // padding for ABI alignment safety (future-proofing)
+    uint8_t _pad[6];
 } DVSM_TraceFrame;
 
 // ------------------------------------------------------------
-// ABI Exports
+// ABI FUNCTIONS
 // ------------------------------------------------------------
 
 DVSM_Handle* dvsm_init(
-const DVSM_Params* params
+    const DVSM_Params* params
 );
 
 int dvsm_step(
-DVSM_Handle* handle,
-const float* input,
-DVSM_TraceFrame* trace_out
+    DVSM_Handle* handle,
+    const float* input,
+    DVSM_TraceFrame* trace_out
 );
 
 int dvsm_recalibrate(
-DVSM_Handle* handle
+    DVSM_Handle* handle
 );
 
-unsigned char dvsm_is_vacuum(
-const DVSM_Handle* handle
+uint8_t dvsm_is_vacuum(
+    const DVSM_Handle* handle
 );
 
 void dvsm_free(
-DVSM_Handle* handle
+    DVSM_Handle* handle
 );
 
 #ifdef __cplusplus
