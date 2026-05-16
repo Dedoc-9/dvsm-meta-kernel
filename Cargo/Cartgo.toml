@@ -1,0 +1,19 @@
+# crates/dvsm-bio/Cargo.toml
+
+[package]
+name = "dvsm-bio"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "DVSM-π+++ — Layer 4 bioscience FEL conformational analysis"
+
+[lib]
+name = "dvsm_bio"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+
+[dependencies]
+dvsm-core = { path = "../dvsm-core" }
