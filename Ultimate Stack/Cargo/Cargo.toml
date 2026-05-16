@@ -1,27 +1,27 @@
+# Cargo.toml
+
 [package]
 name = "dvsm_core"
 version = "1.0.0"
 edition = "2021"
+authors = ["Daniel J. Dillberg"]
+description = "DVSM-π+++ / DQSDv2 Spectral Arbitration Kernel"
+license = "MIT"
 
 [lib]
 name = "dvsm_core"
 crate-type = ["cdylib"]
-
-[features]
-default = ["ffi"]
-ffi = []
-ue5 = []
-gpu = []
 
 [profile.release]
 lto = true
 codegen-units = 1
 opt-level = 3
 panic = "abort"
-strip = "symbols"
+strip = true
 overflow-checks = false
-debug = true
-rpath = false
 
-[profile.dev]
-opt-level = 1
+[features]
+default = []
+deterministic = []
+
+[dependencies]
