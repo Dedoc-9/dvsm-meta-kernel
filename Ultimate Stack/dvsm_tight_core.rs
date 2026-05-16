@@ -504,3 +504,222 @@ pub extern "C" fn dvsm_engine_backend_id() -> u32 {
 ///   - request reconstruction
 ///   - inject input buffers
 /// ============================================================
+// ============================================================
+// DVSM-π+++ / DQSDv2 · UE5 + DLSS INTEGRATION CONTRACT
+// JSON → Rust Runtime Specification Layer
+// ============================================================
+
+#![allow(non_camel_case_types)]
+
+// ============================================================
+// 1. CORE MODULE IDENTITY
+// ============================================================
+
+pub const MODULE_NAME: &str = "DVSM_Spectral_Governor_UE5";
+pub const INTEGRATION_LEVEL: &str = "SceneProxy / RenderGraph (RDG) / DLSS Temporal Injection";
+pub const EXECUTION_PRIORITY: &str =
+    "Post-Culling → Post-GBuffer → Pre-Lighting → Pre-DLSS";
+
+// ============================================================
+// 2. CORE ROLE CONTRACT
+// ============================================================
+
+pub struct CoreRole;
+
+impl CoreRole {
+    pub const DVSM: &str =
+        "Spectral arbitration engine deciding frame viability";
+
+    pub const UE5: &str =
+        "Scene + geometry + lighting substrate provider";
+
+    pub const DLSS: &str =
+        "Temporal reconstruction constrained by DVSM viability mask";
+}
+
+// ============================================================
+// 3. MATHEMATICAL MAPPING LAYER
+// ============================================================
+
+pub struct MathMap;
+
+impl MathMap {
+
+    pub const STFIEEL_W_UE5: &str =
+        "FSceneProxy::LocalToWorld / Nanite Cluster Basis";
+
+    pub const STFIEEL_ROLE: &str =
+        "Enforces orthonormal stability under spectral deformation";
+
+    pub const LIE_BRACKET_EQ: &str =
+        "[Z,S]_κ = Z·S' - S·Z' (antisymmetric κ)";
+
+    pub const LIE_BRACKET_UE5: &str =
+        "Niagara / Lumen volumetric interaction field";
+
+    pub const RESIDUAL_EQ: &str =
+        "R = Z - W Wᵀ Z";
+
+    pub const DLSS_FILTER_RULE: &str =
+        "DLSS_history[t] *= V_t";
+}
+
+// ============================================================
+// 4. RENDER GRAPH FLOW CONTRACT
+// ============================================================
+
+pub const RENDER_FLOW: [&str; 6] = [
+    "GBuffer capture → μ_t substrate",
+    "DVSM GPU compute pass (Z/S evolution + residual projection)",
+    "Stability gate (U_MAX + ghost classification)",
+    "Viability mask generation V_t",
+    "UE5 lighting + Lumen evaluation",
+    "DLSS temporal accumulation filtered by V_t"
+];
+
+// ============================================================
+// 5. TECHNICAL ARTIST CONTROLS
+// ============================================================
+
+pub struct ArtistControls;
+
+impl ArtistControls {
+    pub const LAMBDA_DISSIPATION: &str =
+        "Decay rate of spectral memory (ghost persistence)";
+
+    pub const BETA_GAIN: &str =
+        "Sensitivity of resonance detection";
+
+    pub const U_MAX_THRESHOLD: &str =
+        "Hard stability ceiling triggering vacuum reset";
+}
+
+// ============================================================
+// 6. PERFORMANCE CONTRACT
+// ============================================================
+
+pub struct Performance;
+
+impl Performance {
+    pub const DVSM_PASS_BUDGET_MS: f32 = 0.5;
+
+    pub const MEMORY_MODEL: &str =
+        "Zero heap allocation, persistent buffers only";
+
+    pub const DETERMINISM: &str =
+        "Bit-exact replay across CPU/GPU backends";
+
+    pub const SCALING: &str =
+        "Linear in spectral rank R ≤ 16";
+}
+
+// ============================================================
+// 7. DLSS COMPATIBILITY MODE
+// ============================================================
+
+pub struct DLSSMode;
+
+impl DLSSMode {
+    pub const NAME: &str = "DVSM_DLSS_StableFrameFilter_v1";
+
+    pub const REJECT_CONDITIONS: [&str; 4] = [
+        "ghost == COLLAPSE",
+        "contained == 1",
+        "drift > threshold",
+        "U_MAX exceeded",
+    ];
+
+    pub const EFFECT: &str =
+        "Prevents unstable frames entering temporal accumulation";
+}
+
+// ============================================================
+// 8. FINAL AXIOM
+// ============================================================
+
+pub const FINAL_AXIOM: &str =
+    "DVSM does not render or upscale pixels — it determines which frames are allowed to exist before UE5 and DLSS reconstruct reality.";
+// ============================================================================
+// DVSM-π+++ / DQSDv2 · UNREAL ENGINE 5 SPECTRAL GOVERNOR
+// File: DvsmSpectralGovernor.h
+// RDG + SceneProxy + DLSS Filter Binding Layer
+// ============================================================================
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "RenderGraphResources.h"
+#include "dvsm.h"   // C ABI CORE
+
+/**
+ * DVSM Spectral Governor
+ * Inserts into UE5 RenderGraph as a pre-lighting + pre-DLSS arbitration layer.
+ */
+class FDvsmSpectralGovernor
+{
+public:
+
+    void Initialize(float InLambda, float InUMax)
+    {
+        DVSM_Params Params;
+        Params.lambda  = InLambda;
+        Params.u_max   = InUMax;
+        Params.alpha   = 0.98f;
+        Params.dt      = 1.0f / 240.0f;
+
+        Handle = dvsm_init(&Params);
+    }
+
+    /**
+     * RDG Execution Hook
+     * Post-GBuffer → Pre-Lumen → Pre-DLSS
+     */
+    void Execute(FRDGBuilder& GraphBuilder)
+    {
+        const uint8 IsVacuum = dvsm_is_vacuum(Handle);
+
+        if (IsVacuum)
+        {
+            InvalidateTemporalHistory(GraphBuilder);
+        }
+    }
+
+    /**
+     * DLSS Viability Gate
+     * Filters temporal accumulation input.
+     */
+    FORCEINLINE bool IsFrameViable() const
+    {
+        return dvsm_is_vacuum(Handle) == 0;
+    }
+
+    /**
+     * Stiefel Scaffold → UE5 Transform Bridge
+     */
+    FORCEINLINE FMatrix GetStiefelMatrix() const
+    {
+        const float* W = dvsm_get_W(Handle); // optional export hook
+
+        return FMatrix(
+            FPlane(W[0], W[1], W[2], W[3]),
+            FPlane(W[4], W[5], W[6], W[7]),
+            FPlane(W[8], W[9], W[10], W[11]),
+            FPlane(W[12], W[13], W[14], W[15])
+        );
+    }
+
+    void Shutdown()
+    {
+        dvsm_free(Handle);
+        Handle = nullptr;
+    }
+
+private:
+    DVSM_Handle* Handle = nullptr;
+
+    void InvalidateTemporalHistory(FRDGBuilder& GraphBuilder)
+    {
+        // UE5 RDG: force discard of temporal accumulation buffers
+        // Used when DVSM enters vacuum state (hard reset)
+    }
+};
