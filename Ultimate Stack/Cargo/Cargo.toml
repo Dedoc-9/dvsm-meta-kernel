@@ -1,27 +1,19 @@
-# Cargo.toml
+# crates/dvsm-bio/Cargo.toml
 
 [package]
-name = "dvsm_core"
-version = "1.0.0"
-edition = "2021"
-authors = ["Daniel J. Dillberg"]
-description = "DVSM-π+++ / DQSDv2 Spectral Arbitration Kernel"
-license = "MIT"
+name = "dvsm-bio"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "DVSM-π+++ — Layer 4 bioscience FEL conformational analysis"
 
 [lib]
-name = "dvsm_core"
-crate-type = ["cdylib"]
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = 3
-panic = "abort"
-strip = true
-overflow-checks = false
+name = "dvsm_bio"
+crate-type = ["cdylib", "rlib"]
 
 [features]
 default = []
-deterministic = []
 
 [dependencies]
+dvsm-core = { path = "../dvsm-core" }
