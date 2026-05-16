@@ -723,3 +723,126 @@ private:
         // Used when DVSM enters vacuum state (hard reset)
     }
 };
+// ============================================================
+// DVSM-π+++ / DQSDv2 · 4-IN-1 SYSTEM ADDENDUM
+// UE5 + DLSS + GPU + RUST RUNTIME EXTENSION LAYER
+// Append to: dvsm_masterfile.rs
+// ============================================================
+
+// ============================================================
+// 1. UE5 INTEGRATION CONTRACT LAYER
+// ============================================================
+
+pub const UE5_MODULE_NAME: &str = "DVSM_Spectral_Governor_UE5";
+pub const UE5_PIPELINE_STAGE: &str =
+    "Post-Culling → Post-GBuffer → Pre-Lighting → Pre-DLSS";
+
+pub struct UE5Binding;
+
+impl UE5Binding {
+
+    pub const SCENE_PROXY_ROLE: &str =
+        "Spectral arbitration layer over FSceneProxy + Nanite clusters";
+
+    pub const RDG_INSERTION_POINT: &str =
+        "RenderGraph pass: DVSM_Spectral_Governor_Pass";
+
+    pub const STIEFEL_MAP: &str =
+        "FSceneProxy::LocalToWorld (orthonormal scaffold W)";
+
+    pub const LIE_BRACKET_MAP: &str =
+        "Niagara / Lumen interference field Z ↔ S";
+}
+
+// ============================================================
+// 2. DLSS COMPATIBILITY FILTER LAYER
+// ============================================================
+
+pub struct DLSSBinding;
+
+impl DLSSBinding {
+
+    pub const MODE_NAME: &str = "DVSM_DLSS_StableFrameFilter_v1";
+
+    pub const FILTER_RULE: &str =
+        "DLSS_history[t] *= V_t (DVSM viability mask)";
+
+    pub fn viability_mask(
+        ghost: u8,
+        contained: bool,
+        drift: f32
+    ) -> f32 {
+
+        if ghost == 1 || ghost == 6 || contained {
+            return 0.0;
+        }
+
+        if drift > 0.02 {
+            return 0.25;
+        }
+
+        1.0
+    }
+
+    pub const PURPOSE: &str =
+        "Prevents unstable spectral frames from entering temporal accumulation";
+}
+
+// ============================================================
+// 3. GPU COMPUTE CONTRACT LAYER
+// ============================================================
+
+pub struct GPUContract;
+
+impl GPUContract {
+
+    pub const RESIDUAL_EQUATION: &str =
+        "R = Z - W Wᵀ Z";
+
+    pub const CONTAINMENT_RULE: &str =
+        "if ||Z|| > U_MAX → Z := 0 (vacuum trigger)";
+
+    pub const EMA_RULE: &str =
+        "S = (1 - α)Z + αS";
+
+    pub const PIPELINE_STAGES: [&str; 3] = [
+        "Lie-bracket evolution kernel",
+        "EMA memory update kernel",
+        "Containment + diagnostics kernel"
+    ];
+}
+
+// ============================================================
+// 4. RUST RUNTIME SPECIFICATION LAYER
+// ============================================================
+
+pub struct DVSMRuntime;
+
+impl DVSMRuntime {
+
+    pub const MODULE: &str =
+        "DVSM Spectral Governor Runtime Core";
+
+    pub const MEMORY_MODEL: &str =
+        "Zero-allocation, fixed-size spectral buffers only";
+
+    pub const DETERMINISM: &str =
+        "Bit-exact CPU/GPU parity execution";
+
+    pub const STEP_MODEL: &str =
+        "project → evolve → update → adapt → emit";
+
+    pub const INVARIANTS: [&str; 4] = [
+        "μ_t immutable substrate",
+        "WᵀW = I maintained each step",
+        "no backfeed Ω → V",
+        "panic-free ABI boundary"
+    ];
+}
+
+// ============================================================
+// FINAL SYSTEM AXIOM
+// ============================================================
+
+pub const DVSM_FINAL_AXIOM: &str =
+    "DVSM is not a renderer or upscaler. It is a pre-visual arbitration system that determines which frames are allowed to exist before UE5 renders and DLSS reconstructs them.";
