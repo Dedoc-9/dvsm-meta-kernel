@@ -30,6 +30,10 @@ STEP  EQUATION                                          MODULE
 
 11.   emit if |Δν| > ε           O(1)                   trace
 
+// Logical Step 10: State Rotation
+state.prev_w.copy_from_slice(&state.w);
+state.frame = state.frame.wrapping_add(1);
+
 // src/abi.rs — C FFI boundary (stable, 5 functions)
 use crate::core::DvsmCore;
 use crate::trace::TraceFrame;
