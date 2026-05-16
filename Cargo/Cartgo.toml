@@ -1,19 +1,23 @@
 # crates/dvsm-bio/Cargo.toml
 
-[package]
-name = "dvsm-bio"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-description = "DVSM-π+++ — Layer 4 bioscience FEL conformational analysis"
+[workspace]
+resolver = "2"
+members = ["crates/*"]
 
-[lib]
-name = "dvsm_bio"
-crate-type = ["cdylib", "rlib"]
+[workspace.package]
+version = "1.1.0"
+edition = "2021"
+authors = ["Daniel J. Dillberg"]
+license = "MIT"
 
-[features]
-default = []
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
 
-[dependencies]
-dvsm-core = { path = "../dvsm-core" }
+[profile.release.package.dvsm-core]
+# core is no_std — ensure no unwinding
+panic = "abort"
+overflow-checks = false
