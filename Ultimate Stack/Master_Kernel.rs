@@ -7,6 +7,8 @@
 // DVSM-π+++ / DQSDv2 · SYSTEM HEADER
 // ============================================================
 //
+// NOTE: Cargo.toml for cdylib Cargo.toml in Ultimate Stack folder for final form
+//
 // SYSTEM IDENTITY:
 //   DVSM = Spectral Arbitration Kernel for Frame Viability
 //
