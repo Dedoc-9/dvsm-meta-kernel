@@ -308,3 +308,44 @@ pub unsafe extern "C" fn v17r_hash(frame: *const RenderFrame) -> u64 {
 /// Query render schema version.
 #[no_mangle]
 pub extern "C" fn v17r_version() -> u32 { RENDER_VERSION }
+// --------------------------------------------------------------------------------
+// Clean V20 render kernel (corrected core) (Diamond Dini)
+
+pub fn render_v20(
+    z: &[q64; 16],
+    geo: &GeoAddonV20,
+    frame_id: u64,
+    kill: bool
+) -> RenderFrameV20 {
+
+    let energy = reduce_q64_energy(z);
+    let ghost  = reduce_q64_energy(&geo.ghost);
+
+    let suchness = sqrt_q64_to_f32(energy);
+
+    // OP5: Stiefel curvature (proper form)
+    let kappa_stiefel =
+        (geo.w_max - geo.w_min) / (geo.w_max + EPS);
+
+    let curvature_sign =
+        if kappa_stiefel > 0.0 { 1.0 } else { -1.0 };
+
+    let klein = geo.klein[0] as f32;
+    let rose  = geo.rose[0] as f32;
+    let dini  = geo.dini[0] as f32;
+
+    RenderFrameV20 {
+        frame_id,
+        rgb: [
+            klein.tanh(),
+            rose.tanh(),
+            suchness.min(1.0),
+        ],
+        suchness_energy: suchness,
+        ghost_anomaly: sqrt_q64_to_f32(ghost),
+        stiefel_curvature: curvature_sign,
+        rf_phase_warp: rose.sin(),
+        stability_flag: kill as u8,
+        version: 20,
+    }
+}
