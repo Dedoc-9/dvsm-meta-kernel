@@ -1015,3 +1015,142 @@ pub fn print_runtime_status() {
          system validated under extended stress conditions."
     );
 }
+// dvsm-core/src/impact_math.rs
+// DVSM-V20.4 // FORMALIZED IMPACT MODEL
+// ------------------------------------------------------------
+// PURPOSE:
+//   Converts DVSM runtime claims into explicit measurable mathematics
+//   (bounded dynamical system + entropy + survival metrics)
+
+use std::f64;
+
+/// -----------------------------
+/// STATE DEFINITIONS
+/// -----------------------------
+
+#[derive(Clone, Copy)]
+pub struct State {
+    pub z_norm: f64,   // ||Z||
+    pub s_norm: f64,   // ||S||
+}
+
+/// -----------------------------
+/// SYSTEM PARAMETERS
+/// -----------------------------
+
+pub struct DVSMParams {
+    pub dt: f64,
+    pub lambda: f64,
+    pub beta: f64,     // restorative bias
+    pub gamma: f64,    // damping
+    pub k: f64,        // rose curve factor
+}
+
+/// -----------------------------
+/// ROSE CURVE TARGET
+/// -----------------------------
+
+#[inline]
+fn rose_target(k: f64, theta: f64) -> f64 {
+    (k * theta).cos()
+}
+
+/// -----------------------------
+/// POLAR RESTORATION FUNCTION
+/// -----------------------------
+/// Ψ(x, θ) = β·γ·(r_target - r_current)
+#[inline]
+fn restorative_force(params: &DVSMParams, r_current: f64, theta: f64) -> f64 {
+    let r_target = rose_target(params.k, theta);
+    (r_target - r_current) * params.beta * params.gamma
+}
+
+/// -----------------------------
+/// DRIFT (energy of system)
+/// -----------------------------
+/// D(t) = ||Z||
+#[inline]
+pub fn drift(state: &State) -> f64 {
+    state.z_norm
+}
+
+/// -----------------------------
+/// STRESS (memory lag ratio)
+/// S(t) = ||S|| / (||Z|| + ε)
+/// -----------------------------
+#[inline]
+pub fn stress(state: &State) -> f64 {
+    let eps = 1e-12;
+    state.s_norm / (state.z_norm + eps)
+}
+
+/// -----------------------------
+/// BOUNDED EVOLUTION STEP
+/// -----------------------------
+/// X_{t+1} = X_t + dt·F(X_t) + Ψ(X_t)
+/// (F is abstract Lie-bracket dynamics placeholder)
+/// -----------------------------
+pub fn step(
+    state: &mut State,
+    params: &DVSMParams,
+    theta: &mut f64,
+    lie_torque: f64,
+) {
+    // --- Lie evolution (abstract dynamics term)
+    let damped = lie_torque - params.lambda * state.z_norm;
+    state.z_norm += params.dt * damped;
+
+    // --- EMA-like memory coupling (simplified)
+    state.s_norm = params.gamma * state.s_norm
+        + (1.0 - params.gamma) * state.z_norm;
+
+    // --- Polar update
+    *theta += params.dt;
+
+    let r_current = state.z_norm;
+    let correction =
+        restorative_force(params, r_current, *theta);
+
+    state.z_norm += correction * params.dt;
+}
+
+/// -----------------------------
+/// SURVIVAL HORIZON MODEL
+/// -----------------------------
+/// T_survival = max t such that ||Z_t|| < B
+/// -----------------------------
+pub fn survival_horizon(
+    trajectory: &[State],
+    bound: f64,
+) -> usize {
+    trajectory
+        .iter()
+        .position(|s| s.z_norm > bound)
+        .unwrap_or(trajectory.len())
+}
+
+/// -----------------------------
+/// TELEMETRY DENSITY (ENTROPY FORM)
+/// -----------------------------
+/// η = S_json / S_dvsm
+/// -----------------------------
+pub fn density_ratio(json_bytes: f64, dvsm_bytes: f64) -> f64 {
+    json_bytes / dvsm_bytes
+}
+
+/// percent reduction
+pub fn storage_reduction(json_bytes: f64, dvsm_bytes: f64) -> f64 {
+    (1.0 - dvsm_bytes / json_bytes) * 100.0
+}
+
+/// -----------------------------
+/// SYSTEM INTERPRETATION
+/// -----------------------------
+/// This system is:
+/// X_{t+1} = X_t + dt·F(X_t) + Ψ(X_t)
+/// with bounded feedback constraint:
+/// ||X_t|| < B
+/// -----------------------------
+pub fn is_bounded(z_norm: f64, bound: f64) -> bool {
+    z_norm.abs() < bound
+}
