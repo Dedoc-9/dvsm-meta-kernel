@@ -606,3 +606,504 @@ R = Ω² - λΩ + κ(Ω * G)
 // 6. Klein consistency check
 if energy(z') == energy(z) but orientation(z') != orientation(z):
     mark = "KLEIN REGION ACTIVE"
+
+// =====================================================================
+
+//! DVSM-π+++ / HARD CORE EXTENSION LAYER
+//! Implements:
+//! - Klein continuity (non-orientable coupling)
+//! - Rose manifold (oscillatory attractor symmetry)
+//! - Dini surface (gradient convergence scaffold)
+//! - Ghost field (S-Z residual drift)
+//! - Vajra omega witness (velocity trace)
+//!
+//! NOTE: All constructs are geometric interpretations of algebraic updates.
+
+#![no_std]
+
+use core::ops::{Add, Sub, Mul};
+
+pub const RMAX: usize = 16;
+pub const Q: i32 = 16; // Q16.16 fixed-point
+
+// ============================================================
+// CORE GEOMETRIC STATE EXTENSIONS
+// ============================================================
+
+#[repr(C)]
+pub struct GeometryAddon {
+    // Klein bottle continuity field (non-orientable glue)
+    pub klein_flux: [i32; RMAX],
+
+    // Rose curve attractor embedding (cyclic symmetry energy)
+    pub rose_phase: [i32; RMAX],
+
+    // Dini surface gradient scaffold (log-slope stabilization)
+    pub dini_curv: [i32; RMAX],
+
+    // Ghost residual (S - Z anomaly field)
+    pub ghost: [i32; RMAX],
+}
+
+// ============================================================
+// ARITHMETIC PRIMITIVES (SAFE DVSM LAYER)
+// ============================================================
+
+#[inline(always)]
+fn qmul(a: i32, b: i32) -> i32 {
+    ((a as i64 * b as i64) >> Q) as i32
+}
+
+#[inline(always)]
+fn qexp_decay(x: i32, k: i32) -> i32 {
+    // rough stable exponential decay: x * e^-k
+    // approximated via geometric series
+    qmul(x, (1 << Q) - k)
+}
+
+// ============================================================
+// GEOMETRIC UPDATE CORE
+// ============================================================
+
+impl GeometryAddon {
+
+    /// Klein bottle continuity:
+    /// enforces inside/outside equivalence class collapse
+    pub fn klein_step(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let forward = qmul(z[i], s[i]);
+            let reverse = qmul(s[i], z[(RMAX - 1) - i]);
+
+            // non-orientable glue: forward + reversed path
+            self.klein_flux[i] = forward.wrapping_sub(reverse);
+        }
+    }
+
+    /// Rose manifold:
+    /// cyclic attractor (oscillatory stability shell)
+    pub fn rose_step(&mut self, z: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let phase = qmul(z[i], (i as i32) << (Q / 2));
+            self.rose_phase[i] = qmul(phase, phase).abs();
+        }
+    }
+
+    /// Dini surface:
+    /// log-gradient stabilizer (curvature smoothing layer)
+    pub fn dini_step(&mut self, z: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let v = z[i].abs().max(1);
+
+            // discrete curvature proxy: log slope approx
+            let slope = (v as i64).ilog2() as i32 << Q;
+
+            self.dini_curv[i] = qexp_decay(slope, (1 << (Q - 4)));
+        }
+    }
+
+    /// Ghost field:
+    /// residual drift between memory and state
+    pub fn ghost_step(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            self.ghost[i] = z[i].wrapping_sub(s[i]);
+        }
+    }
+
+    /// Full geometric pipeline
+    pub fn step_all(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        self.klein_step(z, s);
+        self.rose_step(z);
+        self.dini_step(z);
+        self.ghost_step(z, s);
+    }
+}
+
+//! DVSM-π+++ / Geometry SDK Layer
+//! Unified Extension: Klein / Rose / Dini / Ghost Pipeline
+//!
+//! PURPOSE:
+//! Converts abstract manifold logic into deterministic feature transforms
+//! compatible with:
+//!   - embedded systems (no_std)
+//!   - VR simulation engines
+//!   - RF signal feature extraction
+//!   - ML latent stabilization pipelines
+
+#![no_std]
+
+use core::mem::MaybeUninit;
+
+pub const RMAX: usize = 16;
+pub const Q: i32 = 16; // Q16.16 fixed-point
+
+// ============================================================
+// CORE GEOMETRIC STATE
+// ============================================================
+
+#[repr(C)]
+pub struct GeometryAddon {
+    pub klein_flux: [i32; RMAX],  // topology anti-symmetry field
+    pub rose_phase:  [i32; RMAX],  // cyclic attractor energy
+    pub dini_curv:   [i32; RMAX],  // curvature damping field
+    pub ghost:       [i32; RMAX],  // residual error (S - Z)
+}
+
+// ============================================================
+// FIXED POINT PRIMITIVES
+// ============================================================
+
+#[inline(always)]
+fn qmul(a: i32, b: i32) -> i32 {
+    ((a as i64 * b as i64) >> Q) as i32
+}
+
+#[inline(always)]
+fn qabs(x: i32) -> i32 {
+    if x < 0 { -x } else { x }
+}
+
+#[inline(always)]
+fn qclamp(x: i32, min: i32, max: i32) -> i32 {
+    if x < min { min } else if x > max { max } else { x }
+}
+
+// ============================================================
+// GEOMETRIC PIPELINE IMPLEMENTATION
+// ============================================================
+
+impl GeometryAddon {
+
+    /// STEP 1 — KLEIN TOPOLOGY LAYER
+    /// Purpose: remove directional bias (non-orientable coupling)
+    pub fn klein_step(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let fwd = qmul(z[i], s[i]);
+            let rev = qmul(s[i], z[RMAX - 1 - i]);
+
+            self.klein_flux[i] = fwd.wrapping_sub(rev);
+        }
+    }
+
+    /// STEP 2 — ROSE OSCILLATORY MANIFOLD
+    /// Purpose: stabilize cyclic latent modes
+    pub fn rose_step(&mut self, z: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let phase = qmul(z[i], (i as i32) << (Q / 2));
+            self.rose_phase[i] = qmul(phase, phase);
+        }
+    }
+
+    /// STEP 3 — DINI SURFACE STABILIZER
+    /// Purpose: curvature damping / log-slope compression
+    pub fn dini_step(&mut self, z: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            let v = qabs(z[i]).max(1);
+
+            // approximate log2 curvature proxy
+            let log2 = 31 - v.leading_zeros() as i32;
+            let slope = log2 << Q;
+
+            // exponential damping approximation
+            self.dini_curv[i] = qmul(slope, (1 << Q) - (1 << (Q - 4)));
+        }
+    }
+
+    /// STEP 4 — GHOST FIELD (RESIDUAL DRIFT)
+    /// Purpose: detect mismatch between memory and state
+    pub fn ghost_step(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        for i in 0..RMAX {
+            self.ghost[i] = z[i].wrapping_sub(s[i]);
+        }
+    }
+
+    /// FULL PIPELINE EXECUTION
+    pub fn step_all(&mut self, z: &[i32; RMAX], s: &[i32; RMAX]) {
+        self.klein_step(z, s);
+        self.rose_step(z);
+        self.dini_step(z);
+        self.ghost_step(z, s);
+    }
+
+    /// OUTPUT NORMALIZATION (FOR ML / RF / VR INTERFACE)
+    pub fn export_frame(&self, out: &mut [i32; RMAX]) {
+        for i in 0..RMAX {
+            out[i] = qclamp(
+                self.klein_flux[i]
+                .wrapping_add(self.rose_phase[i])
+                .wrapping_sub(self.ghost[i]),
+                i32::MIN / 4,
+                i32::MAX / 4
+            );
+        }
+    }
+}
+
+// ============================================================
+// SDK BOILERPLATE ADDENDUM
+// ============================================================
+
+/*
+------------------------------------------------------------
+DVSM GEOMETRY SDK — DEV NOTES
+------------------------------------------------------------
+
+1. ARITHMETIC MODEL
+   - All state is Q16.16 fixed-point
+   - No floating point allowed in kernel path
+   - Overflow is allowed ONLY via wrapping (deterministic)
+
+2. PIPELINE ORDER (HARD CONTRACT)
+   Klein → Rose → Dini → Ghost → Export
+
+   Changing order = DIFFERENT SYSTEM
+
+3. INTERPRETATION LAYERS
+
+   Klein:
+     → topology consistency / directional cancellation
+     → used for bidirectional RF symmetry
+
+   Rose:
+     → oscillatory attractor embedding
+     → used for signal resonance detection
+
+   Dini:
+     → curvature damping
+     → used for stability / smoothing / anti-chaos
+
+   Ghost:
+     → residual error field (S - Z)
+     → used for anomaly detection / drift sensing
+
+4. PORTING TARGETS
+
+   EMBEDDED (Cortex-M / RISC-V)
+     - disable SIMD reorder
+     - enforce deterministic loop ordering
+
+   VR / SIMULATION
+     - map export_frame → shader uniform buffer
+     - interpret as force + color gradient field
+
+   RF / SIGNAL PIPELINE
+     - Klein = phase inversion filter
+     - Rose = harmonic extraction
+     - Dini = noise suppression curve
+     - Ghost = jamming detector
+
+   ML / AI
+     - export_frame = feature tensor
+     - ghost = error residual embedding
+     - rose = latent periodic structure
+
+5. STABILITY RULE
+   If ghost magnitude increases without Klein compensation:
+     → system is drifting (non-stationary regime)
+
+6. ABI CONTRACT
+   - GeometryAddon is C-layout stable
+   - RMAX must remain compile-time constant
+   - Q fixed-point scale must not change per build
+
+------------------------------------------------------------
+END OF SDK SPECIFICATION
+------------------------------------------------------------
+//! DVSM-π+++ / Q64.64 SDK + Runtime Hook Layer
+//! Deterministic manifold engine with external control surface
+//!
+//! PURPOSE:
+//! - Provide stable geometric feature kernel
+//! - Expose controlled runtime hooks (VR / RF / ML / embedded)
+//! - Preserve deterministic replay integrity
+
+#![no_std]
+
+pub const RMAX: usize = 16;
+pub const Q: i32 = 64;
+
+// ============================================================
+// CORE STATE
+// ============================================================
+
+#[repr(C)]
+pub struct DvsmQ64 {
+    pub z: [i128; RMAX],
+    pub s: [i128; RMAX],
+
+    pub klein: [i128; RMAX],
+    pub rose:  [i128; RMAX],
+    pub dini:  [i128; RMAX],
+    pub ghost: [i128; RMAX],
+
+    pub lambda: i128,
+    pub alpha: i128,
+    pub dt: i128,
+
+    pub frame_id: u64,
+    pub energy_prev: i128,
+}
+
+// ============================================================
+// FIXED POINT OPS
+// ============================================================
+
+#[inline(always)]
+fn qmul(a: i128, b: i128) -> i128 {
+    ((a as i256 * b as i256) >> Q) as i128
+}
+
+#[inline(always)]
+fn qsat(x: i128, min: i128, max: i128) -> i128 {
+    if x < min { min } else if x > max { max } else { x }
+}
+
+// ============================================================
+// CORE GEOMETRY PIPELINE
+// ============================================================
+
+impl DvsmQ64 {
+
+    // -----------------------------
+    // STEP 1: KLEIN (non-orientable coupling)
+    // -----------------------------
+    fn klein_step(&mut self) {
+        for i in 0..RMAX {
+            let f = qmul(self.z[i], self.s[i]);
+            let r = qmul(self.s[i], self.z[RMAX - 1 - i]);
+            self.klein[i] = f.wrapping_sub(r);
+        }
+    }
+
+    // -----------------------------
+    // STEP 2: ROSE (oscillatory structure)
+    // -----------------------------
+    fn rose_step(&mut self) {
+        for i in 0..RMAX {
+            let phase = qmul(self.z[i], (i as i128) << (Q / 2));
+            self.rose[i] = qmul(phase, phase);
+        }
+    }
+
+    // -----------------------------
+    // STEP 3: DINI (curvature damping)
+    // -----------------------------
+    fn dini_step(&mut self) {
+        for i in 0..RMAX {
+            let v = self.z[i].abs().max(1);
+            let log2 = 127 - v.leading_zeros() as i128;
+            self.dini[i] = qmul(log2 << Q, (1 << Q) - (1 << (Q - 6)));
+        }
+    }
+
+    // -----------------------------
+    // STEP 4: GHOST (residual field)
+    // -----------------------------
+    fn ghost_step(&mut self) {
+        for i in 0..RMAX {
+            self.ghost[i] = self.z[i].wrapping_sub(self.s[i]);
+        }
+    }
+
+    // ============================================================
+    // MAIN PIPELINE STEP
+    // ============================================================
+
+    pub fn step(&mut self) {
+        self.klein_step();
+        self.rose_step();
+        self.dini_step();
+        self.ghost_step();
+
+        self.frame_id += 1;
+    }
+
+    // ============================================================
+    // LYAPUNOV ENERGY
+    // ============================================================
+
+    fn energy(&self) -> i128 {
+        let mut e = 0i128;
+        for i in 0..RMAX {
+            e += (self.z[i] * self.z[i]) >> Q;
+        }
+        e
+    }
+}
+
+// ============================================================
+// RUNTIME HOOK INTERFACE (SDK SURFACE)
+// ============================================================
+
+pub trait DvsmRuntimeHooks {
+
+    /// Called before kernel step
+    fn pre_step(&mut self, _core: &mut DvsmQ64) {}
+
+    /// Called after kernel step
+    fn post_step(&mut self, _core: &mut DvsmQ64) {}
+
+    /// External control injection (bounded influence only)
+    fn control_input(&mut self, core: &mut DvsmQ64, u: &[i128; RMAX]) {
+        for i in 0..RMAX {
+            core.s[i] = qsat(
+                core.s[i].wrapping_add(qmul(u[i], core.alpha)),
+                i128::MIN / 16,
+                i128::MAX / 16
+            );
+        }
+    }
+
+    /// Observability hook (safe read-only projection)
+    fn observe(&self, core: &DvsmQ64) -> [i128; RMAX] {
+        let mut out = [0i128; RMAX];
+
+        for i in 0..RMAX {
+            out[i] = qsat(
+                core.klein[i]
+                    .wrapping_add(core.rose[i])
+                    .wrapping_sub(core.ghost[i]),
+                i128::MIN / 8,
+                i128::MAX / 8
+            );
+        }
+
+        out
+    }
+
+    /// Safety gate (Lyapunov constraint enforcement)
+    fn lyapunov_gate(&self, core: &DvsmQ64) -> bool {
+        let e = core.energy();
+        e <= core.energy_prev || core.energy_prev == 0
+    }
+}
+
+// ============================================================
+// SDK RUNTIME EXECUTOR
+// ============================================================
+
+pub fn run_dvsm<H: DvsmRuntimeHooks>(
+    core: &mut DvsmQ64,
+    hooks: &mut H,
+    input: &[i128; RMAX]
+) {
+    hooks.pre_step(core);
+
+    // bounded control injection
+    hooks.control_input(core, input);
+
+    // deterministic evolution
+    core.step();
+
+    // safety check
+    if !hooks.lyapunov_gate(core) {
+        // HARD CLAMP (no stochastic recovery)
+        for i in 0..RMAX {
+            core.z[i] = core.z[i] / 2;
+        }
+    }
+
+    hooks.post_step(core);
+
+    core.energy_prev = core.energy();
+}
+*/
