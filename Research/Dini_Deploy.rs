@@ -1172,3 +1172,253 @@ pub fn dvsm_hash(z: &[i32; 16]) -> u64 {
     "reason": "prevents cross-precision desync and ABI divergence"
   }
 }
+
+#![no_std]
+
+// ============================================================
+// DVSM-π+++ v1b CORE CRATE
+// Precision-Switchable Deterministic Kernel
+// ============================================================
+//
+// DEV NOTES:
+// ------------------------------------------------------------
+// 1. This crate is strictly no_std.
+// 2. All arithmetic MUST use fixed-point.
+// 3. Precision mode is compile-time selected via features.
+// 4. NEVER mix Q16 and Q64 within a single build.
+// 5. SIMD backends must match scalar semantics exactly.
+// ------------------------------------------------------------
+
+pub const N: usize = 16;
+
+// ============================================================
+// PRECISION SWITCH (COMPILE-TIME ONLY)
+// ============================================================
+//
+// Cargo features:
+//
+//   dvsm_q16  → Q16.16 (i32 storage)
+//   dvsm_q64  → Q64.64 (i64 storage)
+//
+// Default fallback: Q16 (embedded-safe)
+//
+// ============================================================
+
+#[cfg(all(feature = "dvsm_q64", not(feature = "dvsm_q16")))]
+pub const Q: u32 = 64;
+
+#[cfg(any(feature = "dvsm_q16", not(feature = "dvsm_q64")))]
+pub const Q: u32 = 16;
+
+// ============================================================
+// TYPE SELECTION LAYER
+// ============================================================
+
+#[cfg(all(feature = "dvsm_q64", not(feature = "dvsm_q16")))]
+pub type Fp = i64;
+
+#[cfg(any(feature = "dvsm_q16", not(feature = "dvsm_q64")))]
+pub type Fp = i32;
+
+// ============================================================
+// FIXED-POINT MULTIPLY (CORE PRIMITIVE)
+// ============================================================
+//
+// DEV NOTE:
+// - Q16 uses i64 intermediate
+// - Q64 requires i128 intermediate
+// - This is the ONLY allowed arithmetic primitive
+// ============================================================
+
+#[inline(always)]
+pub fn qmul(a: Fp, b: Fp) -> Fp {
+    #[cfg(all(feature = "dvsm_q64", not(feature = "dvsm_q16")))]
+    {
+        let r = (a as i128) * (b as i128);
+        return (r >> 64) as i64;
+    }
+
+    #[cfg(any(feature = "dvsm_q16", not(feature = "dvsm_q64")))]
+    {
+        let r = (a as i64) * (b as i64);
+        return (r >> 16) as i32;
+    }
+}
+
+// ============================================================
+// CORE STATE (UNIFIED LAYOUT)
+// ============================================================
+//
+// DEV NOTE:
+// - Storage type is compile-time Fp
+// - ABI stability requires identical struct layout per build
+// ============================================================
+
+#[repr(C)]
+pub struct State {
+    pub z: [Fp; N],
+    pub s: [Fp; N],
+    pub kappa: [Fp; N],
+    pub reset_flag: u8,
+}
+
+// ============================================================
+// LIE BRACKET (O(N²) CORE OPERATOR)
+// ============================================================
+
+#[inline(always)]
+pub fn lie_bracket(z: &[Fp; N], s: &[Fp; N], kappa: &[Fp; N]) -> Fp {
+    let mut acc: Fp = 0;
+    let mut i = 0;
+
+    while i < N {
+        let j = (i + 1) % N;
+
+        let antisym =
+            qmul(z[i] * s[j], kappa[i]) -
+            qmul(z[j] * s[i], kappa[j]);
+
+        acc = acc + antisym;
+        i += 1;
+    }
+
+    acc
+}
+
+// ============================================================
+// THERMAL GUARD (GHOSTSNAP RESET)
+// ============================================================
+
+#[cfg(all(feature = "dvsm_q64", not(feature = "dvsm_q16")))]
+pub const TH_HIGH: i64 = 10 << 64;
+
+#[cfg(any(feature = "dvsm_q16", not(feature = "dvsm_q64")))]
+pub const TH_HIGH: i32 = 10 << 16;
+
+#[inline(always)]
+pub fn thermal_guard(energy: Fp, state: &mut State) {
+    if energy > TH_HIGH {
+        state.z = state.s;
+        state.reset_flag = 1;
+    }
+}
+
+// ============================================================
+// STIEFEL PROJECTION (SIMPLIFIED O(N²))
+// ============================================================
+//
+// DEV NOTE:
+// - This is a deterministic projection, NOT true orthogonality
+// - Used for bounded recurrence, not geometric correctness
+// ============================================================
+
+#[inline(always)]
+pub fn stiefel_retract(w: &mut [Fp; N]) {
+    let mut norm: Fp = 0;
+    let mut i = 0;
+
+    while i < N {
+        norm = norm + qmul(w[i], w[i]);
+        i += 1;
+    }
+
+    let inv = if norm == 0 { 1 } else { norm };
+
+    let mut j = 0;
+    while j < N {
+        w[j] = qmul(w[j], inv);
+        j += 1;
+    }
+}
+
+// ============================================================
+// CORE STEP FUNCTION (DETERMINISTIC PIPELINE)
+// ============================================================
+
+impl State {
+    #[inline(always)]
+    pub fn step(&mut self) {
+        let mut energy: Fp = 0;
+
+        let coupling = lie_bracket(&self.z, &self.s, &self.kappa);
+
+        let mut i = 0;
+        while i < N {
+            let drift = coupling - qmul(self.z[i], self.kappa[i]);
+
+            self.z[i] = self.z[i] + drift;
+
+            energy = energy + qmul(self.z[i], self.z[i]);
+
+            i += 1;
+        }
+
+        thermal_guard(energy, self);
+
+        // EMA memory update (deterministic blend)
+        let mut j = 0;
+        while j < N {
+            self.s[j] =
+                qmul(self.s[j], 1) +
+                qmul(self.z[j], 1);
+            j += 1;
+        }
+
+        stiefel_retract(&mut self.z);
+    }
+}
+
+// ============================================================
+// WASM ABI (ZERO COPY)
+// ============================================================
+//
+// DEV NOTE:
+// - Memory layout must match Fp mode exactly
+// - Q64 builds require JS BigInt handling
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn dvsm_step(
+    z: *mut Fp,
+    s: *const Fp
+) {
+    unsafe {
+        let _z = core::slice::from_raw_parts_mut(z, N);
+        let _s = core::slice::from_raw_parts(s, N);
+
+        // placeholder: deterministic dispatch entry point
+        // (real impl would map into State struct)
+    }
+}
+
+// ============================================================
+// HASH CONTRACT (CROSS PLATFORM PARITY)
+// ============================================================
+
+#[inline(always)]
+pub fn dvsm_hash(z: &[Fp; N]) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+
+    let mut i = 0;
+    while i < N {
+        h ^= z[i] as u64;
+        h = h.wrapping_mul(0x100000001b3);
+        i += 1;
+    }
+
+    h
+}
+
+// ============================================================
+// DEV NOTES SUMMARY
+// ============================================================
+//
+// 1. Precision switch is COMPILE-TIME ONLY
+// 2. Q16 and Q64 are separate binaries (no hybrid runtime)
+// 3. SIMD must match scalar exactly (no math divergence)
+// 4. Stiefel = projection constraint, not true orthogonality
+// 5. Lie bracket is bounded antisymmetric coupling model
+// 6. GhostSnap = deterministic state reset, not randomness
+// 7. Hash ensures cross-platform binary equivalence
+//
+// ============================================================
