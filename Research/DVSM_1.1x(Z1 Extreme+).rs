@@ -1,4 +1,4 @@
-// ── DVSM-V20.4 HARDENED (1.1x) VAULT HEADER ──────────────────────────
+// ── DVSM-V20 HARDENED VAULT HEADER ──────────────────────────
 //
 // Author: Daniel J. Dillberg
 //
