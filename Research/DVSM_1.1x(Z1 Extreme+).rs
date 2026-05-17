@@ -1257,223 +1257,229 @@ fn extract_u64(json: &str, key: &str) -> Option<u64> {
     }
     Some(v as u64)
 }
-// dvsm-core/src/pcb_stitching.rs
-// DVSM-V20 // PCB STITCHING CORE (ORDERED RUST IMPLEMENTATION)
+// dvsm-core/src/simd_stitch.rs
+// DVSM-V20 // SIMD-STITCHED LIE ENGINE (ALLY X OPTIMIZED)
 // ------------------------------------------------------------
 
 #![no_std]
 
-// ============================================================
-// 1. CONSTANTS (COMPILE-TIME DEFINITIONS)
-// ============================================================
+use core::simd::{f64x4, Simd};
 
-const FRAME_BUDGET_US: u64 = 4166;
-const DEFAULT_R_ALLOYX: usize = 16;
-const DEFAULT_R_PC: usize = 8;
-const DEFAULT_R_WASM: usize = 4;
+// ============================================================
+// 1. HARDWARE-TUNED CONSTANTS (Z1 EXTREME / RDNA3 CACHE MODEL)
+// ============================================================
+//
+// Rationale:
+// - Z1 Extreme benefits from cache-friendly decay (high reuse)
+// - slightly higher ALPHA stabilizes EMA under GPU/CPU sync jitter
+// - slightly higher LAMBDA prevents energy accumulation in small CUs
+//
 
-const ALPHA: f64 = 0.98;
-const LAMBDA: f64 = 0.05;
+const ALPHA: f64 = 0.985;   // tuned for temporal smoothing stability
+const LAMBDA: f64 = 0.055;  // stronger decay for 4-CU GPU pressure
 const DT: f64 = 1.0 / 240.0;
 
-// ============================================================
-// 2. HARDWARE PROFILE (SELECTION LAYER)
-// ============================================================
+// hard safety bounds (StitchGuard)
+const MAX_ENERGY: f64 = 1e4;
+const MAX_DRIFT: f64 = 1e3;
 
-pub enum HardwareTier {
-    AllyX,
-    Desktop,
-    Wasm,
-}
+// ============================================================
+// 2. HARDWARE PROFILE (SIMD WIDTH COUPLING)
+// ============================================================
 
 pub struct HardwareProfile {
-    pub tier: HardwareTier,
     pub rank: usize,
-    pub wave_size: usize,
-    pub has_gpu: bool,
+    pub simd_width: usize, // derived from wave size
 }
 
 impl HardwareProfile {
-    pub fn detect(tier: HardwareTier) -> Self {
-        match tier {
-            HardwareTier::AllyX => Self {
-                tier,
-                rank: DEFAULT_R_ALLOYX,
-                wave_size: 64,
-                has_gpu: true,
-            },
-            HardwareTier::Desktop => Self {
-                tier,
-                rank: DEFAULT_R_PC,
-                wave_size: 32,
-                has_gpu: true,
-            },
-            HardwareTier::Wasm => Self {
-                tier,
-                rank: DEFAULT_R_WASM,
-                wave_size: 1,
-                has_gpu: false,
-            },
+    pub fn ally_x() -> Self {
+        Self {
+            rank: 16,
+            simd_width: 4, // f64x4 maps cleanly to AVX2 lanes
         }
     }
 }
 
 // ============================================================
-// 3. FIXED POINT BACKEND (ARITHMETIC LAYER)
+// 3. STITCH MEMORY (SIMD-ALIGNED STATE)
 // ============================================================
 
-pub trait FixedPoint: Copy {
-    fn add(self, rhs: Self) -> Self;
-    fn mul(self, rhs: Self) -> Self;
-    fn from_f64(v: f64) -> Self;
-    fn to_f64(self) -> f64;
-}
-
-// Minimal Q64.64 (Ally X canonical)
-#[derive(Clone, Copy)]
-pub struct Q64(pub i128);
-
-impl FixedPoint for Q64 {
-    fn add(self, rhs: Self) -> Self {
-        Q64(self.0.wrapping_add(rhs.0))
-    }
-
-    fn mul(self, rhs: Self) -> Self {
-        let a = self.0.clamp(-(1i128 << 96), 1i128 << 96);
-        let b = rhs.0.clamp(-(1i128 << 96), 1i128 << 96);
-        Q64(a.saturating_mul(b) >> 64)
-    }
-
-    fn from_f64(v: f64) -> Self {
-        let v = v.clamp(-1e18, 1e18);
-        Q64((v * (1u128 << 64) as f64) as i128)
-    }
-
-    fn to_f64(self) -> f64 {
-        self.0 as f64 / (1u128 << 64) as f64
-    }
-}
-
-// ============================================================
-// 4. MEMORY STITCH LAYOUT (STATIC ARRAYS ONLY)
-// ============================================================
-
-pub struct StitchMemory<T: FixedPoint> {
-    pub z: [T; 16],
-    pub s: [T; 16],
+pub struct StitchMemory {
+    pub z: [f64; 16],
+    pub s: [f64; 16],
     pub theta: f64,
 }
 
-impl<T: FixedPoint> StitchMemory<T> {
-    pub fn new(rank: usize) -> Self {
-        let mut z = [T::from_f64(0.0); 16];
-        let s = [T::from_f64(0.0); 16];
+impl StitchMemory {
+    pub fn new() -> Self {
+        let mut z = [0.0; 16];
+        let s = [0.0; 16];
 
         let mut i = 0;
-        while i < rank {
-            z[i] = T::from_f64(0.1);
+        while i < 16 {
+            z[i] = 0.1;
             i += 1;
         }
 
         Self { z, s, theta: 0.0 }
     }
+
+    #[inline]
+    pub fn energy(&self, rank: usize) -> f64 {
+        let mut e = 0.0;
+        let mut i = 0;
+        while i < rank {
+            e += self.z[i] * self.z[i];
+            i += 1;
+        }
+        e
+    }
 }
 
 // ============================================================
-// 5. DYNAMICS ENGINE (CORE EQUATION)
+// 4. STITCH GUARD (FAIL-SAFE BOUNDARY SYSTEM)
 // ============================================================
 
-pub fn lie_step<T: FixedPoint>(
-    mem: &mut StitchMemory<T>,
-    rank: usize,
-) {
-    let mut next = mem.z;
+pub struct StitchGuard;
 
-    let mut k = 0;
-    while k < rank {
-        let mut torque = T::from_f64(0.0);
-        let mut j = 0;
-
-        while j < rank {
-            if j != k {
-                let zk = mem.z[k];
-                let sj = mem.s[j];
-                let zj = mem.z[j];
-                let sk = mem.s[k];
-
-                let bracket = zk.mul(sj).add(
-                    zj.mul(sk)
-                );
-
-                torque = torque.add(bracket);
-            }
-            j += 1;
+impl StitchGuard {
+    #[inline]
+    pub fn check(energy: f64, drift: f64) -> bool {
+        if energy > MAX_ENERGY {
+            return false;
         }
+        if drift > MAX_DRIFT {
+            return false;
+        }
+        true
+    }
+}
 
-        next[k] = mem.z[k].add(torque);
-        k += 1;
+// ============================================================
+// 5. SIMD LIE STEP (CORE COMPUTE KERNEL)
+// ============================================================
+//
+// Vectorizes 4-state blocks using f64x4.
+// Each lane = independent Lie interaction slice.
+// ============================================================
+
+#[inline]
+pub fn lie_step_simd(mem: &mut StitchMemory, rank: usize) {
+    let mut i = 0;
+
+    while i + 4 <= rank {
+        let z = f64x4::from_array([
+            mem.z[i],
+            mem.z[i + 1],
+            mem.z[i + 2],
+            mem.z[i + 3],
+        ]);
+
+        let s = f64x4::from_array([
+            mem.s[i],
+            mem.s[i + 1],
+            mem.s[i + 2],
+            mem.s[i + 3],
+        ]);
+
+        // Simplified Lie-bracket proxy (vector form)
+        // NOTE: full κ-tensor version can replace this later
+        let torque = z * s - s * z;
+
+        let damp = Simd::splat(LAMBDA);
+
+        let dz = (torque - z * damp) * Simd::splat(DT);
+
+        let out = z + dz;
+
+        let arr = out.to_array();
+        mem.z[i] = arr[0];
+        mem.z[i + 1] = arr[1];
+        mem.z[i + 2] = arr[2];
+        mem.z[i + 3] = arr[3];
+
+        i += 4;
     }
 
-    mem.z = next;
-}
-
-// ============================================================
-// 6. EMA MEMORY UPDATE
-// ============================================================
-
-pub fn ema_step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
-    let alpha = T::from_f64(ALPHA);
-    let one_a = T::from_f64(1.0 - ALPHA);
-
-    let mut i = 0;
+    // scalar remainder
     while i < rank {
-        mem.s[i] = alpha.mul(mem.s[i]).add(
-            one_a.mul(mem.z[i])
-        );
+        let torque = mem.z[i] * mem.s[i] - mem.s[i] * mem.z[i];
+        let dz = (torque - LAMBDA * mem.z[i]) * DT;
+        mem.z[i] += dz;
         i += 1;
     }
 }
 
 // ============================================================
-// 7. POLAR CONSTRAINT (ROSE STABILITY LAYER)
+// 6. EMA MEMORY UPDATE (CACHE-OPTIMIZED)
 // ============================================================
 
-pub fn polar_step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
+#[inline]
+pub fn ema_step(mem: &mut StitchMemory, rank: usize) {
+    let a = ALPHA;
+    let b = 1.0 - ALPHA;
+
+    let mut i = 0;
+    while i < rank {
+        mem.s[i] = a * mem.s[i] + b * mem.z[i];
+        i += 1;
+    }
+}
+
+// ============================================================
+// 7. POLAR CONSTRAINT (ROSE STABILIZER)
+// ============================================================
+
+#[inline]
+pub fn polar_step(mem: &mut StitchMemory, rank: usize) {
     mem.theta += DT;
 
     let mut i = 0;
     while i < rank {
-        let r = mem.z[i].to_f64();
+        let r = mem.z[i];
         let target = (4.0 * mem.theta).cos();
+
         let correction = (target - r) * 0.05;
 
-        mem.z[i] = T::from_f64(r + correction * DT);
+        mem.z[i] = r + correction * DT;
         i += 1;
     }
 }
 
 // ============================================================
-// 8. FRAME EXECUTION (ORDERED PIPELINE)
+// 8. FULL STITCHED STEP (ORDERED PIPELINE)
 // ============================================================
 
-pub fn step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
-    lie_step(mem, rank);
-    ema_step(mem, rank);
-    polar_step(mem, rank);
+#[inline]
+pub fn step(mem: &mut StitchMemory, hw: &HardwareProfile) -> bool {
+    lie_step_simd(mem, hw.rank);
+    ema_step(mem, hw.rank);
+    polar_step(mem, hw.rank);
+
+    let energy = mem.energy(hw.rank);
+    let drift = energy.sqrt();
+
+    StitchGuard::check(energy, drift)
 }
 
 // ============================================================
-// 9. ENTRY POINT (STITCHED RUNTIME)
+// 9. RUNTIME LOOP (ALLY X BOUNDARY EXECUTION)
 // ============================================================
 
-pub fn run(tier: HardwareTier) {
-    let hw = HardwareProfile::detect(tier);
-    let mut mem = StitchMemory::<Q64>::new(hw.rank);
+pub fn run_allyx() {
+    let hw = HardwareProfile::ally_x();
+    let mut mem = StitchMemory::new();
 
-    let mut frame = 0;
+    let mut frame = 0u64;
 
     loop {
-        step(&mut mem, hw.rank);
+        let ok = step(&mut mem, &hw);
+
+        if !ok {
+            break; // StitchGuard triggered
+        }
+
         frame += 1;
 
         if frame > 10_000 {
