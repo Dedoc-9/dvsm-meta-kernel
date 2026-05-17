@@ -291,3 +291,179 @@ pub extern "C" fn dvsm_canonical_free(ptr: *mut CanonicalCore) {
         }
     }
 }
+// ============================================================
+// DVSM-π+++ / Q64.64 ADDENDUM (HIGH-RESOLUTION DYNAMICS LAYER)
+// ============================================================
+//
+// PURPOSE
+// --------
+// This addendum extends the canonical DVSM kernel from Q16.16
+// fixed-point precision to Q64.64 ultra-stable arithmetic.
+//
+// It is intended for:
+//   - long-horizon Lyapunov stability systems
+//   - deep-space / orbital prediction manifolds
+//   - cryptographically reproducible deterministic physics traces
+//
+// ------------------------------------------------------------
+//
+// NUMERICAL REPRESENTATION
+// ------------------------------------------------------------
+//
+// Q64.64 FORMAT:
+//
+//   value = i128 fixed-point integer
+//   real  = value / 2^64
+//
+// Range:
+//   ±9.22e18 (integer domain before scaling)
+// Precision:
+//   ~5.4e-20 (sub-noise deterministic resolution)
+//
+// ------------------------------------------------------------
+//
+// CORE TRANSFORM (UPGRADED STATE EQUATION)
+// ------------------------------------------------------------
+//
+// State evolution remains structurally identical:
+//
+//   dZ/dt = [Z, S]_κ − λZ
+//
+// BUT discretization becomes:
+//
+//   Zₜ₊₁ = Zₜ + Δt * F(Zₜ, Sₜ)
+//
+// where ALL operations use Q64.64 intermediate arithmetic:
+//
+//   F(Z,S) = Lie_κ(Z,S) − λZ
+//
+// ------------------------------------------------------------
+//
+// LIE BRACKET (CANONICAL FORM)
+// ------------------------------------------------------------
+//
+//   [Z,S]_κ[k] = Σⱼ (Z_k*S_j − Z_j*S_k) * κ[k,j]
+//
+// Q64.64 constraint:
+//   - all multiplications: (i128 * i128 → i128 >> 64)
+//   - all accumulations: i256 accumulator recommended (logical)
+//
+// IMPORTANT:
+//   κ MUST remain antisymmetric:
+//     κ[i,j] = −κ[j,i]
+//
+// ------------------------------------------------------------
+//
+// MEMORY LAW (UNMODIFIED STRUCTURE, HIGH PRECISION)
+// ------------------------------------------------------------
+//
+//   Sₜ₊₁ = α Sₜ + (1 − α) Zₜ
+//
+// Q64.64 interpretation:
+//   - α stored as fixed-point scalar
+//   - ensures slow manifold convergence
+//
+// Stability effect:
+//   - reduces high-frequency Z oscillations
+//   - enforces hysteretic smoothing over deep time
+//
+// ------------------------------------------------------------
+//
+// LYAPUNOV ENERGY FUNCTION (Q64.64 DOMAIN)
+// ------------------------------------------------------------
+//
+//   L(Z) = ||Z||²
+//
+// where:
+//
+//   ||Z||² = Σ Zᵢ²  (computed in Q128 accumulator space)
+//
+// Stability condition:
+//
+//   dL/dt ≤ 0 (continuous)
+//   Lₜ₊₁ ≤ Lₜ + ε_machine (discrete bounded drift)
+//
+// ------------------------------------------------------------
+//
+// NUMERICAL STABILITY RULES (CRITICAL)
+// ------------------------------------------------------------
+//
+// 1. NO FLOATING POINT IN CORE LOOP
+//    - floats only allowed in IO / debug layer
+//
+// 2. USE WIDENED ACCUMULATORS
+//    - Q64.64 × Q64.64 → Q128 intermediate
+//
+// 3. SATURATION POLICY
+//    - optional clamp:
+//        if |Z| > Z_MAX → scale(Z)
+//
+// 4. DETERMINISTIC ORDERING
+//    - fixed summation order REQUIRED
+//    - SIMD reordering forbidden in Lie kernel
+//
+// ------------------------------------------------------------
+//
+// DISCRETE INTEGRATION (RECOMMENDED SCHEME)
+// ------------------------------------------------------------
+//
+// Midpoint Lyapunov step:
+//
+//   Z_half = Z_t + (Δt/2) * F(Z_t, S_t)
+//   Z_{t+1} = Z_t + Δt * F(Z_half, S_half)
+//
+// Benefit:
+//   - preserves energy monotonicity
+//   - reduces Euler drift artifacts
+//
+// ------------------------------------------------------------
+//
+// CROSS-COMPATIBILITY RULE
+// ------------------------------------------------------------
+//
+// Q16.16 ↔ Q64.64 mapping:
+//
+//   Q16.16  → coarse runtime / embedded / VR
+//   Q64.64  → scientific / mission / archival truth state
+//
+// Token rule:
+//
+//   V18/V19 genetic token MUST store precision tag:
+//
+//     precision_id ∈ {16, 64}
+//
+// so rehydration remains bit-consistent.
+//
+// ------------------------------------------------------------
+//
+// REHYDRATION INVARIANT
+// ------------------------------------------------------------
+//
+// If same:
+//   - seed_W
+//   - seed_κ
+//   - λ, α, Δt
+//   - precision_id
+//
+// then:
+//
+//   trajectory(Z_t) is identical across all platforms
+//
+// ------------------------------------------------------------
+//
+// FAILURE MODES (AND CONTAINMENT)
+// ------------------------------------------------------------
+//
+// 1. Overflow in Lie accumulator
+//    → trigger saturation scaling, not reset
+//
+// 2. Drift in Lyapunov monotonicity
+//    → apply projection back onto energy shell L ≤ L_prev
+//
+// 3. Precision downgrade mismatch
+//    → reject token rehydration (DENATURED STATE)
+//
+// ------------------------------------------------------------
+//
+// END ADDENDUM
+// ============================================================
