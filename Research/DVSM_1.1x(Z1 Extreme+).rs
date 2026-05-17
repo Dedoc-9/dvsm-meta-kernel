@@ -1769,3 +1769,90 @@ pub const ADVERTISEMENT_RHETORIC: &str =
 pub fn print_manifesto() {
     println!("{}", ADVERTISEMENT_RHETORIC);
 }
+{
+  "model": "KLEIN_BOTTLE_LOGIC_ADDENDUM",
+  "version": "1.0",
+
+  "topology": {
+    "type": "non_orientable_manifold",
+    "structure": "klein_bottle",
+    "embedding_space": "R4",
+    "practical_embedding_space": "R3_self_intersecting"
+  },
+
+  "logic_paradigm": {
+    "classical_boundary_model": "cartesian_cut",
+    "klein_model_override": "boundary_continuity",
+    "principle": "inside_outside_equivalence_under_continuous_mapping",
+    "operational_meaning": "state_space_has_no_global_orientation"
+  },
+
+  "computational_semantics": {
+    "state_representation": "manifold_valued_variables",
+    "exchange_symmetry": "bidirectional_state_projection",
+    "normal_vector_behavior": "sign_flip_after_closed_loop",
+    "causal_model": "cyclic_graph_with_self_embedding"
+  },
+
+  "applications": {
+    "cortex_modeling": {
+      "domain": "distributed_neural_fields",
+      "interpretation": "state variables are exchangeable across folded manifold coordinates",
+      "constraint": "no global canonical orientation"
+    },
+    "fusion_plasma": {
+      "domain": "magnetic_field_lines",
+      "interpretation": "closed loops approximate non-orientable flux topology",
+      "constraint": "field continuity preserved under immersion"
+    },
+    "data_analysis": {
+      "domain": "high_variance_image_patch_spaces",
+      "interpretation": "feature clustering occurs on non-orientable latent surface",
+      "constraint": "local metric consistency, global topology mismatch allowed"
+    }
+  },
+
+  "paradoxes": {
+    "orientability": {
+      "property": "non_orientable",
+      "effect": "global sign ambiguity after traversal",
+      "system_risk": "state inversion under full-cycle propagation"
+    },
+
+    "causality": {
+      "property": "cyclic_dependency_graph",
+      "effect": "no unique origin node",
+      "system_risk": "fixed-point causality loops"
+    },
+
+    "dimensionality": {
+      "ideal_space": 4,
+      "practical_space": 3,
+      "artifact": "self_intersection_required",
+      "system_risk": "projection singularities"
+    }
+  },
+
+  "edge_lot_constraints": {
+    "determinism": "required",
+    "state_saturation_policy": "clamp_then_project",
+    "orientation_handling": "local_frame_only",
+    "loop_handling": "finite_unroll_depth_required",
+    "numerical_stability": {
+      "max_curvature": 1000.0,
+      "max_state_norm": 1e3
+    }
+  },
+
+  "integration_flags": {
+    "neural_networks": true,
+    "dynamical_systems": true,
+    "graph_processes": true,
+    "physical_simulation": true
+  },
+
+  "interpretation_warning": {
+    "note": "This model does not imply literal topological causality in physical systems.",
+    "scope": "abstract computational geometry and bounded dynamical modeling only"
+  }
+}
