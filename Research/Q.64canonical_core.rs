@@ -185,6 +185,30 @@
 //   - cross-model reproducibility (LLM ↔ RL ↔ simulator)
 //
 // ------------------------------------------------------------
+// ============================================================
+// CLEAN AI INTERFACE (Q64.64 DVSM-π+++ CONTRACT)
+// ============================================================
+//
+// Rule:
+//   AI = observer + actuator in projection space only
+//   Z-dynamics (Lie kernel) remains immutable
+//
+// ============================================================
+
+pub fn ai_cycle(core: &mut CanonicalCore64, agent: &RLAgent) {
+    // 1. OBSERVE (read-only manifold projection)
+    let obs = core.project_to_ai_tensor();
+
+    // 2. INFER (external AI policy)
+    let act = agent.compute_action(obs);
+
+    // 3. ACTUATE (bounded control channel only)
+    // NOTE: AI is restricted to velocity/memory subspace
+    core.apply_projected_velocity(act);
+
+    // 4. EVOLVE (immutable Lie dynamics, Q64.64 kernel)
+    core.step_canonical_q64();
+}
 //
 // FINAL STATEMENT (POINT 5)
 // ------------------------------------------------------------
