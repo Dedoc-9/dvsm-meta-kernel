@@ -1154,3 +1154,106 @@ pub fn storage_reduction(json_bytes: f64, dvsm_bytes: f64) -> f64 {
 pub fn is_bounded(z_norm: f64, bound: f64) -> bool {
     z_norm.abs() < bound
 }
+// dvsm-core/src/json_gate.rs
+// DVSM-V20.4 // HARDENED BOUNDARY GATE
+// ------------------------------------------------------------
+// ROLE: Deterministic rejection gate for external manifold entry
+// DESIGN: no_std-safe, zero dependencies, adversarially robust
+
+#![no_std]
+
+extern crate alloc;
+use alloc::string::String;
+
+#[derive(Clone, Copy)]
+pub struct GateSpec {
+    pub max_rank: u64,
+    pub max_drift: f64,
+    pub max_stress: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GatedInput {
+    pub rank: u64,
+    pub drift: f64,
+    pub stress: f64,
+}
+
+// ------------------------------------------------------------
+// CORE GATE
+// ------------------------------------------------------------
+
+pub fn gate(raw: &str, spec: &GateSpec) -> Result<GatedInput, &'static str> {
+    let rank   = extract_u64(raw, "rank").ok_or("MISSING_RANK")?;
+    let drift  = extract_f64(raw, "drift").ok_or("MISSING_DRIFT")?;
+    let stress = extract_f64(raw, "stress").ok_or("MISSING_STRESS")?;
+
+    // --- structural validity ---
+    if rank > spec.max_rank {
+        return Err("RANK_OUT_OF_BOUNDS");
+    }
+
+    // --- physical validity constraints ---
+    if drift < 0.0 {
+        return Err("NEGATIVE_DRIFT");
+    }
+    if stress < 0.0 {
+        return Err("NEGATIVE_STRESS");
+    }
+
+    // --- NaN / INF rejection (must come BEFORE bounds comparisons) ---
+    if !drift.is_finite() {
+        return Err("NONFINITE_DRIFT");
+    }
+    if !stress.is_finite() {
+        return Err("NONFINITE_STRESS");
+    }
+
+    if drift > spec.max_drift {
+        return Err("DRIFT_VIOLATION");
+    }
+    if stress > spec.max_stress {
+        return Err("STRESS_VIOLATION");
+    }
+
+    Ok(GatedInput { rank, drift, stress })
+}
+
+// ------------------------------------------------------------
+// MINIMAL JSON SCANNER (NO SERDE)
+// deterministic substring extraction
+// ------------------------------------------------------------
+
+fn extract_f64(json: &str, key: &str) -> Option<f64> {
+    let pattern = ["\"", key, "\""].concat();
+    let start = json.find(&pattern)? + pattern.len();
+
+    let slice = &json[start..];
+    let colon = slice.find(':')? + 1;
+    let mut val = &slice[colon..];
+
+    // trim leading whitespace
+    val = val.trim_start();
+
+    // isolate numeric token deterministically
+    let mut end = 0;
+    for (i, c) in val.char_indices() {
+        match c {
+            '0'..='9' | '.' | '-' | '+' | 'e' | 'E' => end = i + c.len_utf8(),
+            _ => break,
+        }
+    }
+
+    val[..end].parse::<f64>().ok()
+}
+
+fn extract_u64(json: &str, key: &str) -> Option<u64> {
+    let v = extract_f64(json, key)?;
+    if v.is_sign_negative() {
+        return None;
+    }
+    if v > (u64::MAX as f64) {
+        return None;
+    }
+    Some(v as u64)
+}
