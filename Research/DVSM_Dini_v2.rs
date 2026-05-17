@@ -138,3 +138,226 @@ pub fn dvsm_step_v2(state: &mut State, dt: i32, lambda: i32) {
         }
     }
 }
+
+// ----------------------------------------------------------------------------
+
+// dvsm_core_v1b.rs
+// Projection-Stabilized Recurrence Kernel
+// C ABI · Deterministic · Reset-safe
+
+#![no_std]
+
+use core::ptr;
+
+// ============================================================
+// CONFIG
+// ============================================================
+
+pub const N: usize = 16;
+pub const WN: usize = 256;
+
+const EPS: f64 = 1e-12;
+
+// Reset hysteresis (MTBR protection band)
+const TH_HIGH: f64 = 10.0;
+const TH_LOW: f64  = 6.0;
+
+// ============================================================
+// STATE (C ABI SAFE)
+// ============================================================
+
+#[repr(C)]
+pub struct DVSMState {
+    pub z: [f64; N],
+    pub s: [f64; N],
+    pub w: [f64; WN],
+
+    pub dt: f64,
+    pub lambda: f64,
+
+    pub frame: u64,
+    pub reset_flag: u8,
+}
+
+// ============================================================
+// MATH PRIMITIVES
+// ============================================================
+
+#[inline(always)]
+fn norm2(x: &[f64; N]) -> f64 {
+    let mut s = 0.0;
+    let mut i = 0;
+    while i < N {
+        s += x[i] * x[i];
+        i += 1;
+    }
+    s
+}
+
+#[inline(always)]
+fn clamp(x: f64, a: f64, b: f64) -> f64 {
+    if x < a { a } else if x > b { b } else { x }
+}
+
+// ============================================================
+// COUPLING FIELD
+// ============================================================
+
+#[inline(always)]
+fn coupling(z: &[f64; N], s: &[f64; N]) -> f64 {
+    let mut acc = 0.0;
+    let mut i = 0;
+
+    while i < N {
+        acc += z[i] * s[N - 1 - i]; // Klein-like fold symmetry
+        acc -= (z[i] - s[i]).abs(); // dissipative correction
+        i += 1;
+    }
+
+    acc
+}
+
+// ============================================================
+// CAULEY-LIKE ORTHOGONAL FLOW (SIMPLIFIED)
+// ============================================================
+//
+// Replaces Stiefel retraction with stable bounded projection
+// (ABI-safe approximation of orthogonal manifold flow)
+//
+
+#[inline(always)]
+fn cayley_project(x: f64) -> f64 {
+    // bounded Lie-algebra-inspired stabilization
+    x / (1.0 + x.abs())
+}
+
+// ============================================================
+// RESET MAP (GHOST SNAP WITH HYSTERESIS)
+// ============================================================
+
+#[inline(always)]
+fn reset_map(state: &mut DVSMState) {
+    let mut i = 0;
+    while i < N {
+        state.z[i] = state.s[i]; // memory reseed
+        i += 1;
+    }
+}
+
+// ============================================================
+// STABILITY FUNCTIONAL (LYAPUNOV-LIKE)
+// ============================================================
+
+#[inline(always)]
+fn phi(state: &DVSMState) -> f64 {
+    norm2(&state.z)
+}
+
+// ============================================================
+// CORE STEP (V1B GUARANTEE LAYER)
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn dvsm_step(state: *mut DVSMState) {
+    unsafe {
+        if state.is_null() { return; }
+        let state = &mut *state;
+
+        // ----------------------------------------------------
+        // 1. Compute stability functional
+        // ----------------------------------------------------
+        let p = phi(state);
+
+        // ----------------------------------------------------
+        // 2. RESET HYSTERESIS (MTBR PROTECTION)
+        // ----------------------------------------------------
+        if p > TH_HIGH {
+            state.reset_flag = 1;
+            reset_map(state);
+        } else if p < TH_LOW {
+            state.reset_flag = 0;
+        }
+
+        // ----------------------------------------------------
+        // 3. COUPLING FIELD
+        // ----------------------------------------------------
+        let c = coupling(&state.z, &state.s);
+
+        let dt = clamp(state.dt, 0.0, 0.05);
+
+        // ----------------------------------------------------
+        // 4. DYNAMICAL UPDATE
+        // ----------------------------------------------------
+        let mut i = 0;
+        while i < N {
+
+            let drift =
+                c
+                - state.lambda * state.z[i];
+
+            let raw =
+                state.z[i] + dt * drift;
+
+            // ------------------------------------------------
+            // 5. CAULEY PROJECTION (STABILIZED FLOW)
+            // ------------------------------------------------
+            state.z[i] = cayley_project(raw);
+
+            i += 1;
+        }
+
+        // ----------------------------------------------------
+        // 6. MEMORY UPDATE (EMA-LIKE)
+        // ----------------------------------------------------
+        let mut j = 0;
+        while j < N {
+            state.s[j] = 0.98 * state.s[j] + 0.02 * state.z[j];
+            j += 1;
+        }
+
+        // ----------------------------------------------------
+        // 7. FRAME ADVANCE
+        // ----------------------------------------------------
+        state.frame += 1;
+    }
+}
+
+// ============================================================
+// C ABI HELPERS
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn dvsm_init(state: *mut DVSMState) {
+    unsafe {
+        if state.is_null() { return; }
+        let s = &mut *state;
+
+        let mut i = 0;
+        while i < N {
+            s.z[i] = 0.0;
+            s.s[i] = 0.0;
+            i += 1;
+        }
+
+        s.dt = 0.01;
+        s.lambda = 0.1;
+        s.frame = 0;
+        s.reset_flag = 0;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dvsm_get_frame(state: *const DVSMState) -> u64 {
+    unsafe {
+        if state.is_null() { return 0; }
+        (*state).frame
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dvsm_get_reset(state: *const DVSMState) -> u8 {
+    unsafe {
+        if state.is_null() { return 0; }
+        (*state).reset_flag
+    }
+}
