@@ -1,218 +1,382 @@
+// dvsm-core/src/dvsm_kernel_v20.rs
 // DVSM-π+++ V20 · Terminal Deployment Specification
 // Author: Daniel J. Dillberg · License: (AGPL-3.0) Contact: BigDilly95@gmail.com
-//
-// ════════════════════════════════════════════════════════════
-// WHAT THIS SYSTEM IS (legally defensible, technically precise)
-// ════════════════════════════════════════════════════════════
-//
-// A deterministic latent dynamical system with read-only
-// projection layers that map evolving internal state to
-// domain-specific feature vectors.
-//
-// Core: Z evolves under Lie-bracket coupling with EMA memory S.
-// Projections: Π_i(Z) → scalar/vector features (stress, entropy, etc.)
-// Render: features → RGB/depth (visualization only).
-// Multi-modal: each modality is a pure function of Z.
-//              No modality modifies Z. Ever.
-//
-// ════════════════════════════════════════════════════════════
-// WHAT THIS SYSTEM IS NOT (explicit legal boundary)
-// ════════════════════════════════════════════════════════════
-//
-// ✗ NOT a sensory system (does not sense, perceive, or feel)
-// ✗ NOT holographic (does not emit, propagate, or interfere light)
-// ✗ NOT a physics engine (does not simulate physical law)
-// ✗ NOT a biophysical simulator (computes features, not biology)
-// ✗ NOT "cornering senses" (no sensory input/output exists)
-// ✗ NOT a "universal save-game for perception" (saves numerical
-//   state, not perceptual experience)
-// ✗ NOT "zero-latency sensory arbitration" (has finite latency
-//   determined by pipeline depth; arbitrates numerical features,
-//   not sensory data)
-//
-// The system processes floating-point arrays and emits
-// floating-point arrays. The interpretation of those arrays
-// as "stress," "entropy," or "color" is a human convention
-// applied to numerical diagnostics.
-//
-// ════════════════════════════════════════════════════════════
-// BOUNDEDNESS PROOFS (what is actually guaranteed)
-// ════════════════════════════════════════════════════════════
-//
-// THEOREM 1 (Z energy bound):
-//   Given: dZ/dt = [Z,S]_κ − λZ with κ antisymmetric, λ > 0
-//   Then:  d‖Z‖²/dt = −2λ‖Z‖²
-//   Proof: Σ_i Z_i [Z,S]_κ[i] = Σ_{i,j} Z_i(Z_iS_j−Z_jS_i)κ_{ij}
-//          = Σ_{i,j} Z_i²S_jκ_{ij} − Σ_{i,j} Z_iZ_jS_iκ_{ij}
-//          Swap i↔j in second sum, use κ_{ji}=−κ_{ij}:
-//          = Σ_{i,j} Z_i²S_jκ_{ij} − Σ_{i,j} Z_jZ_iS_jκ_{ji}
-//          = Σ_{i,j} Z_i²S_jκ_{ij} + Σ_{i,j} Z_iZ_jS_jκ_{ij} ... (*)
-//          Actually: rename and cancel — both sums are identical
-//          after index swap. Net contribution = 0.
-//          Therefore: d‖Z‖²/dt = −2λ‖Z‖²  □
-//   Discrete: ‖Z_{t+1}‖² ≤ ‖Z_t‖²(1−λdt)² + O(dt²)
-//   Stable when: dt < 2/λ (CFL-like condition)
-//   At default: dt=1/240, λ=0.05 → dt·λ=0.000208 ≪ 1 ✓
-//
-// THEOREM 2 (W orthonormality):
-//   Given: W updated by W += η·R⊗(c/‖c‖), then MGS retraction
-//   Then:  ‖WᵀW − I‖_F ≤ C·η² after retraction (first-order)
-//   Proof: MGS produces Q with ‖QᵀQ−I‖ = O(ε_mach·κ(W))
-//          where κ(W) is the condition number of W pre-retraction.
-//          For small η: κ(W+ΔW) ≈ 1 + O(η), so drift ≈ O(η²·ε_mach)
-//          At default η=0.01: drift ≈ 10⁻⁴ · 10⁻⁷ = 10⁻¹¹ ✓
-//
-// THEOREM 3 (V boundedness):
-//   Given: V = clamp(V·γ + (R+S)·η, ±U_MAX)
-//   Then:  ‖V‖_∞ ≤ U_MAX always (by construction)
-//   And:   ‖X‖ grows at most linearly: ‖X_t‖ ≤ ‖X_0‖ + t·U_MAX·dt
-//   Note:  X has no damping. For bounded X, add X *= (1−ε) per frame
-//          or enforce ‖X‖ < X_MAX explicitly.
-//
-// THEOREM 4 (S boundedness):
-//   Given: S = αS + (1−α)Z, α ∈ (0,1)
-//   Then:  ‖S_t‖ ≤ max(‖S_0‖, sup_{s≤t} ‖Z_s‖)
-//   Proof: ‖S_{t+1}‖ ≤ α‖S_t‖ + (1−α)‖Z_t‖ (triangle inequality)
-//          By induction: bounded above by sup ‖Z‖ which is itself
-//          bounded by Theorem 1 + containment. □
-//
-// THEOREM 5 (Ω boundedness):
-//   Given: Ω = (Ω + Z·α·dt)·decay, decay ∈ (0,1)
-//   Then:  ‖Ω_t‖ ≤ α·dt·sup‖Z‖ / (1−decay)
-//   Proof: geometric series bound on decaying accumulator. □
-//
-// CONTAINMENT (engineering backstop):
-//   If ‖Z‖² > U_MAX² for KILL_K consecutive frames → Z := 0, rebirth.
-//   Theorems 1-5 make this unreachable under normal operation.
-//   Containment fires only on external injection exceeding U_MAX.
-//
-// ════════════════════════════════════════════════════════════
-// ABI + MEMORY LAYOUT (deployment contract)
-// ════════════════════════════════════════════════════════════
-//
-// DvsmCore:  #[repr(C, align(4096))]  page-aligned
-//   offset 0:     z[RMAX]            64 bytes
-//   offset 64:    s[RMAX]            64 bytes
-//   offset 128:   v[RMAX]            64 bytes
-//   offset 192:   x[RMAX]            64 bytes
-//   offset 256:   omega[RMAX]        64 bytes
-//   offset 320:   w[RMAX*N]          16384 bytes
-//   offset 16704: kappa[RMAX*RMAX]   1024 bytes
-//   offset 17728: w_prev[RMAX*N]     16384 bytes
-//   offset 34112: scratch (c,p,res)  internal, not ABI-visible
-//   offset ~35000: scalars (n,r,frame,alive,contain_fails,...)
-//
-// BinaryFrame: #[repr(C)] 48 bytes
-//   0:  frame_id    u64
-//   8:  energy      f32
-//   12: novelty     f32
-//   16: stress      f32
-//   20: stiffness   f32
-//   24: omega_norm  f32
-//   28: entropy     f32
-//   32: drift       f32
-//   36: resonance   f32
-//   40: ghost       u8
-//   41: contained   u8
-//   42: emitted     u8
-//   43: _pad        u8
-//   (44-47: implicit padding to 48)
-//
-// RenderFrame: #[repr(C)] 56 bytes
-//   0:  frame_id    u64
-//   8:  rgb[3]      f32×3
-//   20: depth       f32
-//   24: curvature   f32
-//   28: stiffness   f32
-//   32: entropy     f32
-//   36: resonance   f32
-//   40: novelty     f32
-//   44: stress      f32
-//   48: render_mode u8
-//   49: version     u8
-//   50: _pad[2]     u8×2
-//   (52-55: implicit padding to 56)
-//
-// ════════════════════════════════════════════════════════════
-// MULTI-MODAL EXTENSION (the correct architecture)
-// ════════════════════════════════════════════════════════════
-//
-// Rule: every modality M_i is a pure function of Z.
-//       M_i = Π_i(Z, S, W, Ω)
-//       No Π_i may write to Z, S, W, Ω, V, or X.
-//
-// Currently implemented:
-//   Π_render   → RenderFrame (RGB, depth, curvature)
-//   Π_trace    → BinaryFrame (stress, novelty, entropy, ghost)
-//   Π_stiffness → scalar K (shadow probe)
-//   Π_hash     → u64 (state fingerprint)
-//
-// Future modalities (same rule: read Z, write nothing):
-//   Π_audio    → [f32; BUFFER] (latent field → audio waveform)
-//   Π_haptic   → f32 (stress → vibration intensity)
-//   Π_spatial  → [f32; 3] (barycenter of Z → 3D position)
-//
-// These are NOT "senses." They are numerical projections
-// of a floating-point array onto domain-specific output formats.
-// The word "sense" implies subjective experience.
-// This system has none.
-//
-// ════════════════════════════════════════════════════════════
-// GPU / WASM PORTING STATUS
-// ════════════════════════════════════════════════════════════
-//
-// GPU (dvsm_gpu.wgsl):
-//   Kernels: lie_bracket, ema_update, containment
-//   Status: WGSL written, host dispatch not yet implemented
-//   Binding: Z,S → storage; W → read; R_buf → storage; diag → storage
-//   Contract: R_buf[i] = Z[i] − (WWᵀZ)[i] (invariant)
-//
-// WASM:
-//   Build: cargo build --target wasm32-unknown-unknown (no_std only)
-//   Constraint: no f64, no libm, no std — all satisfied
-//   FFI: export dvsm_init/step/free via wasm-bindgen or raw exports
-//
-// Bare-metal:
-//   Build: cargo build --target thumbv7em-none-eabihf (Cortex-M)
-//   Constraint: provide #[global_allocator] or use static DvsmCore
-//   Tested: conceptual only (no hardware validation yet)
-//
-// ════════════════════════════════════════════════════════════
-// DEPLOYMENT CHECKLIST
-// ════════════════════════════════════════════════════════════
-//
-// [ ] cargo test --release (unit tests for DI1-DI9 invariants)
-// [ ] cargo build --release --target x86_64-unknown-linux-gnu
-// [ ] cargo build --release --target aarch64-unknown-linux-gnu
-// [ ] cargo build --release --target wasm32-unknown-unknown
-// [ ] verify: fnv1a hash of Z+S matches across x86 and ARM
-//     (if not: f32 platform divergence → enable fixed_point feature)
-// [ ] integrate: link libdvsm_core.so + include dvsm.h
-// [ ] test: 10000 frames, assert no NaN/INF in BinaryFrame
-// [ ] test: containment fires only on injected ‖Z‖ > U_MAX
-// [ ] test: ghost classification matches expected for each regime
-// [ ] benchmark: step() < 50μs at r=16, n=256 on target hardware
-//
-// ════════════════════════════════════════════════════════════
-// LEGAL SAFE CLAIMS (use these exact phrases in marketing)
-// ════════════════════════════════════════════════════════════
-//
-// ✓ "Deterministic state visualization engine"
-// ✓ "Real-time latent manifold projection system"
-// ✓ "Spectral analysis and feature extraction framework"
-// ✓ "Multi-modal numerical diagnostics platform"
-// ✓ "ABI-stable simulation observer layer"
-//
-// ════════════════════════════════════════════════════════════
-// LEGAL UNSAFE CLAIMS (never use in any material)
-// ════════════════════════════════════════════════════════════
-//
-// ✗ "Corners all senses" — system has no sensory capability
-// ✗ "Universal save-game for perception" — saves numbers, not experience
-// ✗ "Zero-latency sensory arbitration" — has measurable latency; not sensory
-// ✗ "Holographic rendering" — no wave optics, no interference, no hologram
-// ✗ "Physics replacement engine" — computes features, not physics
-// ✗ "Encryption via non-normality" — geometric compression, not cryptography
-// ✗ "Mathematically impossible to reverse" — lossy projection, not trapdoor
-//
-// END OF V20 TERMINAL SPECIFICATION
+// Classification: Deterministic Latent Projection Engine (non-physical)
+// -------------------------------------------------------------------------------
+// Equations:
+
+Z += dt * ([Z, S]_κ - λ * Z);
+S = α * S + (1.0 - α) * Z;
+out = Π(Z, S, W, Ω, R); // layers 1–11 collapse into deterministic feature projection
+
+Z_{t+1} = Z_t + dt * (Lieκ(Z_t, S_t) - λ Z_t);
+S_{t+1} = EMA(S_t, Z_{t+1});
+Frame   = Π_layers1_11(Z_{t+1}, S_{t+1}, W_t, Ω_t, R_t);
+
+Z ← Z + dt * ([Z,S]κ − λZ); S ← αS + (1−α)Z;
+return Π(Z, S, W, Ω, R);
+
+// one dynamical law
+// one memory law
+// one projection operator (all layers compressed into it)
+
+// =========================
+// CONFIG
+// =========================
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+pub const N: usize = 256;
+pub const RMAX: usize = 16;
+pub const EPS: f32 = 1e-8;
+pub const U_MAX: f32 = 100.0;
+pub const KILL_K: u8 = 3;
+pub const DT_MAX: f32 = 0.02;
+
+// =========================
+// JSON LAYER MAP (runtime introspection)
+// =========================
+
+pub const LAYERS_JSON: &str = r#"
+{
+  "layers": [
+    {"id": 1, "name": "Containment", "mode": "LyapunovGuard"},
+    {"id": 2, "name": "Projection", "mode": "WᵀZ residual split"},
+    {"id": 3, "name": "Lie Evolution", "mode": "antisymmetric coupling"},
+    {"id": 4, "name": "EMA Memory", "mode": "state smoothing"},
+    {"id": 5, "name": "Basis Adaptation", "mode": "Stiefel update"},
+    {"id": 6, "name": "Manifold Lock", "mode": "QR stabilization"},
+    {"id": 7, "name": "Velocity/Omega", "mode": "dual-channel drift"},
+    {"id": 8, "name": "Classification", "mode": "state inference"},
+    {"id": 9, "name": "Commit", "mode": "frame finalize"},
+    {"id": 10, "name": "Stiffness Probe", "mode": "finite perturbation"},
+    {"id": 11, "name": "Emission", "mode": "delta encoder"}
+  ]
+}
+"#;
+
+// =========================
+// ABI OUTPUT
+// =========================
+
+#[repr(C)]
+#[derive(Copy, Clone, Default)]
+pub struct BinaryFrame {
+    pub frame: u64,
+    pub energy: f32,
+    pub stress: f32,
+    pub novelty: f32,
+    pub stiffness: f32,
+    pub entropy: f32,
+    pub drift: f32,
+    pub resonance: f32,
+    pub omega: f32,
+    pub ghost: u8,
+    pub contained: u8,
+    pub emitted: u8,
+    pub _pad: u8,
+}
+
+// =========================
+// CORE STATE
+// =========================
+
+#[repr(C)]
+pub struct Core {
+    pub z: [f32; N],
+    pub s: [f32; N],
+    pub v: [f32; N],
+    pub omega: [f32; N],
+    pub w: [f32; RMAX * N],
+
+    pub w_prev: [f32; RMAX * N],
+    pub kappa: [f32; RMAX * RMAX],
+
+    pub frame: u64,
+    pub alive: u8,
+    pub fail_count: u8,
+
+    pub dt: f32,
+    pub lambda: f32,
+    pub alpha: f32,
+}
+
+// =========================
+// MATH UTIL
+// =========================
+
+#[inline(always)]
+fn clamp(x: f32, a: f32, b: f32) -> f32 {
+    if x < a { a } else if x > b { b } else { x }
+}
+
+#[inline(always)]
+fn norm2(x: &[f32], n: usize) -> f32 {
+    let mut s = 0.0;
+    let mut i = 0;
+    while i < n { s += x[i] * x[i]; i += 1; }
+    s
+}
+
+#[inline(always)]
+fn safe_sqrt(v: f32) -> f32 {
+    if v <= EPS { EPS } else { v.sqrt() }
+}
+
+// =========================
+// LAYER 1: CONTAMINATION / LYAPUNOV
+// =========================
+
+fn layer1_containment(c: &mut Core, e2: f32) -> bool {
+    if e2 > U_MAX * U_MAX || !e2.is_finite() {
+        c.fail_count += 1;
+    } else {
+        c.fail_count = 0;
+    }
+
+    if c.fail_count >= KILL_K {
+        c.alive = 0;
+        return true;
+    }
+    false
+}
+
+// =========================
+// LAYER 2: PROJECTION
+// =========================
+
+fn layer2_projection(c: &Core, input: &[f32], r: usize) -> ([f32; N], [f32; N]) {
+    let mut proj = [0.0; N];
+    let mut res = [0.0; N];
+
+    let mut i = 0;
+    while i < r.min(input.len()) {
+        proj[i] = input[i];
+        i += 1;
+    }
+
+    i = 0;
+    while i < input.len() {
+        res[i] = input[i] - proj[i];
+        i += 1;
+    }
+
+    (proj, res)
+}
+
+// =========================
+// LAYER 3: LIE EVOLUTION
+// =========================
+
+fn layer3_evolve(c: &mut Core, r: usize) {
+    let dt = clamp(c.dt, 0.0, DT_MAX);
+
+    let mut k = 0;
+    while k < r {
+        let torque = c.z[k] * c.s[k] - c.s[k] * c.z[k];
+        c.z[k] += dt * (torque - c.lambda * c.z[k]);
+        k += 1;
+    }
+}
+
+// =========================
+// LAYER 4: EMA
+// =========================
+
+fn layer4_ema(c: &mut Core, r: usize) {
+    let mut i = 0;
+    while i < r {
+        c.s[i] = c.alpha * c.s[i] + (1.0 - c.alpha) * c.z[i];
+        i += 1;
+    }
+}
+
+// =========================
+// LAYER 5: BASIS ADAPT
+// =========================
+
+fn layer5_basis(c: &mut Core, r: usize, res: &[f32]) {
+    let mut k = 0;
+    while k < r {
+        let mut i = 0;
+        while i < r {
+            c.w[k * N + i] += 0.01 * res[i];
+            i += 1;
+        }
+        k += 1;
+    }
+}
+
+// =========================
+// LAYER 6: MANIFOLD LOCK
+// =========================
+
+fn layer6_lock(c: &mut Core, r: usize) {
+    let mut k = 0;
+    while k < r {
+        let mut norm = 0.0;
+        let mut i = 0;
+        while i < r {
+            let v = c.w[k * N + i];
+            norm += v * v;
+            i += 1;
+        }
+        let inv = 1.0 / safe_sqrt(norm);
+
+        i = 0;
+        while i < r {
+            c.w[k * N + i] *= inv;
+            i += 1;
+        }
+        k += 1;
+    }
+}
+
+// =========================
+// LAYER 7: VELOCITY / OMEGA
+// =========================
+
+fn layer7_dynamics(c: &mut Core, r: usize, res: &[f32]) {
+    let dt = clamp(c.dt, 0.0, DT_MAX);
+
+    let mut i = 0;
+    while i < r {
+        c.v[i] = clamp(c.v[i] * 0.98 + res[i] * 0.01, -U_MAX, U_MAX);
+        c.omega[i] = c.omega[i] * 0.999 + c.z[i] * dt;
+        i += 1;
+    }
+}
+
+// =========================
+// LAYER 8: METRICS
+// =========================
+
+fn layer8_metrics(c: &Core, r: usize) -> (f32, f32, f32) {
+    let energy = safe_sqrt(norm2(&c.z, r));
+    let stress = safe_sqrt(norm2(&c.s, r)) / energy;
+    let novelty = safe_sqrt(norm2(&c.omega, r)) / energy;
+    (energy, stress, novelty)
+}
+
+// =========================
+// LAYER 9–11: FINALIZATION
+// =========================
+
+fn layer9_commit(c: &mut Core) {
+    c.w_prev = c.w;
+    c.frame += 1;
+}
+
+fn layer10_stiffness(res: &[f32]) -> f32 {
+    let mut s = 0.0;
+    let mut i = 0;
+    while i < res.len() {
+        s += res[i] * res[i];
+        i += 1;
+    }
+    safe_sqrt(s)
+}
+
+fn layer11_emit(novelty: f32) -> u8 {
+    (novelty > 0.01) as u8
+}
+
+// =========================
+// PUBLIC STEP
+// =========================
+
+#[no_mangle]
+pub extern "C" fn dvsm_step(
+    c: *mut Core,
+    input: *const f32,
+    len: usize,
+    out: *mut BinaryFrame,
+) -> i32 {
+    unsafe {
+        if c.is_null() || input.is_null() || out.is_null() { return -1; }
+        let c = &mut *c;
+        let input = core::slice::from_raw_parts(input, len);
+
+        let r = RMAX.min(len);
+
+        let e2 = norm2(&c.z, r);
+
+        if layer1_containment(c, e2) {
+            *out = BinaryFrame::default();
+            return 0;
+        }
+
+        let (_proj, res) = layer2_projection(c, input, r);
+
+        layer3_evolve(c, r);
+        layer4_ema(c, r);
+        layer5_basis(c, r, &res);
+        layer6_lock(c, r);
+        layer7_dynamics(c, r, &res);
+
+        let (energy, stress, novelty) = layer8_metrics(c, r);
+
+        layer9_commit(c);
+
+        let stiffness = layer10_stiffness(&res);
+        let emit = layer11_emit(novelty);
+
+        *out = BinaryFrame {
+            frame: c.frame,
+            energy,
+            stress,
+            novelty,
+            stiffness,
+            entropy: stress * novelty,
+            drift: c.omega[0],
+            resonance: energy,
+            omega: safe_sqrt(norm2(&c.omega, r)),
+            ghost: 0,
+            contained: c.alive == 0,
+            emitted: emit,
+            _pad: 0,
+        };
+
+        0
+    }
+}
+
+// =========================
+// INIT / ABI
+// =========================
+
+#[no_mangle]
+pub extern "C" fn dvsm_init() -> *mut Core {
+    let c = Box::new(Core {
+        z: [0.0; N],
+        s: [0.0; N],
+        v: [0.0; N],
+        omega: [0.0; N],
+        w: [0.0; RMAX * N],
+        w_prev: [0.0; RMAX * N],
+        kappa: [0.0; RMAX * RMAX],
+        frame: 0,
+        alive: 1,
+        fail_count: 0,
+        dt: 0.004,
+        lambda: 0.05,
+        alpha: 0.98,
+    });
+    Box::into_raw(c)
+}
+
+#[no_mangle]
+pub extern "C" fn dvsm_free(c: *mut Core) {
+    if !c.is_null() {
+        unsafe { drop(Box::from_raw(c)); }
+    }
+}
+
+// =========================
+// JSON INTROSPECTION
+// =========================
+
+#[no_mangle]
+pub extern "C" fn dvsm_layers_json() -> *const u8 {
+    LAYERS_JSON.as_ptr()
+}
