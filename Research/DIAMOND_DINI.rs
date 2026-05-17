@@ -3,6 +3,31 @@
 //! Author: Daniel J. Dillberg
 //! ============================================================
 //!
+    let coupling = lie_bracket(z, s, kappa) + klein_fold(z, s) + dini_damp(z) + rose_attractor(z);
+    z[i] = stiefel_retract(z[i] + qmul(dt, coupling - qmul(lambda, z[i])));
+    if !stitch_guard_check(z[i]) { handle_ghost_snap_rebirth(&mut state); }
+
+// --- 1. COUPLED GEOMETRIC FLOW ---
+let coupling: i32 =
+    lie_bracket(z, s, kappa)
+  + klein_fold(z, s)
+  + dini_damp(z)
+  + rose_attractor(z);
+
+// --- 2. LIE + DISSIPATIVE EVOLUTION ---
+let raw_step: i32 =
+    z[i]
+  + qmul(dt, coupling - qmul(lambda, z[i]));
+
+// --- 3. STIEFEL RETRACTION (ORTHOGONAL CONSTRAINT) ---
+z[i] = stiefel_retract(raw_step);
+
+// --- 4. STITCH / LYAPUNOV / GHOST GUARD ---
+if !stitch_guard_check(z[i]) {
+    handle_ghost_snap_rebirth(&mut state);
+}
+
+//!
 //! PURPOSE:
 //! Bridge latent Lie-manifold dynamics →
 //!  • VR / 3D perception space
