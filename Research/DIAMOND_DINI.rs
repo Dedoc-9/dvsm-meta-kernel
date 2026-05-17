@@ -1483,4 +1483,389 @@ pub fn dvsm_unified_step(
 //      F(Z,S) = Z + dt * (Lie + Topology + Curvature + Drift)
 //
 // ============================================================
+// ============================================================
+// DVSM-π+++ · TERMINAL UNIFIED MANIFOLD KERNEL
+// ============================================================
+//
+// ONE EQUATION (FULL SYSTEM REDUCTION):
+//
+// Ż = [Z,S]κ − λZ + K(Z,S) + R(Z) + D(Z) + G(Z,S) + Ω(Z)
+//
+// where:
+//
+// K = Klein  (non-orientable flip coupling)
+// R = Rose   (cyclic attractor energy shell)
+// D = Dini   (log-curvature damping operator)
+// G = Ghost  (S − Z residual drift field)
+// Ω = Omega  (integrated trajectory witness)
+//
+// + OP5 EXTENSION:
+// κ_W = curvature(span(W))
+// cooperativity sign = sign(-κ_W)
+//
+// ============================================================
+
+#![no_std]
+
+pub const RMAX: usize = 16;
+pub const EPS: f32 = 1e-8;
+pub const U_MAX_SQ: f32 = 10000.0;
+
+// ============================================================
+// CORE STATE
+// ============================================================
+
+pub struct State {
+    pub z: [f32; RMAX],
+    pub s: [f32; RMAX],
+    pub v: [f32; RMAX],
+    pub omega: [f32; RMAX],
+
+    pub w: [f32; RMAX * RMAX],   // Stiefel basis
+    pub lambda: f32,
+    pub alpha: f32,
+    pub dt: f32,
+
+    pub z_energy: f32,
+}
+
+// ============================================================
+// ONE-SYMBOL EQUATION INTERPRETATION BLOCK
+// ============================================================
+//
+// Ż = Lieκ(Z,S)
+//     − λZ
+//     + (Z⊗S − flip(S⊗Z))        // Klein
+//     + (Z² · phase(i))          // Rose
+//     + log(|Z|)                 // Dini
+//     + (Z − S)                  // Ghost
+//     + ∫Z dt                    // Omega
+//
+// ============================================================
+
+// ============================================================
+// GEOMETRIC LAYERS (COLLAPSED IMPLEMENTATION)
+// ============================================================
+
+#[inline(always)]
+fn klein(z: f32, s: f32, zr: f32) -> f32 {
+    z * s - s * zr
+}
+
+#[inline(always)]
+fn rose(z: f32, i: usize) -> f32 {
+    let p = z * (i as f32);
+    p * p
+}
+
+#[inline(always)]
+fn dini(z: f32) -> f32 {
+    (z.abs() + EPS).ln()
+}
+
+#[inline(always)]
+fn ghost(z: f32, s: f32) -> f32 {
+    z - s
+}
+
+// ============================================================
+// OP5: STIEFEL CURVATURE → COOPERATIVITY SIGN
+// ============================================================
+//
+// CURVATURE INTERPRETATION:
+//
+// κ_W = trace(Wᵀ ∇²W)
+//
+// SIGN RULE:
+//
+// convex (κ_W > 0) → negative cooperativity
+// concave (κ_W < 0) → positive cooperativity
+//
+// ============================================================
+
+#[inline(always)]
+fn stiefel_curvature(w: &[f32; RMAX * RMAX]) -> f32 {
+    let mut c = 0.0;
+
+    for i in 0..RMAX {
+        let mut row_norm = 0.0;
+
+        for j in 0..RMAX {
+            let v = w[i * RMAX + j];
+            row_norm += v * v;
+        }
+
+        // curvature proxy: deviation from orthogonality shell
+        c += (row_norm - 1.0).abs();
+    }
+
+    c
+}
+
+#[inline(always)]
+fn cooperativity_sign(curv: f32) -> i32 {
+    if curv > 0.0 { -1 } else { 1 }
+}
+
+// ============================================================
+// LIE EVOLUTION CORE
+// ============================================================
+
+#[inline(always)]
+fn lie(z: f32, s: f32, k: f32) -> f32 {
+    (z * s - s * z) * k
+}
+
+// ============================================================
+// FULL UNIFIED STEP
+// ============================================================
+
+pub fn dvsm_step(state: &mut State, kappa: &[f32; RMAX * RMAX]) {
+
+    let mut dz = [0.0f32; RMAX];
+
+    let mut klein_v;
+    let mut rose_v;
+    let mut dini_v;
+    let mut ghost_v;
+
+    for i in 0..RMAX {
+
+        let mut acc = 0.0;
+
+        for j in 0..RMAX {
+
+            let idx = i * RMAX + j;
+
+            let lie = lie(state.z[i], state.s[j], kappa[idx]);
+
+            klein_v = klein(state.z[i], state.s[j], state.z[RMAX - 1 - i]);
+            rose_v  = rose(state.z[i], i);
+            dini_v  = dini(state.z[i]);
+            ghost_v = ghost(state.z[i], state.s[i]);
+
+            acc +=
+                lie
+                + klein_v
+                + rose_v
+                + dini_v
+                + ghost_v
+                + state.omega[i];
+        }
+
+        let decay = state.lambda * state.z[i];
+
+        dz[i] = state.z[i] + state.dt * (acc - decay);
+    }
+
+    // ========================================================
+    // MEMORY UPDATE (EMA)
+    // ========================================================
+
+    for i in 0..RMAX {
+        state.s[i] =
+            state.alpha * state.s[i]
+            + (1.0 - state.alpha) * dz[i];
+    }
+
+    // ========================================================
+    // OMEGA WITNESS (TRAJECTORY INTEGRATOR)
+    // ========================================================
+
+    for i in 0..RMAX {
+        state.omega[i] += dz[i] * state.dt;
+    }
+
+    state.z = dz;
+
+    // ========================================================
+    // OP5: STIEFEL CURVATURE EVALUATION
+    // ========================================================
+
+    let kappa_w = stiefel_curvature(&state.w);
+    let coop = cooperativity_sign(kappa_w);
+
+    // attach diagnostic (not dynamic coupling!)
+    state.z_energy = kappa_w * coop as f32;
+}
+
+// ============================================================
+// V16 / V17 OBSERVABILITY FRAME
+// ============================================================
+
+pub struct BinaryFrame {
+    pub energy: f32,
+    pub curvature: f32,
+    pub cooperativity: i32,
+    pub ghost: f32,
+    pub omega: f32,
+}
+
+// ============================================================
+// OBSERVATION PIPELINE (READ ONLY)
+// ============================================================
+
+pub fn observe(state: &State) -> BinaryFrame {
+
+    let curvature = stiefel_curvature(&state.w);
+    let coop = cooperativity_sign(curvature);
+
+    BinaryFrame {
+        energy: state.z_energy,
+        curvature,
+        cooperativity: coop,
+        ghost: state.z[0] - state.s[0],
+        omega: state.omega[0],
+    }
+}
+
+// ============================================================
+// FINAL SYSTEM STATEMENT
+// ============================================================
+//
+// This kernel is fully reduced to:
+//
+//      Ż = single Lie operator + geometric projections
+//
+// All Klein/Rose/Dini/Ghost/Omega layers are:
+//
+//      NOT independent systems
+//      BUT decomposed basis functions of the same flow
+//
+// OP5 adds:
+//
+//      curvature(span(W)) → cooperativity phase classification
+//
+// IMPORTANT:
+//
+// This is a geometric hypothesis layer, not validated biophysics.
+// Hemoglobin / PNMT mapping is a proposed test system only.
+//
+// ============================================================
+{
+  "dvsm_system": "DVSM-π+++ / V20.4 DIAMOND HARD FULL STACK",
+  "classification": "Deterministic Lie-Manifold Execution Engine",
+
+  "core_symbolic_equation": "Z_{t+1} = Π( Z_t + dt([Z,S]_κ − λZ), EMA(S,Z), Stiefel(W), Ω, Geometry(Klein,Rose,Dini,Ghost), Q64_projection )",
+
+  "pipeline_equation": "Φ = Π ∘ Ω ∘ S_ema ∘ exp(dt(Lieκ(Z,S) − λZ)) ∘ Retract_Stiefel(W) ∘ Geometry(Klein,Rose,Dini,Ghost)",
+
+  "arithmetic_modes": {
+    "q16": "fixed_point_state_core",
+    "q64": "high_precision_archival_kernel",
+    "mixing_rule": "Q16 executes dynamics, Q64 validates invariants"
+  },
+
+  "state_model": {
+    "Z": "latent manifold coordinates",
+    "S": "EMA memory field",
+    "W": "Stiefel basis (orthonormal frame)",
+    "Ω": "velocity / drift witness",
+    "κ": "skew-symmetric Lie coupling tensor",
+    "λ": "fixed dissipation constant",
+    "dt": "time discretization step"
+  },
+
+  "geometry_layers": {
+    "klein": "non_orientable_flux = Z*S - S*reverse(Z)",
+    "rose": "oscillatory_attractor = sin(Z ⊗ phase_index)",
+    "dini": "log_curvature_stabilizer = log2(|Z| + ε)",
+    "ghost": "residual_field = Z - S"
+  },
+
+  "stability_invariants": {
+    "lie_skew": "κ[k,j] = -κ[j,k]",
+    "lyapunov": "E(t+1) <= E(t) unless bounded_projection_triggered",
+    "stiefel": "WᵀW = I via QR or retraction",
+    "dissipation": "λ > 0 constant",
+    "projection_separation": "Π cannot influence Z evolution"
+  },
+
+  "runtime_pipeline": [
+    "1. compute Lie flow: Z += dt([Z,S]_κ − λZ)",
+    "2. apply EMA memory: S = αS + (1-α)Z",
+    "3. enforce Stiefel retraction: W <- normalize(W)",
+    "4. update Ω drift: Ω += Z * dt",
+    "5. compute geometry fields (Klein, Rose, Dini, Ghost)",
+    "6. apply Lyapunov containment check",
+    "7. execute Π projection (read-only)",
+    "8. emit BinaryFrame"
+  ],
+
+  "q64_kernel": {
+    "mode": "archival_deterministic_reference",
+    "energy": "E = Σ Z² >> Q64",
+    "stability": "bit_exact_cross_platform",
+    "hash": "frame_id XOR Z XOR Ω XOR S"
+  },
+
+  "sdk_api": {
+    "init": "dvsm_init() -> Core*",
+    "step": "dvsm_step(Core*, input, len, BinaryFrame*)",
+    "free": "dvsm_free(Core*)",
+    "observe": "observe_and_emit(State*) -> AcousticFrame",
+    "probe": "kinetic_probe(State*) -> f32",
+    "contain": "handle_containment(State*)",
+    "orthogonality": "verify_orthogonality(State*) -> bool"
+  },
+
+  "binary_frame": {
+    "frame": "u64",
+    "energy": "f32",
+    "stress": "f32",
+    "novelty": "f32",
+    "stiffness": "f32",
+    "entropy": "f32",
+    "drift": "f32",
+    "resonance": "f32",
+    "omega": "f32",
+    "ghost": "u8",
+    "contained": "u8",
+    "emitted": "u8"
+  },
+
+  "runtime_hooks": {
+    "on_step_pre": "validate_inputs",
+    "on_lie_update": "enforce_skew_symmetry",
+    "on_memory_update": "EMA_clamp",
+    "on_geometry": "compute_klein_rose_dini_ghost",
+    "on_containment": "GhostSnap_rebirth",
+    "on_emit": "frame_finalize",
+    "on_fault": "fail_count_increment_and_kill"
+  },
+
+  "failure_modes": [
+    "rank_collapse",
+    "manifold_drift",
+    "stiefel_break",
+    "lyapunov_explosion",
+    "ghost_divergence",
+    "projection_leak"
+  ],
+
+  "novel_result_OP5": {
+    "statement": "Stiefel subspace curvature κ_span(W) predicts cooperativity sign in free-energy landscapes",
+    "hypothesis": {
+      "convex_curvature_kappa_gt_0": "negative_cooperativity",
+      "concave_curvature_kappa_lt_0": "positive_cooperativity"
+    },
+    "biophysical_mapping": {
+      "hemoglobin": "expected_positive_cooperativity (Hill ~2.8)",
+      "PNMT": "expected_negative_cooperativity"
+    },
+    "status": "UNVALIDATED_CONJECTURE",
+    "risk": "high_novelty_theoretical_biophysics_claim",
+    "verification_requirement": "must be experimentally validated via FEL + Stiefel embedding regression"
+  },
+
+  "airgap_rules": {
+    "no_external_feedback": true,
+    "no_observer_to_dynamics": true,
+    "no_novelty_modulates_lambda": true,
+    "no_projection_mutation": true,
+    "determinism_required": true
+  },
+
+  "final_statement": "System is a deterministic Lie-manifold codec with geometric observability layers and non-invasive diagnostics. OP5 curvature hypothesis is speculative and requires experimental validation."
+}
 */
