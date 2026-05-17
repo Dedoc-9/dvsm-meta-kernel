@@ -808,3 +808,26 @@ pub struct V19Token {
 //
 // END OF ARCHITECTURAL LINEAGE
 // ============================================================
+// crates/dvsm-core/src/v19_unified.rs
+//
+// PURPOSE: Parallel projection of manifold stiffness into 
+// Haptic (Force) and Visual (Color) space.
+
+pub struct UnifiedResponse {
+    pub haptic_force: f32,    // Gradient of Φ(Z)
+    pub visual_luminance: f32, // Projection of K (Stiffness)
+}
+
+pub fn generate_response(state: &State, acoustic: &AcousticFrame) -> UnifiedResponse {
+    // 1. Measure the 'Nerve' of the Manifold (Stiffness)
+    // This is the common root for both senses.
+    let k = state.measure_stiffness(acoustic);
+
+    UnifiedResponse {
+        // Haptic: Map stiffness to motor-actuator resistance
+        haptic_force: k.clamp(0.0, 1.0),
+        
+        // Visual: Map the same stiffness to a spectral 'flash' or luminance spike
+        visual_luminance: (k * acoustic.resonance_peak).powf(0.5),
+    }
+}
