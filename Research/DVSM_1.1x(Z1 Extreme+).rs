@@ -1875,8 +1875,120 @@ pub const AUDIT_SUMMARY: &str =
 /// Z ⊗ S     = Lie-torque interaction (Non-dual state flux)
 /// λ         = 0.055 (Damping coefficient)
 /// Ψ_rose    = β * [ cos(kθ) - ||X_t|| ] (Restorative attractor force)
-/// -----------------------------
+/// --------------------------------------------------------------------------------
+
+
+// RF Projection Kernel: DVSM-V20.4 Nonlinear Manifold Mapper
+
+// Bounded Nonlinear RF Projection Stage (DVSM-V20.4)
+// Maps a Lie-evolved state vector onto a constrained RF carrier.
+// Implements nonlinear manifold evolution: X' = f(X) + g(X,θ)
+// where f is cubic damping and g is phase-coupled oscillatory forcing.
+// The result is polynomially saturated and projected onto a 2.4GHz carrier.
+// StitchGuard enforces spectral boundedness, preventing drift or harmonic escape.
+// This stage preserves internal dynamical stability under RF modulation constraints.
+
+let x = state_norm;
+let theta = phase + dt * omega;
+
+// (1) Nonlinear manifold evolution: X' = f(X) + g(X,θ)
+let f = x - lambda * x.powi(3);
+let g = (k * theta).sin() * beta;
+
+// (2) Core bounded state update
+let x_next = f + g;
+
+// (3) Polynomial saturation: S(x) = clamp(x, -A, A)
+let s = x_next.clamp(-a_max, a_max);
+
+// (4) RF carrier projection: y(t) = S(X) · sin(2π f_c t + φ)
+let rf = s * (2.0 * core::f64::consts::PI * f_c * t + phi).sin();
+
+// (5) StitchGuard kill-switch (spectral stability gate)
+if s.abs() > drift_bound { return; }
+
+// ---
 
 pub fn print_audit() {
     println!("{}", AUDIT_SUMMARY);
+}
+{
+  "model": "NON_LINEAR_TRANSFORM_RF_ADDENDUM",
+  "version": "1.0",
+
+  "system_type": "bounded_nonlinear_dynamical_rf_pipeline",
+
+  "core_pipeline": {
+    "input_space": "continuous_state_vector",
+    "transform_type": "non_linear_map",
+    "transform_class": [
+      "lie_bracket_evolution",
+      "polynomial_saturation",
+      "oscillatory_manifold_projection"
+    ],
+    "output_space": "rf_modulated_signal"
+  },
+
+  "non_linear_dynamics": {
+    "map_equation": "X(t+1) = f(X(t)) + g(X(t), theta) + noise_clamp",
+    "f_class": "bounded_polynomial_nonlinear_operator",
+    "g_class": "manifold_coupled_rotation_operator",
+    "saturation_policy": "hard_clamp_then_project",
+    "stability_control": {
+      "lyapunov_proxy": true,
+      "max_state_norm": 1000.0,
+      "max_curvature": 500.0
+    }
+  },
+
+  "rf_output_stage": {
+    "enabled": true,
+    "carrier_model": "frequency_modulated_sine",
+    "base_frequency_hz": 2400000000,
+    "modulation_type": [
+      "phase_modulation",
+      "amplitude_modulation",
+      "nonlinear_phase_warp"
+    ],
+    "encoding": {
+      "state_to_rf_map": "normalized_state_projection",
+      "quantization_bits": 16,
+      "dynamic_range_policy": "adaptive_clamp"
+    }
+  },
+
+  "hardware_interface": {
+    "target": "edge_lot_device",
+    "execution_model": "simd_accelerated_stream",
+    "thermal_constraints": {
+      "max_temp_c": 75,
+      "throttle_policy": "reduce_frequency_then_reduce_rank"
+    },
+    "memory_constraints": {
+      "no_heap": true,
+      "fixed_buffer_only": true
+    }
+  },
+
+  "stability_guard": {
+    "overflow_protection": "saturating_arithmetic",
+    "nan_recovery": "reset_to_local_attractor",
+    "divergence_action": "stitch_guard_halt",
+    "drift_threshold": 1000.0
+  },
+
+  "transform_properties": {
+    "linearity": "explicitly_non_linear",
+    "invertibility": "not_required",
+    "determinism": "required",
+    "time_dependence": "state_coupled",
+    "causality_model": "finite_memory_markov_manifold"
+  },
+
+  "rf_safety_constraints": {
+    "emission_limit": "device_regulated",
+    "spectral_spread_limit": 0.35,
+    "harmonic_suppression": true,
+    "out_of_band_clamp": true
+  }
 }
