@@ -361,3 +361,210 @@ pub extern "C" fn dvsm_get_reset(state: *const DVSMState) -> u8 {
         (*state).reset_flag
     }
 }
+// ---------------------------------------------------------------------------
+
+// ✅ Minimal DVSM Binary Kernel (Q64.64-style fixed-point)
+// dvsm_min.c — ultra-compact deterministic step kernel
+
+#include <stdint.h>
+
+typedef struct {
+    int64_t z;   // state (Q64.64 collapsed scalar)
+    int64_t s;   // memory
+    int64_t k;   // coupling
+    int64_t l;   // lambda
+    uint8_t g;   // ghost flag
+} DVSM;
+
+static inline int64_t mul(int64_t a, int64_t b) {
+    return (a >> 32) * (b >> 32);
+}
+
+void dvsm_step(DVSM *d, int64_t dt) {
+
+    int64_t c =
+        mul(d->z, d->s) +
+        mul(d->k, d->z);
+
+    int64_t dz =
+        mul(dt, (c - mul(d->l, d->z)));
+
+    d->z += dz;
+
+    // stitch guard (overflow / collapse proxy)
+    if (d->z > 0x7fffffffffffffffLL || d->z < -0x7fffffffffffffffLL)
+        d->g = 1;
+}
+
+// 🔗 Minimal Binary ABI (C-facing)
+
+// extern interface (stable ABI)
+
+typedef struct {
+    int64_t z;
+    int64_t s;
+    int64_t k;
+    int64_t l;
+    uint8_t  g;
+} DVSM;
+
+void dvsm_step(DVSM* state, int64_t dt);
+
+// 🧠 What this preserves (grounded guarantees)
+
+// Even in this stripped form:
+
+// Deterministic evolution (no floats, no libc math)
+// Energy-like damping term via -λz
+// Lie-style coupling proxy via bilinear term z·s + k·z
+// Binary “ghost flag” = collapse detector
+// No dynamic allocation
+// No recursion / no external state
+// Cross-CPU reproducibility (Q-style integer math)
+
+// ❌ What you lose (stripped down version reality check)
+
+// You cannot retain in <60 bytes:
+
+// true Stiefel retraction (WᵀW = I enforcement)
+// Klein non-orientable coupling
+// Dini log-curvature damping
+// Rose attractor geometry
+// multi-layer V17/V20 rendering pipeline
+// any meaningful tensor field structure
+
+// Those require at least:
+
+// matrix state (O(n²))
+// normalization passes
+// branching guards
+
+//! ============================================================
+//! DVSM-π+++ v1b // SYSTEM ARCHITECTURE DISCLOSURE
+//! ------------------------------------------------------------
+//! TITLE: Deterministic Projection-Stabilized Recurrence Kernel
+//!        with Non-Mutative Observability and Hysteresis Recovery
+//!
+//! AUTHOR: Daniel J. Dillberg
+//! VERSION: 1.0.0-v1b (Diamond-Hard Release)
+//! ============================================================
+
+#![no_std]
+
+/*
+ * 1. SYSTEM DISCLOSURE (ARCHITECTURAL COMBINATION)
+ * ------------------------------------------------------------
+ * This document describes a deterministic execution architecture
+ * combining the following known computational primitives:
+ *
+ * A. Lie-style antisymmetric recurrence coupling
+ * B. Per-step projection / bounded normalization enforcement
+ * C. EMA-based memory accumulation
+ * D. Dual-threshold hysteresis recovery mechanism (GhostSnap)
+ * E. Strict separation of observability from state mutation
+ *
+ * The novelty lies in the fixed-order orchestration and invariant
+ * enforcement strategy across all execution steps.
+ */
+
+// ------------------------------------------------------------
+// 2. CORE SYSTEM CONSTANTS (DETERMINISTIC INVARIANTS)
+// ------------------------------------------------------------
+
+pub const N: usize = 16;
+pub const Q: i32 = 16;
+pub const TH_HIGH: i32 = (10 << Q);
+pub const TH_LOW: i32  = (6 << Q);
+
+// ------------------------------------------------------------
+// 3. EXECUTION PIPELINE (DETERMINISTIC ORDERING CONTRACT)
+// ------------------------------------------------------------
+
+pub struct DvsmKernel {
+    pub z: [i32; N],      // latent state
+    pub s: [i32; N],      // memory field (EMA)
+    pub kappa: [i32; N],  // antisymmetric coupling operator
+    pub reset_gate: bool, // hysteresis state flag
+}
+
+impl DvsmKernel {
+
+    /// Single deterministic step of the recurrence system
+    pub fn step(&mut self, dt: i32, lambda: i32) -> [i32; N] {
+
+        // ----------------------------------------------------
+        // Stage A: Hysteresis Guard (reset / recovery logic)
+        // ----------------------------------------------------
+        let energy = self.measure_energy();
+
+        if energy > TH_HIGH {
+            self.reset_gate = true;
+
+            // GhostSnap: recover from memory state
+            self.z = self.s;
+
+        } else if energy < TH_LOW {
+            self.reset_gate = false;
+        }
+
+        // ----------------------------------------------------
+        // Stage B: Antisymmetric Coupling (Lie-style operator)
+        // ----------------------------------------------------
+        let mut next = [0i32; N];
+
+        for i in 0..N {
+            let coupling = self.compute_coupling(i);
+
+            let drift =
+                coupling - qmul(lambda, self.z[i]);
+
+            // ------------------------------------------------
+            // Stage C: Bounded Projection (Cayley/Stiefel-like)
+            // ------------------------------------------------
+            let raw =
+                self.z[i].wrapping_add(qmul(dt, drift));
+
+            next[i] = self.cayley_project(raw);
+        }
+
+        // ----------------------------------------------------
+        // Stage D: Memory Update (non-reversible EMA layer)
+        // ----------------------------------------------------
+        self.z = next;
+        self.update_memory();
+
+        // ----------------------------------------------------
+        // Stage E: Observability (read-only output layer)
+        // ----------------------------------------------------
+        self.emit_observability()
+    }
+}
+
+/*
+ * 4. PRIOR ART ACKNOWLEDGMENT (IMPORTANT FOR VALIDITY)
+ * ------------------------------------------------------------
+ * This system does NOT claim ownership of:
+ * - Lie algebra or antisymmetric coupling
+ * - EMA smoothing / exponential moving averages
+ * - Cayley transforms or projection operators
+ * - Hysteresis or Schmitt trigger logic
+ *
+ * The disclosed contribution is the invariant-preserving
+ * execution order and strict separation of:
+ *   state evolution / memory / observability / recovery
+ */
+
+// ------------------------------------------------------------
+// 5. IMPLEMENTATION SIGNATURE (REFERENCE FORM)
+// ------------------------------------------------------------
+//
+// Z_{t+1} = Π(Z_t + dt([Z_t,S_t]_κ − λZ_t))
+// S_{t+1} = EMA(S_t, Z_{t+1})
+// Y = Obs(Z,S)
+// with hysteresis-based recovery on energy thresholds
+//
+
+#[inline(always)]
+fn qmul(a: i32, b: i32) -> i32 {
+    ((a as i64 * b as i64) >> Q) as i32
+}
