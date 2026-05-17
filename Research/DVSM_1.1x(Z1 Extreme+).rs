@@ -1257,3 +1257,227 @@ fn extract_u64(json: &str, key: &str) -> Option<u64> {
     }
     Some(v as u64)
 }
+// dvsm-core/src/pcb_stitching.rs
+// DVSM-V20 // PCB STITCHING CORE (ORDERED RUST IMPLEMENTATION)
+// ------------------------------------------------------------
+
+#![no_std]
+
+// ============================================================
+// 1. CONSTANTS (COMPILE-TIME DEFINITIONS)
+// ============================================================
+
+const FRAME_BUDGET_US: u64 = 4166;
+const DEFAULT_R_ALLOYX: usize = 16;
+const DEFAULT_R_PC: usize = 8;
+const DEFAULT_R_WASM: usize = 4;
+
+const ALPHA: f64 = 0.98;
+const LAMBDA: f64 = 0.05;
+const DT: f64 = 1.0 / 240.0;
+
+// ============================================================
+// 2. HARDWARE PROFILE (SELECTION LAYER)
+// ============================================================
+
+pub enum HardwareTier {
+    AllyX,
+    Desktop,
+    Wasm,
+}
+
+pub struct HardwareProfile {
+    pub tier: HardwareTier,
+    pub rank: usize,
+    pub wave_size: usize,
+    pub has_gpu: bool,
+}
+
+impl HardwareProfile {
+    pub fn detect(tier: HardwareTier) -> Self {
+        match tier {
+            HardwareTier::AllyX => Self {
+                tier,
+                rank: DEFAULT_R_ALLOYX,
+                wave_size: 64,
+                has_gpu: true,
+            },
+            HardwareTier::Desktop => Self {
+                tier,
+                rank: DEFAULT_R_PC,
+                wave_size: 32,
+                has_gpu: true,
+            },
+            HardwareTier::Wasm => Self {
+                tier,
+                rank: DEFAULT_R_WASM,
+                wave_size: 1,
+                has_gpu: false,
+            },
+        }
+    }
+}
+
+// ============================================================
+// 3. FIXED POINT BACKEND (ARITHMETIC LAYER)
+// ============================================================
+
+pub trait FixedPoint: Copy {
+    fn add(self, rhs: Self) -> Self;
+    fn mul(self, rhs: Self) -> Self;
+    fn from_f64(v: f64) -> Self;
+    fn to_f64(self) -> f64;
+}
+
+// Minimal Q64.64 (Ally X canonical)
+#[derive(Clone, Copy)]
+pub struct Q64(pub i128);
+
+impl FixedPoint for Q64 {
+    fn add(self, rhs: Self) -> Self {
+        Q64(self.0.wrapping_add(rhs.0))
+    }
+
+    fn mul(self, rhs: Self) -> Self {
+        let a = self.0.clamp(-(1i128 << 96), 1i128 << 96);
+        let b = rhs.0.clamp(-(1i128 << 96), 1i128 << 96);
+        Q64(a.saturating_mul(b) >> 64)
+    }
+
+    fn from_f64(v: f64) -> Self {
+        let v = v.clamp(-1e18, 1e18);
+        Q64((v * (1u128 << 64) as f64) as i128)
+    }
+
+    fn to_f64(self) -> f64 {
+        self.0 as f64 / (1u128 << 64) as f64
+    }
+}
+
+// ============================================================
+// 4. MEMORY STITCH LAYOUT (STATIC ARRAYS ONLY)
+// ============================================================
+
+pub struct StitchMemory<T: FixedPoint> {
+    pub z: [T; 16],
+    pub s: [T; 16],
+    pub theta: f64,
+}
+
+impl<T: FixedPoint> StitchMemory<T> {
+    pub fn new(rank: usize) -> Self {
+        let mut z = [T::from_f64(0.0); 16];
+        let s = [T::from_f64(0.0); 16];
+
+        let mut i = 0;
+        while i < rank {
+            z[i] = T::from_f64(0.1);
+            i += 1;
+        }
+
+        Self { z, s, theta: 0.0 }
+    }
+}
+
+// ============================================================
+// 5. DYNAMICS ENGINE (CORE EQUATION)
+// ============================================================
+
+pub fn lie_step<T: FixedPoint>(
+    mem: &mut StitchMemory<T>,
+    rank: usize,
+) {
+    let mut next = mem.z;
+
+    let mut k = 0;
+    while k < rank {
+        let mut torque = T::from_f64(0.0);
+        let mut j = 0;
+
+        while j < rank {
+            if j != k {
+                let zk = mem.z[k];
+                let sj = mem.s[j];
+                let zj = mem.z[j];
+                let sk = mem.s[k];
+
+                let bracket = zk.mul(sj).add(
+                    zj.mul(sk)
+                );
+
+                torque = torque.add(bracket);
+            }
+            j += 1;
+        }
+
+        next[k] = mem.z[k].add(torque);
+        k += 1;
+    }
+
+    mem.z = next;
+}
+
+// ============================================================
+// 6. EMA MEMORY UPDATE
+// ============================================================
+
+pub fn ema_step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
+    let alpha = T::from_f64(ALPHA);
+    let one_a = T::from_f64(1.0 - ALPHA);
+
+    let mut i = 0;
+    while i < rank {
+        mem.s[i] = alpha.mul(mem.s[i]).add(
+            one_a.mul(mem.z[i])
+        );
+        i += 1;
+    }
+}
+
+// ============================================================
+// 7. POLAR CONSTRAINT (ROSE STABILITY LAYER)
+// ============================================================
+
+pub fn polar_step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
+    mem.theta += DT;
+
+    let mut i = 0;
+    while i < rank {
+        let r = mem.z[i].to_f64();
+        let target = (4.0 * mem.theta).cos();
+        let correction = (target - r) * 0.05;
+
+        mem.z[i] = T::from_f64(r + correction * DT);
+        i += 1;
+    }
+}
+
+// ============================================================
+// 8. FRAME EXECUTION (ORDERED PIPELINE)
+// ============================================================
+
+pub fn step<T: FixedPoint>(mem: &mut StitchMemory<T>, rank: usize) {
+    lie_step(mem, rank);
+    ema_step(mem, rank);
+    polar_step(mem, rank);
+}
+
+// ============================================================
+// 9. ENTRY POINT (STITCHED RUNTIME)
+// ============================================================
+
+pub fn run(tier: HardwareTier) {
+    let hw = HardwareProfile::detect(tier);
+    let mut mem = StitchMemory::<Q64>::new(hw.rank);
+
+    let mut frame = 0;
+
+    loop {
+        step(&mut mem, hw.rank);
+        frame += 1;
+
+        if frame > 10_000 {
+            break;
+        }
+    }
+}
