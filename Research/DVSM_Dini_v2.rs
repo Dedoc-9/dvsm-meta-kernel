@@ -440,7 +440,7 @@ void dvsm_step(DVSM* state, int64_t dt);
 // branching guards
 
 //! ============================================================
-//! DVSM-π+++ v1b // SYSTEM ARCHITECTURE DISCLOSURE
+//! DVSM_Dini_v2.rs // SYSTEM ARCHITECTURE DISCLOSURE
 //! ------------------------------------------------------------
 //! TITLE: Deterministic Projection-Stabilized Recurrence Kernel
 //!        with Non-Mutative Observability and Hysteresis Recovery
