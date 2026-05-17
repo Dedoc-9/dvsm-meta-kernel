@@ -1106,4 +1106,241 @@ pub fn run_dvsm<H: DvsmRuntimeHooks>(
 
     core.energy_prev = core.energy();
 }
+// ============================================================
+// DVSM-π+++ V20 · GEOMETRY + SDK ADDENDUM LAYER PACK
+// ============================================================
+// EXTENSION: Klein / Rose / Dini / Ghost / Ω Witness + Q64 Hook
+// PURPOSE: Drop-in augmentation for dvsm_kernel_v20.rs
+// ABI SAFE: does NOT modify Core layout
+// ============================================================
+
+#![no_std]
+
+use core::arch::asm;
+
+// ============================================================
+// Q64.64 FIXED LAYER (OPTIONAL HIGH PRECISION BACKEND)
+// ============================================================
+
+pub type q64 = i128;
+
+const QSHIFT: i32 = 64;
+
+#[inline(always)]
+fn q64_mul(a: q64, b: q64) -> q64 {
+    ((a as i256() * b as i256()) >> QSHIFT) as q64
+}
+
+// fallback shim (compiler-safe conceptual placeholder)
+#[inline(always)]
+fn i256(x: q64) -> i128 {
+    x
+}
+
+// ============================================================
+// GEOMETRIC ADDON STATE (NON-ABI BREAKING)
+// ============================================================
+
+#[repr(C)]
+pub struct GeoAddonV20 {
+    pub klein: [q64; 16],   // non-orientable flux
+    pub rose:  [q64; 16],   // cyclic attractor phase
+    pub dini:  [q64; 16],   // curvature scaffold
+    pub ghost: [q64; 16],   // S-Z residual field
+    pub omega: [q64; 16],   // vajra witness trace
+}
+
+// ============================================================
+// KLEIN CONTINUITY OPERATOR
+// ============================================================
+// inside/outside equivalence collapse (non-orientable glue)
+
+#[inline(always)]
+pub fn klein_step(z: &[q64; 16], s: &[q64; 16], out: &mut GeoAddonV20) {
+    let n = 16;
+
+    for i in 0..n {
+        let forward = q64_mul(z[i], s[i]);
+        let reverse = q64_mul(s[i], z[n - 1 - i]);
+
+        // Klein flip symmetry: orientation annihilation operator
+        out.klein[i] = forward.wrapping_sub(reverse);
+    }
+}
+
+// ============================================================
+// ROSE MANIFOLD OPERATOR
+// ============================================================
+// oscillatory attractor (cyclic energy shell)
+
+#[inline(always)]
+pub fn rose_step(z: &[q64; 16], out: &mut GeoAddonV20) {
+    for i in 0..16 {
+        let phase = q64_mul(z[i], (i as q64) << (QSHIFT / 2));
+
+        // nonlinear radial folding → rose petals manifold
+        out.rose[i] = q64_mul(phase, phase);
+    }
+}
+
+// ============================================================
+// DINI SURFACE SCALING OPERATOR
+// ============================================================
+// logarithmic curvature stabilizer (gradient dampening)
+
+#[inline(always)]
+pub fn dini_step(z: &[q64; 16], out: &mut GeoAddonV20) {
+    for i in 0..16 {
+        let v = if z[i] < 0 { -z[i] } else { z[i] };
+        let v = if v == 0 { 1 } else { v };
+
+        // log curvature proxy: ln(|z|)
+        let log2 = 63 - v.leading_zeros() as i32;
+
+        // Dini damping shell (exponential decay over curvature)
+        out.dini[i] = q64_mul(log2 as q64, (1 << QSHIFT) - (1 << (QSHIFT - 4)));
+    }
+}
+
+// ============================================================
+// GHOST FIELD (RESIDUAL STATE ERROR)
+// ============================================================
+// S - Z drift topology (desynchronization witness)
+
+#[inline(always)]
+pub fn ghost_step(z: &[q64; 16], s: &[q64; 16], out: &mut GeoAddonV20) {
+    for i in 0..16 {
+        out.ghost[i] = z[i].wrapping_sub(s[i]);
+    }
+}
+
+// ============================================================
+// VAJRA Ω WITNESS (VELOCITY TRACE INTEGRATOR)
+// ============================================================
+// integrates manifold drift over dt
+
+#[inline(always)]
+pub fn omega_step(z: &[q64; 16], dt: q64, out: &mut GeoAddonV20) {
+    for i in 0..16 {
+        let delta = q64_mul(z[i], dt);
+        out.omega[i] = q64_mul(out.omega[i] + delta, 0x0FFF_FFFF_FFFF_FFFF);
+    }
+}
+
+// ============================================================
+// FULL GEOMETRIC PIPELINE (SDK HOOK)
+// ============================================================
+// This is the runtime extension hook used by dvsm_kernel_v20
+
+#[inline(always)]
+pub fn dvsm_geo_pipeline(
+    z: &[q64; 16],
+    s: &[q64; 16],
+    dt: q64,
+    geo: &mut GeoAddonV20,
+) {
+    klein_step(z, s, geo);
+    rose_step(z, geo);
+    dini_step(z, geo);
+    ghost_step(z, s, geo);
+    omega_step(z, dt, geo);
+}
+
+// ============================================================
+// SDK RUNTIME HOOK (V20 EXTENSION POINT)
+// ============================================================
+// This attaches geometry output into BinaryFrame stream
+
+#[repr(C)]
+pub struct GeoSDKFrame {
+    pub klein_energy: q64,
+    pub rose_energy: q64,
+    pub dini_energy: q64,
+    pub ghost_energy: q64,
+    pub omega_energy: q64,
+}
+
+// ============================================================
+// REDUCTION FUNCTIONS (FEATURE COLLAPSE)
+// ============================================================
+
+#[inline(always)]
+fn reduce_energy(x: &[q64; 16]) -> q64 {
+    let mut acc: q64 = 0;
+    for i in 0..16 {
+        acc += q64_mul(x[i], x[i]);
+    }
+    acc
+}
+
+// ============================================================
+// SDK EXPORT HOOK
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn dvsm_geo_export(
+    geo: *const GeoAddonV20,
+    out: *mut GeoSDKFrame,
+) {
+    unsafe {
+        if geo.is_null() || out.is_null() { return; }
+
+        let g = &*geo;
+
+        *out = GeoSDKFrame {
+            klein_energy: reduce_energy(&g.klein),
+            rose_energy:  reduce_energy(&g.rose),
+            dini_energy:  reduce_energy(&g.dini),
+            ghost_energy: reduce_energy(&g.ghost),
+            omega_energy: reduce_energy(&g.omega),
+        };
+    }
+}
+
+// ============================================================
+// LAYER REGISTRY EXTENSION (COMPATIBLE WITH V20 JSON SYSTEM)
+// ============================================================
+
+pub const LAYER_ADDENDUM_JSON: &str = r#"
+{
+  "layers_extended": [
+    { "id": 12, "name": "Klein Continuity", "mode": "Non-orientable glue collapse" },
+    { "id": 13, "name": "Rose Manifold", "mode": "Cyclic attractor symmetry shell" },
+    { "id": 14, "name": "Dini Surface", "mode": "Log-curvature damping scaffold" },
+    { "id": 15, "name": "Ghost Field", "mode": "S-Z residual drift witness" },
+    { "id": 16, "name": "Vajra Omega", "mode": "Integrated velocity trace field" },
+    { "id": 17, "name": "Q64 Bridge", "mode": "High-precision deterministic backend" },
+    { "id": 18, "name": "SDK Hook Layer", "mode": "External runtime projection interface" }
+  ]
+}
+"#;
+
+// ============================================================
+// DEV NOTES (ARITHMETIC INTERPRETATION LAYER)
+// ============================================================
+//
+// Klein:
+//   z*s − s*z(reversed)
+//   → breaks orientability constraint → topology folding
+//
+// Rose:
+//   z² * angular index
+//   → cyclic eigenmodes → attractor petals
+//
+// Dini:
+//   log(|z|)
+//   → curvature compression → stabilizes divergence
+//
+// Ghost:
+//   Z − S
+//   → memory lag residue → drift detection field
+//
+// Ω:
+//   ∫ Z dt
+//   → accumulated trajectory witness
+//
+// ============================================================
+//
+// END OF ADDENDUM
+// ============================================================
 */
