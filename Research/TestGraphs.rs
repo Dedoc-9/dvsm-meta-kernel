@@ -62,41 +62,142 @@ fn explain_the_wow_to_a_peer() {
     0        125        250        375        500
                       SINGULARITY
 
-// dvsm-core/src/telemetry.rs
-// MEASUREMENT: Q64.64 vs f32 Bit-Exact Audit
+// dvsm-core/src/solid_graph.rs
+// SOLID LINE GRAPH RENDERER
+// Q64.64 vs f32 Stability Audit
 
-pub struct TelemetryPoint {
-    pub frame: u64,
-    pub f32_error: f64,
-    pub q64_error: f64,
-}
+use crate::telemetry::TelemetryPoint;
 
-pub fn run_data_driven_audit() -> Vec<TelemetryPoint> {
-    let mut results = Vec::new();
-    let mut core_q64 = DvsmQ64::new_archival();
-    let mut core_f32 = DvsmF32::new_control(); // Standard f32 implementation
+pub fn render_solid_line_graph(data: &[TelemetryPoint]) {
+    const WIDTH: usize = 64;
+    const HEIGHT: usize = 20;
 
-    for i in 0..500 {
-        core_q64.step();
-        core_f32.step();
+    let mut grid = vec![vec![' '; WIDTH]; HEIGHT];
 
-        // MEASURE THE DRIFT: How far has each system moved from Orthonormality?
-        let e_q64 = core_q64.measure_stiefel_drift(); // Targeted at 10^-20
-        let e_f32 = core_f32.measure_stiefel_drift(); // Targeted at 10^-7
+    // Convert telemetry into graph coordinates
+    let mut f32_points = Vec::new();
+    let mut q64_points = Vec::new();
 
-        results.push(TelemetryPoint {
-            frame: i as u64,
-            f32_error: e_f32,
-            q64_error: e_q64,
-        });
+    for p in data {
+        let x = ((p.frame as f64 / 500.0) * (WIDTH as f64 - 1.0)) as usize;
 
-        if i == 250 {
-            // THE SINGULARITY INJECTION
-            // Force a high-torque manifold inversion
-            core_q64.inject_singular_torque();
-            core_f32.inject_singular_torque();
+        // Convert error to "orders retained"
+        let f32_mag = -p.f32_error.abs().log10();
+        let q64_mag = -p.q64_error.abs().log10();
+
+        let y_f32 = HEIGHT - 1
+            - ((f32_mag / 20.0) * (HEIGHT as f64 - 1.0)) as usize;
+
+        let y_q64 = HEIGHT - 1
+            - ((q64_mag / 20.0) * (HEIGHT as f64 - 1.0)) as usize;
+
+        f32_points.push((x, y_f32.min(HEIGHT - 1)));
+        q64_points.push((x, y_q64.min(HEIGHT - 1)));
+    }
+
+    // Draw solid connected lines
+    draw_line(&mut grid, &f32_points, '█');
+    draw_line(&mut grid, &q64_points, '▓');
+
+    // Singularity marker
+    let singularity_x = ((250.0 / 500.0) * (WIDTH as f64 - 1.0)) as usize;
+
+    for y in 0..HEIGHT {
+        if grid[y][singularity_x] == ' ' {
+            grid[y][singularity_x] = '│';
         }
     }
-    results
+
+    // Header
+    println!("\n╔══════════════════════════════════════════════════════════════╗");
+    println!("║      DVSM-π+++ REAL MANIFOLD STABILITY COMPARISON          ║");
+    println!("║      f32 Numerical Drift vs Q64.64 Deterministic Core      ║");
+    println!("╚══════════════════════════════════════════════════════════════╝");
+
+    // Render graph
+    for (i, row) in grid.iter().enumerate() {
+        let scale = 20 - i;
+        print!("{:>2} │", scale);
+
+        for ch in row {
+            match ch {
+                '█' => print!("\x1b[35m█\x1b[0m"), // f32
+                '▓' => print!("\x1b[32m▓\x1b[0m"), // Q64.64
+                '│' => print!("\x1b[31m│\x1b[0m"), // Singularity
+                _ => print!(" "),
+            }
+        }
+
+        println!();
+    }
+
+    println!("   └──────────────────────────────────────────────────────────");
+    println!("    0        125        250        375        500");
+    println!("                      SINGULARITY");
+
+    println!("\n\x1b[32m▓ Q64.64 Archival Stability\x1b[0m");
+    println!("\x1b[35m█ Standard f32 Drift\x1b[0m");
+
+    // Compute measured improvement
+    let avg_f32 =
+        data.iter().map(|p| p.f32_error).sum::<f64>() / data.len() as f64;
+
+    let avg_q64 =
+        data.iter().map(|p| p.q64_error).sum::<f64>() / data.len() as f64;
+
+    let ratio = avg_f32 / avg_q64;
+
+    println!("\n══════════════════════════════════════════════════════════════");
+    println!("Measured Stability Advantage: {:.2e}x", ratio);
+    println!("Additional Orders Retained : {:.1}", ratio.log10());
+    println!("══════════════════════════════════════════════════════════════");
 }
 
+// Bresenham-style line drawing
+fn draw_line(
+    grid: &mut Vec<Vec<char>>,
+    points: &[(usize, usize)],
+    ch: char,
+) {
+    for w in points.windows(2) {
+        let (x0, y0) = w[0];
+        let (x1, y1) = w[1];
+
+        let dx = (x1 as isize - x0 as isize).abs();
+        let dy = -(y1 as isize - y0 as isize).abs();
+
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+
+        let mut err = dx + dy;
+
+        let mut x = x0 as isize;
+        let mut y = y0 as isize;
+
+        loop {
+            if x >= 0
+                && y >= 0
+                && (x as usize) < WIDTH
+                && (y as usize) < HEIGHT
+            {
+                grid[y as usize][x as usize] = ch;
+            }
+
+            if x == x1 as isize && y == y1 as isize {
+                break;
+            }
+
+            let e2 = 2 * err;
+
+            if e2 >= dy {
+                err += dy;
+                x += sx;
+            }
+
+            if e2 <= dx {
+                err += dx;
+                y += sy;
+            }
+        }
+    }
+}
