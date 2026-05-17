@@ -1,6 +1,6 @@
 // canonical_core.rs
 // DVSM-π+++ / Canonical Sealed Kernel
-// Bit-exact Q16.16 fixed-point deterministic manifold engine
+// Bit-exact Q16.16/Q64.64 fixed-point deterministic manifold engine
 // no_std · no_alloc · ABI-stable · canonical summation enforced
 // Author: Daniel J. Dillberg - Contact: BigDilly95@gmail.com
 
