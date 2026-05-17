@@ -20,6 +20,46 @@ return Π(Z, S, W, Ω, R);
 // one memory law
 // one projection operator (all layers compressed into it)
 
+// THE GOD EQUATION (DVSM-π+++ / DQSDv2)
+// Irreducible 3-operator system: Dynamics → Memory → Projection
+
+pub fn god_step(state: &mut State, input: &[f32; N]) -> BinaryFrame {
+
+    // --- 1. DYNAMICAL LAW (Lie flow, energy-neutral redistribution) ---
+    // Ż = [Z,S]κ − λZ
+    for k in 0..R {
+        let mut torque = 0.0f32;
+
+        for j in 0..R {
+            let z_k = state.z[k];
+            let z_j = state.z[j];
+            let s_k = state.s[k];
+            let s_j = state.s[j];
+
+            torque += (z_k * s_j - z_j * s_k) * state.kappa[k * RMAX + j];
+        }
+
+        state.z[k] += state.dt * (torque - state.lambda * state.z[k]);
+    }
+
+    // --- 2. MEMORY LAW (EMA hysteresis operator) ---
+    // S ← αS + (1−α)Z
+    for i in 0..R {
+        state.s[i] = state.alpha * state.s[i]
+                   + (1.0 - state.alpha) * state.z[i];
+    }
+
+    // --- 3. OBSERVABILITY OPERATOR Π ---
+    // Π(Z,S,W,Ω,R) → Frame (Layers 1–11 collapsed projection)
+    let frame = state.project_all_layers(input);
+
+    // --- TEMPORAL ADVANCE (no dynamics leakage into projection) ---
+    state.frame = state.frame.wrapping_add(1);
+    state.t += state.dt;
+
+    frame
+}
+
 // =========================
 // CONFIG
 // =========================
