@@ -1343,4 +1343,144 @@ pub const LAYER_ADDENDUM_JSON: &str = r#"
 //
 // END OF ADDENDUM
 // ============================================================
+// ============================================================
+// DVSM-π+++ · UNIFIED LAYER EQUATION KERNEL (V20++)
+// ============================================================
+//
+// THREE REPRESENTATIONS OF THE SAME SYSTEM:
+//
+// (1) PURE EQUATION FORM
+// ------------------------------------------------------------
+// Ż = [Z,S]κ − λZ
+// Ṡ = α(S − Z)
+// Π = Φ(Z,S)
+//
+// Klein  = Z⊗S − flip(S⊗Z)
+// Rose   = (Z·i)²  (cyclic phase lift)
+// Dini   = log(|Z|) damping curvature
+// Ghost  = Z − S
+// Ω      = ∫ Z dt
+//
+// Full system:
+// F(Z,S) = Ż + Kle(Z,S) + Ros(Z) + Din(Z) + Gho(Z,S) + Ω(Z)
+//
+// ------------------------------------------------------------
+//
+// (2) COMPUTATIONAL FORM (PIPELINE COLLAPSED)
+// ------------------------------------------------------------
+// Z ← Z + dt*(Lieκ(Z,S) − λZ + K + R + D + G + Ω)
+// S ← αS + (1−α)Z
+// output ← Π(Z,S)
+//
+// ------------------------------------------------------------
+// (3) RUST IMPLEMENTATION (SINGLE BLOCK)
+// ============================================================
+
+#![no_std]
+
+pub const R: usize = 16;
+pub const Q: i32 = 16;
+
+// -------------------- FIXED POINT --------------------------
+
+#[inline(always)]
+fn qmul(a: i32, b: i32) -> i32 {
+    ((a as i64 * b as i64) >> Q) as i32
+}
+
+#[inline(always)]
+fn qlog(x: i32) -> i32 {
+    let v = if x == 0 { 1 } else { x.abs() };
+    (31 - v.leading_zeros() as i32) << Q
+}
+
+// -------------------- UNIFIED STEP -------------------------
+
+pub fn dvsm_unified_step(
+    z: &mut [i32; R],
+    s: &mut [i32; R],
+    kappa: &[i32; R * R],
+    omega: &mut [i32; R],
+    dt: i32,
+    alpha: i32,
+    lambda: i32,
+) {
+    let mut dz = [0i32; R];
+
+    // ========================================================
+    // SINGLE LIE LOOP (ALL LAYERS COLLAPSED HERE)
+    // ========================================================
+    for i in 0..R {
+
+        let mut lie: i64 = 0;
+        let mut klein: i32 = 0;
+        let mut ghost: i32 = 0;
+
+        for j in 0..R {
+
+            // ---------------- LIE FLOW ----------------
+            let bracket =
+                qmul(z[i], s[j]) - qmul(z[j], s[i]);
+
+            lie += (qmul(bracket, kappa[i * R + j])) as i64;
+
+            // ---------------- KLEIN -------------------
+            // non-orientable fold: forward vs reversed index
+            let k = qmul(z[i], s[j]) - qmul(s[j], z[R - 1 - i]);
+            klein = klein.wrapping_add(k);
+
+            // ---------------- GHOST -------------------
+            ghost = z[i].wrapping_sub(s[i]);
+        }
+
+        // ---------------- DINI CURVATURE ----------------
+        let dini = qlog(z[i]);
+
+        // ---------------- ROSE (CYCLIC PHASE) ----------
+        let rose = qmul(z[i], (i as i32) << (Q / 2));
+        let rose = qmul(rose, rose);
+
+        // ---------------- OMEGA WITNESS -----------------
+        omega[i] = qmul(omega[i] + qmul(z[i], dt), 0x0FFF_FFFF);
+
+        // ---------------- FULL COLLAPSED DYNAMICS -------
+        let coupling =
+            lie as i32 +
+            klein +
+            ghost +
+            dini +
+            rose +
+            omega[i];
+
+        let decay = qmul(lambda, z[i]);
+        dz[i] = z[i] + qmul(dt, coupling - decay);
+    }
+
+    // ---------------- MEMORY LAW -------------------------
+    for i in 0..R {
+        s[i] = qmul(alpha, s[i]) + qmul((1 << Q) - alpha, z[i]);
+        z[i] = dz[i];
+    }
+}
+
+// ============================================================
+// INTERPRETATION NOTE
+// ============================================================
+//
+// THIS SINGLE LOOP CONTAINS:
+//
+// - Lie algebra flow      → dynamical skeleton
+// - Klein folding         → topology inversion
+// - Rose oscillator       → phase manifold
+// - Dini curvature        → logarithmic damping geometry
+// - Ghost field           → memory-state residual
+// - Omega witness         → integrated trajectory trace
+//
+// BUT:
+// They are NOT separate systems.
+// They are projections of the same update operator:
+//
+//      F(Z,S) = Z + dt * (Lie + Topology + Curvature + Drift)
+//
+// ============================================================
 */
