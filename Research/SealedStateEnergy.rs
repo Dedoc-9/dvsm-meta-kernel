@@ -1,4 +1,5 @@
 // DVSM-π+++ v1b // STATE + ENERGY + NET GAIN BLOCK (SAFETY-LEVEL MERGED)
+// Author: Daniel J. Dillberg
 // ----------------------------------------------------------------------
 // Unified state evolution + bounded operator + residual energy accounting
 // All feedback paths explicitly constrained to prevent control-loop misuse
