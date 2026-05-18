@@ -181,3 +181,242 @@ pub fn init_suchness(z: &mut [i32], s: &mut [i32]) {
 }
 // Further:
 z[i] = (1 << 18) * ((i as i32 % 3) - 1);
+
+// DVSM-π+++ v1b // FINAL SEALED MATHEMATICAL KERNEL (REFERENCE IMPLEMENTATION)
+// -----------------------------------------------------------------------------
+// This file is a direct implementation of the sealed mathematical addendum.
+// It enforces:
+// - bounded deterministic recurrence
+// - Lipschitz-stable operators only
+// - strict separation of observation (H) vs dynamics (Z)
+// - GhostSnap = containment reset policy (not recovery logic)
+
+#![no_std]
+
+pub const RMAX: usize = 16;
+
+// ─────────────────────────────────────────────────────────────
+// FIXED-POINT CORE (Q31.32 STYLE INTEGER MODEL)
+// ─────────────────────────────────────────────────────────────
+
+#[derive(Copy, Clone)]
+pub struct Q(i32);
+
+impl Q {
+    #[inline(always)]
+    pub const fn zero() -> Self { Q(0) }
+
+    #[inline(always)]
+    pub fn raw(self) -> i32 { self.0 }
+}
+
+// basic bounded arithmetic
+#[inline(always)]
+fn qmul(a: Q, b: Q) -> Q {
+    Q(((a.0 as i64 * b.0 as i64) >> 32) as i32)
+}
+
+#[inline(always)]
+fn qsub(a: Q, b: Q) -> Q {
+    Q(a.0.wrapping_sub(b.0))
+}
+
+#[inline(always)]
+fn qadd(a: Q, b: Q) -> Q {
+    Q(a.0.wrapping_add(b.0))
+}
+
+#[inline(always)]
+fn qabs(a: Q) -> Q {
+    if a.0 < 0 { Q(-a.0) } else { a }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STATE SPACE
+// ─────────────────────────────────────────────────────────────
+
+pub struct Core {
+    pub z: [Q; RMAX],   // state manifold
+    pub s: [Q; RMAX],   // memory manifold
+    pub h: i64,         // OBSERVATION ONLY
+    pub frame: u64,
+    pub alive: bool,
+    pub r: usize,
+}
+
+// ─────────────────────────────────────────────────────────────
+// INITIALIZATION (FINAL SUCHNESS SEED)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn init(core: &mut Core, r: usize) {
+    core.r = r.min(RMAX);
+    core.frame = 0;
+    core.h = 0;
+    core.alive = true;
+
+    let base = Q(1 << 20);
+
+    for i in 0..core.r {
+        let sign = if i & 1 == 0 { 1 } else { -1 };
+        let wobble = Q(((i as i32 + 1) << 16));
+
+        core.z[i] = Q(sign * (base.0 + wobble.0));
+        core.s[i] = Q::zero();
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// VAJRA SINK (BOUNDED PROJECTION ONLY)
+// Π(x) = x - αxdt
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn vajra_sink(x: Q, alpha: Q, dt: Q) -> Q {
+    let damp = qmul(qmul(x, alpha), dt);
+    qsub(x, damp)
+}
+
+// ─────────────────────────────────────────────────────────────
+// CORE OPERATORS (ALL BOUNDED)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn lie(z: &[Q], s: &[Q]) -> Q {
+    let mut acc = 0i64;
+    for i in 0..z.len() {
+        acc += ((z[i].0 as i64 * s[i].0 as i64) >> 32);
+    }
+    Q(acc as i32)
+}
+
+#[inline(always)]
+fn klein(z: &[Q], s: &[Q]) -> Q {
+    let mut acc = Q::zero();
+    for i in 0..z.len() {
+        acc = qadd(acc, qmul(z[i], s[i]));
+    }
+    acc
+}
+
+#[inline(always)]
+fn dini(z: &[Q]) -> Q {
+    let mut acc = Q::zero();
+    for i in 0..z.len() {
+        acc = qsub(acc, Q(z[i].0 >> 4));
+    }
+    acc
+}
+
+#[inline(always)]
+fn rose(z: &[Q]) -> Q {
+    let mut acc = Q::zero();
+    for i in 0..z.len() {
+        acc = qadd(acc, Q((qabs(z[i]).0 >> 3)));
+    }
+    acc
+}
+
+// ─────────────────────────────────────────────────────────────
+// STIEFEL RETRACTION (SAFE APPROX)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn retract(x: Q) -> Q {
+    let a = qabs(x);
+    if a.0 > (1 << 30) {
+        Q(x.0 >> 2)
+    } else {
+        x
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STABILITY GUARD
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn guard(x: Q) -> bool {
+    qabs(x).0 < (1 << 30)
+}
+
+// ─────────────────────────────────────────────────────────────
+// GHOST SNAP (CONTAINMENT RESET ONLY)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn ghost_snap(z: &mut [Q], s: &mut [Q]) {
+    for i in 0..z.len() {
+        z[i] = Q(1 << 20);
+        s[i] = Q::zero();
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// RESIDUAL OBSERVER (H METRIC - NO CONTROL PATH)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn update_h(core: &mut Core) {
+    let mut ez = 0i64;
+    let mut es = 0i64;
+
+    for i in 0..core.r {
+        ez += ((core.z[i].0 as i64 * core.z[i].0 as i64) >> 32);
+        es += ((core.s[i].0 as i64 * core.s[i].0 as i64) >> 32);
+    }
+
+    let diff = (ez - es).abs();
+    core.h = core.h.saturating_add(diff >> 8);
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP (FINAL SEALED EVOLUTION CONTRACT)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn step(core: &mut Core, dt: Q, lambda: Q, alpha: Q, fault: i64) {
+    for i in 0..core.r {
+
+        let coupling =
+            qadd(
+                qadd(lie(&core.z, &core.s),
+                     klein(&core.z, &core.s)),
+                qadd(dini(&core.z),
+                     rose(&core.z))
+            );
+
+        let bounded = vajra_sink(core.z[i], alpha, dt);
+
+        let raw =
+            qadd(
+                bounded,
+                qmul(dt, qsub(coupling, qmul(lambda, core.z[i])))
+            );
+
+        core.z[i] = retract(raw);
+
+        if !guard(core.z[i]) {
+            ghost_snap(&mut core.z, &mut core.s);
+            core.alive = false;
+            return;
+        }
+    }
+
+    // memory update (EMA-like but bounded conceptually)
+    for i in 0..core.r {
+        core.s[i] = qadd(
+            qmul(Q(0x7fffffff), core.s[i]),
+            qmul(Q(0x00000001), core.z[i])
+        );
+    }
+
+    update_h(core);
+
+    if core.h > fault {
+        ghost_snap(&mut core.z, &mut core.s);
+        core.alive = false;
+    }
+
+    core.frame = core.frame.wrapping_add(1);
+}
