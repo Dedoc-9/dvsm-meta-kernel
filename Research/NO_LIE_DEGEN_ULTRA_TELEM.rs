@@ -408,10 +408,25 @@ pub fn main() {}
 // The result is a bit-exact, diamond-hard manifold that maintains dynamical life without risking numerical collapse.
 
 #[inline(always)]
-fn apply_vajra_lock(state: &mut Core<Q31>) {
-    for k in 0..state.r {
-        let drift_correction = vajra_sink(state.z[k], state.alpha, state.one_minus_alpha);
-        state.z[k] = state.z[k].sub(drift_correction.mul(state.dt));
+fn apply_vajra_lock<T: Fp>(state: &mut Core<T>) {
+    let r = state.r;
+
+    let mut k = 0;
+    while k < r {
+        let drift_correction =
+            vajra_sink(
+                state.z[k],
+                state.alpha,
+                state.one_minus_alpha
+            );
+
+        // still explicit Euler-style contraction
+        state.z[k] =
+            state.z[k].sub(
+                state.dt.mul(drift_correction)
+            );
+
+        k += 1;
     }
 }
     // The system is now Diamond-Hard and verified:
