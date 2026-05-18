@@ -391,3 +391,184 @@ pub fn step(core: &mut Core, alpha: Q31, dt: Q31, fault_threshold: i64) -> i64 {
     "return_value": "energy"
   }
 }
+// DVSM-π+++ v1b // ADDENDUM: Q64.64 + HIGH-DIMENSION (512 / 1024) SUPPORT
+// -----------------------------------------------------------------------
+// Extension of core fixed-point + state model for higher precision regimes
+// and large-scale manifold vectors.
+//
+// NOTE: This does NOT change semantics of H, vajra_lock, or ghost_snap.
+// It only extends representational capacity.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+// ───────────────────────────────────────────────────────────────────────
+// Q64.64 FIXED-POINT (HIGH PRECISION EXTENSION)
+// ───────────────────────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, Default)]
+pub struct Q64(pub i128);
+
+impl Q64 {
+    #[inline(always)]
+    pub fn zero() -> Self { Q64(0) }
+
+    #[inline(always)]
+    pub fn from_i64(v: i64) -> Self {
+        Q64((v as i128) << 64)
+    }
+
+    #[inline(always)]
+    pub fn add(self, r: Self) -> Self {
+        Q64(self.0.wrapping_add(r.0))
+    }
+
+    #[inline(always)]
+    pub fn sub(self, r: Self) -> Self {
+        Q64(self.0.wrapping_sub(r.0))
+    }
+
+    #[inline(always)]
+    pub fn mul(self, r: Self) -> Self {
+        Q64(((self.0 as i256_clamp() * r.0 as i256_clamp()) >> 64) as i128)
+    }
+}
+
+// NOTE: conceptual placeholder for widened multiply safety
+#[inline(always)]
+fn i256_clamp(x: i128) -> i128 { x }
+
+// ───────────────────────────────────────────────────────────────────────
+// HIGH-DIMENSION STATE CONFIGURATION
+// ───────────────────────────────────────────────────────────────────────
+
+pub const DIM_512: usize = 512;
+pub const DIM_1024: usize = 1024;
+
+// ───────────────────────────────────────────────────────────────────────
+// GENERIC HIGH-DIM STATE (512 / 1024)
+// ───────────────────────────────────────────────────────────────────────
+
+pub struct HighDimState<T: Copy> {
+    pub z: [T; DIM_1024],
+    pub s: [T; DIM_1024],
+    pub omega: [T; DIM_1024],
+
+    pub h: i64,
+    pub frame: u64,
+    pub alive: u8,
+
+    pub r: usize, // active dimension (512 or 1024)
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// INITIALIZATION (HIGH-DIMENSION CONTRACT)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn init_highdim_q64(state: &mut HighDimState<Q64>, r: usize) {
+    state.r = if r > DIM_1024 { DIM_1024 } else { r };
+    state.frame = 0;
+    state.h = 0;
+    state.alive = 1;
+
+    let seed = Q64::from_i64(1);
+
+    for i in 0..state.r {
+        let scale = Q64::from_i64((i as i64) + 1);
+        state.z[i] = seed.mul(scale);
+        state.s[i] = Q64::zero();
+        state.omega[i] = Q64::zero();
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// HIGH-DIM ENERGY (OBSERVATION ONLY)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn norm2_q64(v: &[Q64], r: usize) -> i128 {
+    let mut acc: i128 = 0;
+
+    for i in 0..r {
+        let x = v[i].0;
+        acc = acc.wrapping_add((x.wrapping_mul(x)) >> 64);
+    }
+
+    acc
+}
+
+#[inline(always)]
+pub fn compute_energy_q64(state: &HighDimState<Q64>) -> i128 {
+    norm2_q64(&state.z, state.r)
+}
+
+#[inline(always)]
+pub fn compute_net_gain_q64(state: &HighDimState<Q64>) -> i128 {
+    let e = norm2_q64(&state.z, state.r);
+    let s = norm2_q64(&state.s, state.r);
+    e.wrapping_sub(s)
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// RESIDUAL OBSERVER (H METRIC — UNCHANGED SEMANTICS)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn update_h_q64(state: &mut HighDimState<Q64>) {
+    let e = norm2_q64(&state.z, state.r);
+    let s = norm2_q64(&state.s, state.r);
+
+    let diff = if e > s { e - s } else { s - e };
+
+    state.h = state.h.saturating_add((diff >> 16) as i64);
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// VAJRA LOCK EXTENSION (Q64 SAFE PROJECTION)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn vajra_lock_q64(x: Q64, alpha: Q64, dt: Q64) -> Q64 {
+    let damp = x.mul(alpha).mul(dt);
+    x.sub(damp)
+}
+
+#[inline(always)]
+pub fn apply_vajra_lock_q64(state: &mut HighDimState<Q64>, alpha: Q64, dt: Q64) {
+    for i in 0..state.r {
+        state.z[i] = vajra_lock_q64(state.z[i], alpha, dt);
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// FAULT POLICY (UNCHANGED SEMANTICS)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn ghost_snap_q64(state: &mut HighDimState<Q64>) {
+    for i in 0..state.r {
+        state.z[i] = Q64::zero();
+        state.s[i] = Q64::zero();
+        state.omega[i] = Q64::zero();
+    }
+    state.alive = 1;
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// STEP (Q64 HIGH-DIMENSION EXECUTION BOUNDARY)
+// ───────────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+pub fn step_q64(state: &mut HighDimState<Q64>, alpha: Q64, dt: Q64, fault_threshold: i128) -> i128 {
+    apply_vajra_lock_q64(state, alpha, dt);
+    update_h_q64(state);
+
+    let energy = compute_energy_q64(state);
+
+    if energy > fault_threshold {
+        ghost_snap_q64(state);
+    }
+
+    state.frame = state.frame.wrapping_add(1);
+    energy
+}
