@@ -163,3 +163,21 @@ pub fn step(
         }
     }
 }
+// INITIALIZATION CONTRACT (FINAL SUCHNESS SEEDING)
+#[inline(always)]
+pub fn init_suchness(z: &mut [i32], s: &mut [i32]) {
+    let base: i32 = 1 << 20; // contraction-safe scale (Q format dependent)
+
+    for i in 0..z.len() {
+        // structured non-degenerate seed (breaks symmetry, stays bounded)
+        let sign = if (i & 1) == 0 { 1 } else { -1 };
+        let wobble = (i as i32 + 1) * (1 << 16);
+
+        z[i] = sign * (base + wobble);
+
+        // memory manifold starts at true neutral (no bias carry)
+        s[i] = 0;
+    }
+}
+// Further:
+z[i] = (1 << 18) * ((i as i32 % 3) - 1);
