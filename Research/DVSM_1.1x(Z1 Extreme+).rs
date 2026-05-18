@@ -2012,3 +2012,1078 @@ pub fn verify_diamond_integrity() -> bool {
     // At this stage, the code is the proof.
     true 
 }
+{
+  "module": "DVSM-π+++ // RÖSSLER_CHAOS_ADDENDUM",
+  "version": "V20.4-ROSS-HARD",
+  "classification": {
+    "type": "deterministic_fixed_point_recurrence_kernel",
+    "not_claimed": [
+      "validated_physics",
+      "quantum_simulation",
+      "cryptographic_security",
+      "biophysical_correctness",
+      "exotic_matter_modeling"
+    ]
+  },
+
+  "crate": {
+    "no_std": true,
+    "deterministic": true,
+    "cross_platform": true,
+    "float_free": true
+  },
+
+  "dev_notes": {
+    "runtime_arithmetic": [
+      "all arithmetic uses fixed-point only",
+      "floating point forbidden",
+      "overflow semantics are wrapping",
+      "intermediate widening mandatory",
+      "SIMD must preserve scalar semantics"
+    ],
+
+    "design_constraints": [
+      "Q16 and Q64 are separate deterministic builds",
+      "no mixed precision execution",
+      "ABI layout must remain stable",
+      "hash parity required across architectures"
+    ],
+
+    "runtime_interpretation": {
+      "chaos": "bounded deterministic recurrence",
+      "noise_floor": "external perturbation model",
+      "attractor": "stable replayable state evolution"
+    }
+  },
+
+  "precision_switch": {
+    "mode": "compile_time_feature_gate",
+
+    "modes": {
+      "Q16": {
+        "feature": "default",
+        "type": "i32",
+        "fractional_bits": 16,
+        "intermediate": "i64"
+      },
+
+      "Q64": {
+        "feature": "q64",
+        "type": "i64",
+        "fractional_bits": 64,
+        "intermediate": "i128"
+      }
+    }
+  },
+
+  "core_types": {
+    "Fx": {
+      "Q16": "i32",
+      "Q64": "i64"
+    }
+  },
+
+  "fixed_point_core": {
+    "qmul": {
+      "Q16": {
+        "formula": "((a:i64 * b:i64) >> 16) as i32",
+        "overflow": "wrapping"
+      },
+
+      "Q64": {
+        "formula": "((a:i128 * b:i128) >> 64) as i64",
+        "overflow": "wrapping"
+      }
+    },
+
+    "qadd": {
+      "formula": "a.wrapping_add(b)"
+    },
+
+    "qsub": {
+      "formula": "a.wrapping_sub(b)"
+    }
+  },
+
+  "rossler_system": {
+    "topology": "bounded discrete recurrence approximation",
+
+    "differential_set": {
+      "dx": "-(y + z)",
+      "dy": "x + a*y",
+      "dz": "b + z*(x - c)"
+    },
+
+    "parameters": {
+      "A": {
+        "float_equivalent": 0.2,
+        "Q16": "(1 << 16) / 5",
+        "Q64": "(1 << 64) / 5"
+      },
+
+      "B": {
+        "float_equivalent": 0.2,
+        "Q16": "(1 << 16) / 5",
+        "Q64": "(1 << 64) / 5"
+      },
+
+      "C": {
+        "float_equivalent": 5.7,
+        "Q16": "((1 << 16) * 57) / 10",
+        "Q64": "((1 << 64) * 57) / 10"
+      }
+    }
+  },
+
+  "state_model": {
+    "repr": "C",
+
+    "fields": {
+      "z": "Fx[16]",
+      "s": "Fx[16]",
+      "kappa": "Fx[16]",
+      "x": "Fx",
+      "y": "Fx",
+      "zeta": "Fx",
+      "z_accumulator": "Fx",
+      "reset_flag": "u8"
+    }
+  },
+
+  "lie_bracket": {
+    "type": "antisymmetric_coupling",
+
+    "formula": {
+      "antisym": "qmul(z,s) - qmul(s,z)",
+      "output": "qmul(antisym,kappa)"
+    },
+
+    "properties": [
+      "deterministic",
+      "wrapping_safe",
+      "fixed_order_execution"
+    ]
+  },
+
+  "rossler_fold": {
+    "classification": "discrete recurrence approximation",
+
+    "steps": [
+      {
+        "name": "dx",
+        "formula": "-(y + zeta)"
+      },
+
+      {
+        "name": "dy",
+        "formula": "x + qmul(A,y)"
+      },
+
+      {
+        "name": "dz",
+        "formula": "B + qmul(zeta,(x - C))"
+      },
+
+      {
+        "name": "integrate_x",
+        "formula": "x += qmul(dt,dx)"
+      },
+
+      {
+        "name": "integrate_y",
+        "formula": "y += qmul(dt,dy)"
+      },
+
+      {
+        "name": "integrate_zeta",
+        "formula": "zeta += qmul(dt,dz)"
+      },
+
+      {
+        "name": "accumulate",
+        "formula": "z_accumulator += qmul(dt,dz)"
+      }
+    ]
+  },
+//! ============================================================
+//! DVSM-π+++ // RÖSSLER_CHAOS_ADDENDUM
+//! ------------------------------------------------------------
+//! VERSION: V20.4-ROSS-HARD
+//! STATUS:
+//!   Experimental deterministic recurrence extension
+//!
+//! CLASSIFICATION:
+//!   Deterministic fixed-point recurrence kernel
+//!   (NOT validated physics, NOT quantum simulation,
+//!    NOT cryptographic guarantee, NOT physical model)
+//!
+//! PURPOSE:
+//!   Introduces a bounded chaotic recurrence layer using a
+//!   fixed-point Rössler-style differential approximation.
+//!
+//! DESIGN GOALS:
+//!   1. Deterministic runtime arithmetic
+//!   2. Compile-time Q16/Q64 precision switching
+//!   3. no_std portability
+//!   4. Stable ABI surface
+//!   5. Cross-platform replay parity
+//!
+//! ============================================================
+
+#![no_std]
+
+// ============================================================
+// DEV NOTES
+// ============================================================
+//
+// RUNTIME ARITHMETIC API
+// ------------------------------------------------------------
+// - All arithmetic is fixed-point only.
+// - Floating-point is forbidden.
+// - Q16/Q64 selected at compile time.
+// - Intermediate widening is mandatory.
+// - Overflow behavior MUST remain wrapping.
+// - SIMD backends must preserve scalar semantics.
+//
+// IMPORTANT:
+// ------------------------------------------------------------
+// This crate models deterministic state evolution only.
+// References to "chaos", "noise floor", or "attractor"
+// refer strictly to bounded recurrence behavior.
+//
+// No claim is made regarding:
+// - physical correctness
+// - cryptographic security
+// - exotic matter
+// - neuroscience validity
+//
+// ============================================================
+
+// ============================================================
+// PRECISION SWITCH
+// ============================================================
+
+#[cfg(feature = "q64")]
+pub type Fx = i64;
+
+#[cfg(not(feature = "q64"))]
+pub type Fx = i32;
+
+#[cfg(feature = "q64")]
+pub const Q: u32 = 64;
+
+#[cfg(not(feature = "q64"))]
+pub const Q: u32 = 16;
+
+// ============================================================
+// FIXED-POINT CORE
+// ============================================================
+
+#[inline(always)]
+pub fn qmul(a: Fx, b: Fx) -> Fx {
+
+    #[cfg(feature = "q64")]
+    {
+        let r = (a as i128)
+            .wrapping_mul(b as i128);
+
+        return (r >> 64) as i64;
+    }
+
+    #[cfg(not(feature = "q64"))]
+    {
+        let r = (a as i64)
+            .wrapping_mul(b as i64);
+
+        return (r >> 16) as i32;
+    }
+}
+
+#[inline(always)]
+pub fn qadd(a: Fx, b: Fx) -> Fx {
+    a.wrapping_add(b)
+}
+
+#[inline(always)]
+pub fn qsub(a: Fx, b: Fx) -> Fx {
+    a.wrapping_sub(b)
+}
+
+// ============================================================
+// RÖSSLER PARAMETERS
+// ============================================================
+//
+// Canonical bounded coefficients:
+//
+//   dx = -(y + z)
+//   dy = x + a*y
+//   dz = b + z*(x - c)
+//
+// ============================================================
+
+#[cfg(feature = "q64")]
+pub const A: Fx = ((1u128 << 64) / 5) as i64; // 0.2
+
+#[cfg(not(feature = "q64"))]
+pub const A: Fx = ((1u32 << 16) / 5) as i32;
+
+#[cfg(feature = "q64")]
+pub const B: Fx = ((1u128 << 64) / 5) as i64;
+
+#[cfg(not(feature = "q64"))]
+pub const B: Fx = ((1u32 << 16) / 5) as i32;
+
+#[cfg(feature = "q64")]
+pub const C: Fx =
+    (((1u128 << 64) * 57) / 10) as i64; // 5.7
+
+#[cfg(not(feature = "q64"))]
+pub const C: Fx =
+    (((1u32 << 16) * 57) / 10) as i32;
+
+// ============================================================
+// CORE STATE
+// ============================================================
+
+#[repr(C)]
+pub struct State {
+
+    // latent recurrence state
+    pub z: [Fx; 16],
+
+    // memory field
+    pub s: [Fx; 16],
+
+    // coupling field
+    pub kappa: [Fx; 16],
+
+    // rossler coordinates
+    pub x: Fx,
+    pub y: Fx,
+    pub zeta: Fx,
+
+    // accumulator
+    pub z_accumulator: Fx,
+
+    // deterministic recovery flag
+    pub reset_flag: u8,
+}
+
+// ============================================================
+// LIE COUPLING
+// ============================================================
+
+#[inline(always)]
+pub fn lie_bracket(
+    z: Fx,
+    s: Fx,
+    kappa: Fx
+) -> Fx {
+
+    let antisym =
+        qsub(
+            qmul(z, s),
+            qmul(s, z)
+        );
+
+    qmul(antisym, kappa)
+}
+
+// ============================================================
+// RÖSSLER FOLD
+// ============================================================
+//
+// DEV NOTE:
+// ------------------------------------------------------------
+// This is NOT a continuous solver.
+//
+// It is a deterministic discrete recurrence approximation
+// intended for replay-stable state evolution.
+//
+// ============================================================
+
+#[inline(always)]
+pub fn rossler_fold(
+    state: &mut State,
+    dt: Fx
+) {
+
+    // dx = -(y + z)
+    let dx =
+        -qadd(state.y, state.zeta);
+
+    // dy = x + a*y
+    let dy =
+        qadd(
+            state.x,
+            qmul(A, state.y)
+        );
+
+    // dz = b + z*(x - c)
+    let dz =
+        qadd(
+            B,
+            qmul(
+                state.zeta,
+                qsub(state.x, C)
+            )
+        );
+
+    // deterministic integration
+    state.x =
+        qadd(
+            state.x,
+            qmul(dt, dx)
+        );
+
+    state.y =
+        qadd(
+            state.y,
+            qmul(dt, dy)
+        );
+
+    state.zeta =
+        qadd(
+            state.zeta,
+            qmul(dt, dz)
+        );
+
+    // recurrence accumulator
+    state.z_accumulator =
+        qadd(
+            state.z_accumulator,
+            qmul(dt, dz)
+        );
+}
+
+// ============================================================
+// GHOSTSNAP REBIRTH
+// ============================================================
+//
+// DEV NOTE:
+// ------------------------------------------------------------
+// Reset uses deterministic reseeding.
+//
+// No randomness.
+// No entropy source.
+// No hidden state.
+//
+// ============================================================
+
+#[inline(always)]
+pub fn ghostsnap_rebirth(
+    state: &mut State
+) {
+
+    let mut i = 0;
+
+    while i < 16 {
+
+        state.z[i] =
+            qadd(
+                state.s[i],
+                state.zeta
+            );
+
+        i += 1;
+    }
+
+    state.reset_flag = 1;
+}
+
+// ============================================================
+// ENERGY MEASURE
+// ============================================================
+
+#[inline(always)]
+pub fn energy(
+    state: &State
+) -> Fx {
+
+    let mut e: Fx = 0;
+    let mut i = 0;
+
+    while i < 16 {
+
+        e = qadd(
+            e,
+            qmul(
+                state.z[i],
+                state.z[i]
+            )
+        );
+
+        i += 1;
+    }
+
+    e
+}
+
+// ============================================================
+// THERMAL GUARD
+// ============================================================
+
+#[cfg(feature = "q64")]
+pub const THRESH: Fx =
+    (8u128 << 64) as i64;
+
+#[cfg(not(feature = "q64"))]
+pub const THRESH: Fx =
+    (8u32 << 16) as i32;
+
+#[inline(always)]
+pub fn thermal_guard(
+    state: &mut State
+) {
+
+    if energy(state) > THRESH {
+        ghostsnap_rebirth(state);
+    }
+}
+
+// ============================================================
+// MAIN STEP
+// ============================================================
+//
+// PIPELINE:
+// ------------------------------------------------------------
+// 1. Lie coupling
+// 2. Rossler fold
+// 3. Drift accumulation
+// 4. Thermal guard
+//
+// ============================================================
+
+#[inline(always)]
+pub fn step(
+    state: &mut State,
+    dt: Fx
+) {
+
+    rossler_fold(state, dt);
+
+    let mut i = 0;
+
+    while i < 16 {
+
+        let coupling =
+            lie_bracket(
+                state.z[i],
+                state.s[i],
+                state.kappa[i]
+            );
+
+        state.z[i] =
+            qadd(
+                state.z[i],
+                qmul(dt, coupling)
+            );
+
+        i += 1;
+    }
+
+    thermal_guard(state);
+}
+
+// ============================================================
+// HASH CONTRACT
+// ============================================================
+//
+// DEV NOTE:
+// ------------------------------------------------------------
+// Hash MUST match across:
+// - x86_64
+// - aarch64
+// - wasm32
+//
+// Floating-point is forbidden to preserve parity.
+//
+// ============================================================
+
+#[inline(always)]
+pub fn dvsm_hash(
+    state: &State
+) -> u64 {
+
+    let mut h: u64 =
+        0xcbf29ce484222325;
+
+    let mut i = 0;
+
+    while i < 16 {
+
+        h ^= state.z[i] as u64;
+
+        h = h.wrapping_mul(
+            0x100000001b3
+        );
+
+        i += 1;
+    }
+
+    h
+}
+
+// ============================================================
+// WASM ABI
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn dvsm_step(
+    state: *mut State,
+    dt: Fx
+) {
+
+    unsafe {
+
+        if let Some(s) = state.as_mut() {
+            step(s, dt);
+        }
+    }
+}
+
+///! ============================================================
+//! DVSM-π+++ // RÖSSLER MANIFOLD CODEC ADDENDUM
+//! ------------------------------------------------------------
+//! TITLE:
+//! Deterministic Projection-Stabilized Recurrence Kernel
+//! with Chaotic Rössler Compression + GhostSnap Recovery
+//!
+//! AUTHOR: Daniel J. Dillberg
+//! VERSION: V20.4-ROSS-HARD
+//! LICENSE: Proprietary Research / Experimental
+//! ============================================================
+//!
+//! CLASSIFICATION
+//! ------------------------------------------------------------
+//! This system is:
+//! - deterministic fixed-point recurrence logic
+//! - manifold-constrained state evolution
+//! - replay-stable chaotic compression
+//!
+//! This system is NOT:
+//! - validated physics
+//! - quantum simulation
+//! - exotic matter modeling
+//! - scientifically verified biophysics
+//!
+//! ============================================================
+//!
+//! NOVEL IMPLEMENTATION CLAIM (ARCHITECTURAL)
+//! ------------------------------------------------------------
+//! This implementation claims a novel SOFTWARE ARCHITECTURE
+//! consisting of the following ordered combination:
+//!
+//! 1. Fixed-point deterministic recurrence
+//! 2. Rössler chaotic attractor integration
+//! 3. Lie-style antisymmetric coupling
+//! 4. Projection-stabilized bounded evolution
+//! 5. Hysteresis-gated GhostSnap recovery
+//! 6. Deterministic replay hashing
+//!
+//! The claimed novelty is NOT the Rössler equations themselves,
+//! but their integration into a deterministic manifold-constrained
+//! recurrence pipeline with replay-stable recovery semantics.
+//!
+//! ============================================================
+
+#![no_std]
+
+// ============================================================
+// CONFIG
+// ============================================================
+
+pub const N: usize = 16;
+pub const Q: i32 = 16;
+
+// deterministic thresholds
+pub const TH_HIGH: i32 = 10 << Q;
+pub const TH_LOW: i32  = 6 << Q;
+
+// Rössler canonical parameters (Q16.16)
+pub const R_A: i32 = (0.2f32 * 65536.0) as i32;
+pub const R_B: i32 = (0.2f32 * 65536.0) as i32;
+pub const R_C: i32 = (5.7f32 * 65536.0) as i32;
+
+// ============================================================
+// FIXED POINT CORE
+// ============================================================
+
+#[inline(always)]
+pub fn qmul(a: i32, b: i32) -> i32 {
+    ((a as i64 * b as i64) >> Q) as i32
+}
+
+#[inline(always)]
+pub fn qabs(x: i32) -> i32 {
+    if x < 0 { -x } else { x }
+}
+
+// ============================================================
+// CORE STATE
+// ============================================================
+
+#[repr(C)]
+pub struct State {
+
+    // latent recurrence state
+    pub z: [i32; N],
+
+    // EMA memory manifold
+    pub s: [i32; N],
+
+    // antisymmetric coupling
+    pub kappa: [i32; N * N],
+
+    // Rössler chaotic manifold
+    pub ross_x: i32,
+    pub ross_y: i32,
+    pub ross_z: i32,
+
+    // deterministic recovery flag
+    pub reset_flag: u8,
+}
+
+// ============================================================
+// LIE COUPLING
+// ============================================================
+
+#[inline(always)]
+pub fn lie_bracket(
+    z: &[i32; N],
+    s: &[i32; N],
+    kappa: &[i32; N * N]
+) -> i32 {
+
+    let mut acc = 0i32;
+
+    let mut i = 0;
+    while i < N {
+
+        let mut j = 0;
+        while j < N {
+
+            let idx = i * N + j;
+
+            let skew =
+                qmul(z[i], s[j])
+              - qmul(z[j], s[i]);
+
+            acc = acc.wrapping_add(
+                qmul(skew, kappa[idx])
+            );
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    acc
+}
+
+// ============================================================
+// RÖSSLER CHAOTIC FOLD
+// ============================================================
+//
+// dx = -(y + z)
+// dy = x + a*y
+// dz = b + z*(x - c)
+//
+// deterministic fixed-point implementation
+//
+// ============================================================
+
+#[inline(always)]
+pub fn rossler_fold(state: &mut State, dt: i32) {
+
+    let dx =
+        -(state.ross_y.wrapping_add(state.ross_z));
+
+    let dy =
+        state.ross_x
+        .wrapping_add(qmul(R_A, state.ross_y));
+
+    let dz =
+        R_B
+        .wrapping_add(
+            qmul(
+                state.ross_z,
+                state.ross_x.wrapping_sub(R_C)
+            )
+        );
+
+    state.ross_x =
+        state.ross_x.wrapping_add(qmul(dt, dx));
+
+    state.ross_y =
+        state.ross_y.wrapping_add(qmul(dt, dy));
+
+    state.ross_z =
+        state.ross_z.wrapping_add(qmul(dt, dz));
+}
+
+// ============================================================
+// CHAOTIC GHOSTSNAP REBIRTH
+// ============================================================
+//
+// recovery reseeds from chaotic manifold instead of zero origin
+//
+// ============================================================
+
+#[inline(always)]
+pub fn ghostsnap_rebirth(state: &mut State) {
+
+    let mut i = 0;
+
+    while i < N {
+
+        state.z[i] =
+            state.s[i]
+            .wrapping_add(state.ross_x >> 4)
+            .wrapping_sub(state.ross_y >> 5)
+            .wrapping_add(state.ross_z >> 6);
+
+        i += 1;
+    }
+
+    state.reset_flag = 1;
+}
+
+// ============================================================
+// ENERGY MEASURE
+// ============================================================
+
+#[inline(always)]
+pub fn measure_energy(z: &[i32; N]) -> i32 {
+
+    let mut e = 0i32;
+
+    let mut i = 0;
+    while i < N {
+
+        e = e.wrapping_add(
+            qmul(z[i], z[i])
+        );
+
+        i += 1;
+    }
+
+    e
+}
+
+// ============================================================
+// DETERMINISTIC PROJECTION
+// ============================================================
+//
+// bounded manifold projection
+//
+// ============================================================
+
+#[inline(always)]
+pub fn cayley_project(x: i32) -> i32 {
+
+    let denom =
+        (1 << Q).wrapping_add(qabs(x));
+
+    if denom == 0 {
+        return 0;
+    }
+
+    qmul(x, ((1 << Q) / denom))
+}
+
+// ============================================================
+// UNIFIED STEP PIPELINE
+// ============================================================
+//
+// Zₜ₊₁ = Π(Zₜ + dt([Z,S]κ + chaos − λZ))
+//
+// ============================================================
+
+pub fn step(
+    state: &mut State,
+    dt: i32,
+    lambda: i32
+) {
+
+    // --------------------------------------------------------
+    // 1. CHAOTIC MANIFOLD EVOLUTION
+    // --------------------------------------------------------
+
+    rossler_fold(state, dt);
+
+    // --------------------------------------------------------
+    // 2. LIE COUPLING
+    // --------------------------------------------------------
+
+    let coupling =
+        lie_bracket(
+            &state.z,
+            &state.s,
+            &state.kappa
+        );
+
+    // --------------------------------------------------------
+    // 3. ENERGY CHECK
+    // --------------------------------------------------------
+
+    let energy =
+        measure_energy(&state.z);
+
+    // --------------------------------------------------------
+    // 4. HYSTERESIS RECOVERY
+    // --------------------------------------------------------
+
+    if energy > TH_HIGH {
+
+        ghostsnap_rebirth(state);
+
+    } else if energy < TH_LOW {
+
+        state.reset_flag = 0;
+    }
+
+    // --------------------------------------------------------
+    // 5. PROJECTED RECURRENCE
+    // --------------------------------------------------------
+
+    let mut i = 0;
+
+    while i < N {
+
+        let chaos =
+            state.ross_x
+            .wrapping_add(state.ross_y)
+            .wrapping_sub(state.ross_z);
+
+        let drift =
+            coupling
+            .wrapping_add(chaos)
+            .wrapping_sub(
+                qmul(lambda, state.z[i])
+            );
+
+        let raw =
+            state.z[i]
+            .wrapping_add(
+                qmul(dt, drift)
+            );
+
+        state.z[i] =
+            cayley_project(raw);
+
+        i += 1;
+    }
+
+    // --------------------------------------------------------
+    // 6. EMA MEMORY UPDATE
+    // --------------------------------------------------------
+
+    i = 0;
+
+    while i < N {
+
+        state.s[i] =
+            qmul(state.s[i], (1 << Q) - (1 << (Q - 1)))
+            .wrapping_add(
+                qmul(state.z[i], (1 << (Q - 1)))
+            );
+
+        i += 1;
+    }
+}
+
+// ============================================================
+// DETERMINISTIC HASH CONTRACT
+// ============================================================
+
+#[inline(always)]
+pub fn dvsm_hash(state: &State) -> u64 {
+
+    let mut h: u64 =
+        0xcbf29ce484222325;
+
+    let mut i = 0;
+
+    while i < N {
+
+        h ^= state.z[i] as u64;
+
+        h = h.wrapping_mul(
+            0x100000001b3
+        );
+
+        i += 1;
+    }
+
+    h
+}
+
+// ============================================================
+// TRACE OUTPUT
+// ============================================================
+
+#[repr(C)]
+pub struct TraceFrame {
+
+    pub energy: i32,
+    pub ross_x: i32,
+    pub ross_y: i32,
+    pub ross_z: i32,
+    pub reset_flag: u8,
+    pub replay_hash: u64,
+}
+
+pub fn trace(
+    state: &State
+) -> TraceFrame {
+
+    TraceFrame {
+
+        energy:
+            measure_energy(&state.z),
+
+        ross_x:
+            state.ross_x,
+
+        ross_y:
+            state.ross_y,
+
+        ross_z:
+            state.ross_z,
+
+        reset_flag:
+            state.reset_flag,
+
+        replay_hash:
+            dvsm_hash(state),
+    }
+}
+
+// ============================================================
+// FORMAL ENGINEERING NOTES
+// ============================================================
+//
+// CLAIMED ARCHITECTURAL FEATURES
+// ------------------------------------------------------------
+// - deterministic chaotic recurrence
+// - manifold-bounded projection
+// - replay-stable GhostSnap recovery
+// - fixed-point cross-platform parity
+//
+// NON-CLAIMS
+// ------------------------------------------------------------
+// - not a verified physics simulator
+// - not cryptographically certified
+// - not a scientific proof of chaos compression
+// - not a validated quantum model
+//
+// VERIFICATION TARGETS
+// ------------------------------------------------------------
+// I1: deterministic_step
+// I2: bounded_energy
+// I3: replay_parity
+// I4: no_hidden_entropy
+//
+// ============================================================
