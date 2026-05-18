@@ -1,4 +1,3 @@
-```rust
 // dvsm_v20_final.rs
 // DVSM-π+++ V20.4 · Deterministic Spectral Arbitration Kernel
 // Author: Daniel J. Dillberg · License: ALGP-3
