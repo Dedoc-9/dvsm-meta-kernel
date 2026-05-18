@@ -16,6 +16,17 @@ let scaled = work >> 8;
 state.h = state.h.saturating_add(scaled);
 let h_norm = qdiv(state.h, 1 << 16);
 //
+// // DVSM-π+++ v1b // DIPOLE ENERGY HARVEST (5-line core)
+// ----------------------------------------------------
+// Stabilization Workload Metric (W_s) = |Attractor - Repulsor| accumulation
+
+#[inline(always)]
+fn dipole_energy_harvest(attractor: i32, repulsor: i32, h: &mut i32) {
+    let tension = qabs(attractor.sub(repulsor));
+    let work = qmul(tension, tension); // quadratic stress proxy
+    *h = h.saturating_add(work >> 8);
+}
+//
 // CONTRACT:
 // - No floating-point randomness (only deterministic conversion boundaries)
 // - Fixed-point arithmetic only (Q31.32 ABI core type)
