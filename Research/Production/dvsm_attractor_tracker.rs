@@ -1,6 +1,6 @@
 // dvsm_attractor_tracker.rs
 // DVSM-π+++ V20.4 · Phase-Space Trajectory Analysis Addendum
-// Author: Daniel J. Dillberg ·
+// Author: Daniel J. Dillberg · Contact: BigDilly95@gmail.com
 //
 // ════════════════════════════════════════════════════════════════
 // WHAT THIS DOES (real, grounded)
@@ -371,9 +371,9 @@ impl Tracker {
     // ── grid mapping ────────────────────────────────────────
     #[inline]
     fn to_grid(&self, val: f64) -> u8 {
-        // map [-z_range, +z_range] → [0, GRID-1]
-        let normalized = (val / self.z_range + 1.0) * 0.5; // [0, 1]
-        let clamped = normalized.max(0.0).min(0.999);
+        // PCA projections centered near 0. Map [-z_range, +z_range] → [0, GRID-1]
+        let normalized = val / (2.0 * self.z_range) + 0.5; // [0, 1] when val ∈ [-z_range, z_range]
+        let clamped = normalized.clamp(0.0, 1.0 - 1e-9);   // never reaches 1.0 (would be index GRID)
         (clamped * GRID as f64) as u8
     }
 }
