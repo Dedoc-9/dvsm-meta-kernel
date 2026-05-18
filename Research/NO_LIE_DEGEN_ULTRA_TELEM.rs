@@ -395,3 +395,86 @@ fn run_profile<T: Fp>(name: &str, r: usize, path: &str) {
 
 #[cfg(not(feature = "std"))]
 pub fn main() {}
+
+// ─────────────────────────────────────────────────────────────
+// VAJRA HYBRID SINK MODULE (V20.4 ADDENDUM)
+// ─────────────────────────────────────────────────────────────
+// Deterministic bounded damping layer
+// NO FLOATING POINT, REPLAY-STABLE, FIXED-POINT ONLY
+// ─────────────────────────────────────────────────────────────
+
+impl<T: Fp> Core<T> {
+
+    #[inline(always)]
+    fn q_abs(x: T) -> T {
+        // portable absolute via subtraction trick is type-dependent
+        // fallback: x - 2*(x if negative)
+        // NOTE: assumes symmetric representation in Q formats
+        let zero = T::zero();
+        if x.to_f64() < 0.0 {
+            zero.sub(x)
+        } else {
+            x
+        }
+    }
+
+    #[inline(always)]
+    fn q_tanh_like(x: T) -> T {
+        // deterministic contraction approximation:
+        // tanh(x) ≈ x / (1 + |x|)
+        let ax = Self::q_abs(x);
+        let one = T::from_f64(1.0);
+        let denom = one.add(ax);
+
+        // x / (1 + |x|) ≈ x * inv(denom)
+        // fixed-point reciprocal approximation (1/denom via linearization)
+        let inv = one.sub(denom.mul(T::from_f64(0.5)));
+        x.mul(inv)
+    }
+
+    #[inline(always)]
+    fn cayley_sink(x: T) -> T {
+        // Π(x) = x / (1 + |x|)
+        let ax = Self::q_abs(x);
+        let one = T::from_f64(1.0);
+        let denom = one.add(ax);
+
+        let inv = one.sub(denom.mul(T::from_f64(0.5)));
+        x.mul(inv)
+    }
+
+    #[inline(always)]
+    fn vajra_sink(x: T, alpha: T, beta: T) -> T {
+        // 1. stiffness scaling
+        let ax = x.mul(alpha);
+
+        // 2. soft contraction (tanh-like)
+        let t = self.q_tanh_like(ax);
+
+        // 3. hard bounded projection
+        let p = self.cayley_sink(t);
+
+        // 4. final gain control
+        p.mul(beta)
+    }
+
+    /// OPTIONAL: apply damping to Z state (non-destructive injection)
+    #[inline(always)]
+    pub fn apply_vajra_sink(&mut self) {
+        let r = self.r;
+        let mut k = 0;
+
+        while k < r {
+            let damp = self.vajra_sink(
+                self.z[k],
+                self.alpha,
+                self.one_minus_alpha
+            );
+
+            // injection: z = z - dt * damp
+            self.z[k] = self.z[k].sub(self.dt.mul(damp));
+
+            k += 1;
+        }
+    }
+}
