@@ -420,3 +420,115 @@ pub fn step(core: &mut Core, dt: Q, lambda: Q, alpha: Q, fault: i64) {
 
     core.frame = core.frame.wrapping_add(1);
 }
+// DVSM-π+++ v1b // SIMPLIFIED SEALED CORE (NO ROSSLER / NO EXTRA NONLINEAR CHAOS TERMS)
+// -----------------------------------------------------------------------------
+// Minimal bounded recurrence: Lie + damping + projection + observation-only H
+
+#![no_std]
+
+pub const RMAX: usize = 16;
+
+#[derive(Copy, Clone)]
+pub struct Q(i32);
+
+#[inline(always)]
+fn qmul(a: Q, b: Q) -> Q {
+    Q(((a.0 as i64 * b.0 as i64) >> 32) as i32)
+}
+
+#[inline(always)]
+fn qadd(a: Q, b: Q) -> Q { Q(a.0.wrapping_add(b.0)) }
+
+#[inline(always)]
+fn qsub(a: Q, b: Q) -> Q { Q(a.0.wrapping_sub(b.0)) }
+
+#[inline(always)]
+fn qabs(a: Q) -> Q { if a.0 < 0 { Q(-a.0) } else { a } }
+
+// ---------------- CORE STATE ----------------
+
+pub struct Core {
+    pub z: [Q; RMAX],
+    pub s: [Q; RMAX],
+    pub h: i64,
+    pub r: usize,
+    pub alive: bool,
+}
+
+// ---------------- OPERATORS (BOUNDED ONLY) ----------------
+
+#[inline(always)]
+fn lie(z: &[Q], s: &[Q]) -> Q {
+    let mut acc = 0i64;
+    for i in 0..z.len() {
+        acc += ((z[i].0 as i64 * s[i].0 as i64) >> 32);
+    }
+    Q(acc as i32)
+}
+
+#[inline(always)]
+fn damp(z: &[Q]) -> Q {
+    let mut acc = Q::zero();
+    for i in 0..z.len() {
+        acc = qsub(acc, Q(z[i].0 >> 4));
+    }
+    acc
+}
+
+#[inline(always)]
+fn project(x: Q) -> Q {
+    let a = qabs(x);
+    if a.0 > (1 << 30) { Q(x.0 >> 2) } else { x }
+}
+
+// ---------------- FAULT HANDLING ----------------
+
+#[inline(always)]
+fn ghost_snap(z: &mut [Q], s: &mut [Q]) {
+    for i in 0..z.len() {
+        z[i] = Q(1 << 20);
+        s[i] = Q::zero();
+    }
+}
+
+// ---------------- OBSERVER ONLY ----------------
+
+#[inline(always)]
+fn update_h(core: &mut Core) {
+    let mut e = 0i64;
+    for i in 0..core.r {
+        e += ((core.z[i].0 as i64 * core.z[i].0 as i64) >> 32);
+    }
+    core.h = core.h.saturating_add(e >> 8);
+}
+
+// ---------------- STEP (MINIMAL CONTRACT) ----------------
+
+#[inline(always)]
+pub fn step(core: &mut Core, dt: Q, lambda: Q, alpha: Q) {
+    for i in 0..core.r {
+
+        let coupling = qadd(lie(&core.z, &core.s), damp(&core.z));
+
+        let raw = qadd(
+            core.z[i],
+            qmul(dt, qsub(coupling, qmul(lambda, core.z[i])))
+        );
+
+        let damped = qsub(raw, qmul(alpha, raw));
+
+        core.z[i] = project(damped);
+
+        if qabs(core.z[i]).0 > (1 << 30) {
+            ghost_snap(&mut core.z, &mut core.s);
+            core.alive = false;
+            return;
+        }
+    }
+
+    for i in 0..core.r {
+        core.s[i] = qadd(core.s[i], core.z[i]);
+    }
+
+    update_h(core);
+}
