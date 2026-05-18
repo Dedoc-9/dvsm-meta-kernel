@@ -133,6 +133,12 @@ pub struct Tracker {
     shadow_initialized: bool,
     divergence_acc: f64,
     divergence_samples: u32,
+    // online PCA (EMA covariance + power iteration)
+    cov: [f64; RMAX * RMAX],     // EMA covariance matrix (symmetric, upper tri used)
+    pc0: [f64; RMAX],            // first principal component
+    pc1: [f64; RMAX],            // second principal component (deflated)
+    pca_alpha: f64,              // EMA decay for covariance (0.98 default)
+    pca_warmup: u32,             // frames before PCA projection activates
     // total frames tracked
     pub frames_tracked: u64,
     // config
@@ -141,6 +147,9 @@ pub struct Tracker {
 
 impl Tracker {
     pub fn new(z_range: f64) -> Self {
+        // init PC0/PC1 to axis-aligned (will converge within ~50 frames)
+        let mut pc0 = [0.0f64; RMAX]; pc0[0] = 1.0;
+        let mut pc1 = [0.0f64; RMAX]; if RMAX > 1 { pc1[1] = 1.0; }
         Self {
             visits: [0; GRID2],
             last_visit: [0; GRID2],
@@ -155,6 +164,10 @@ impl Tracker {
             shadow_initialized: false,
             divergence_acc: 0.0,
             divergence_samples: 0,
+            cov: [0.0; RMAX * RMAX],
+            pc0, pc1,
+            pca_alpha: 0.98,
+            pca_warmup: 50,
             frames_tracked: 0,
             z_range: z_range.max(1e-6),
         }
@@ -163,13 +176,80 @@ impl Tracker {
     /// Call once per frame after core.step(). Pass Z as f64 slice.
     pub fn track(&mut self, z: &[f64], r: usize, frame: u64, energy: f64, stress: f64) {
         let r = r.min(RMAX);
+        let a = self.pca_alpha;
 
-        // ── 1. Find two highest-energy modes (Poincaré projection axes) ──
-        let (ax0, ax1) = find_top_two_modes(z, r);
+        // ── 1. Update EMA covariance matrix (O(r²), symmetric) ──
+        let mut i = 0;
+        while i < r {
+            let mut j = i;
+            while j < r {
+                let sample = z[i] * z[j];
+                let idx = i * RMAX + j;
+                self.cov[idx] = a * self.cov[idx] + (1.0 - a) * sample;
+                if i != j { self.cov[j * RMAX + i] = self.cov[idx]; } // symmetric
+                j += 1;
+            }
+            i += 1;
+        }
 
-        // ── 2. Map to grid cell ─────────────────────────────
-        let ix = self.to_grid(z[ax0]);
-        let iy = self.to_grid(z[ax1]);
+        // ── 2. Power iteration for PC0 (5 iterations, O(r) each) ──
+        if self.frames_tracked >= self.pca_warmup as u64 {
+            // PC0: dominant eigenvector of cov
+            let mut k = 0;
+            while k < 5 {
+                let mut new_pc = [0.0f64; RMAX];
+                let mut ii = 0;
+                while ii < r {
+                    let mut sum = 0.0;
+                    let mut jj = 0;
+                    while jj < r { sum += self.cov[ii * RMAX + jj] * self.pc0[jj]; jj += 1; }
+                    new_pc[ii] = sum;
+                    ii += 1;
+                }
+                // normalize
+                let mut norm2 = 0.0;
+                ii = 0; while ii < r { norm2 += new_pc[ii] * new_pc[ii]; ii += 1; }
+                let inv = if norm2 > 1e-30 { 1.0 / norm2.sqrt() } else { 1.0 };
+                ii = 0; while ii < r { self.pc0[ii] = new_pc[ii] * inv; ii += 1; }
+                k += 1;
+            }
+
+            // PC1: deflate cov by PC0, then power iterate
+            // deflated_cov = cov - (cov·pc0)(pc0ᵀ) [rank-1 subtraction]
+            // Instead of building deflated matrix, just orthogonalize result against pc0
+            k = 0;
+            while k < 5 {
+                let mut new_pc = [0.0f64; RMAX];
+                let mut ii = 0;
+                while ii < r {
+                    let mut sum = 0.0;
+                    let mut jj = 0;
+                    while jj < r { sum += self.cov[ii * RMAX + jj] * self.pc1[jj]; jj += 1; }
+                    new_pc[ii] = sum;
+                    ii += 1;
+                }
+                // subtract projection onto pc0 (Gram-Schmidt)
+                let mut dot0 = 0.0;
+                ii = 0; while ii < r { dot0 += new_pc[ii] * self.pc0[ii]; ii += 1; }
+                ii = 0; while ii < r { new_pc[ii] -= dot0 * self.pc0[ii]; ii += 1; }
+                // normalize
+                let mut norm2 = 0.0;
+                ii = 0; while ii < r { norm2 += new_pc[ii] * new_pc[ii]; ii += 1; }
+                let inv = if norm2 > 1e-30 { 1.0 / norm2.sqrt() } else { 1.0 };
+                ii = 0; while ii < r { self.pc1[ii] = new_pc[ii] * inv; ii += 1; }
+                k += 1;
+            }
+        }
+
+        // ── 3. Project Z onto PC0 and PC1 (adaptive Poincaré section) ──
+        let mut proj0 = 0.0f64;
+        let mut proj1 = 0.0f64;
+        i = 0;
+        while i < r { proj0 += z[i] * self.pc0[i]; proj1 += z[i] * self.pc1[i]; i += 1; }
+
+        // ── 4. Map to grid cell ─────────────────────────────
+        let ix = self.to_grid(proj0);
+        let iy = self.to_grid(proj1);
         self.current_cell = Cell { ix, iy };
         let cid = self.current_cell.id();
 
@@ -298,22 +378,7 @@ impl Tracker {
     }
 }
 
-// ── find two modes with highest energy ──────────────────────
-fn find_top_two_modes(z: &[f64], r: usize) -> (usize, usize) {
-    let mut i0 = 0usize;
-    let mut i1 = if r > 1 { 1 } else { 0 };
-    let mut e0 = z[0] * z[0];
-    let mut e1 = if r > 1 { z[1] * z[1] } else { 0.0 };
-    if e1 > e0 { let t = i0; i0 = i1; i1 = t; let te = e0; e0 = e1; e1 = te; }
-    let mut k = 2;
-    while k < r {
-        let ek = z[k] * z[k];
-        if ek > e0 { i1 = i0; e1 = e0; i0 = k; e0 = ek; }
-        else if ek > e1 { i1 = k; e1 = ek; }
-        k += 1;
-    }
-    (i0, i1)
-}
+// (find_top_two_modes removed — replaced by online PCA projection)
 
 // ── C ABI ───────────────────────────────────────────────────
 
