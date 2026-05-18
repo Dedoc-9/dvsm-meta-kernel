@@ -139,3 +139,66 @@ pub const DVSM_CORE_SPEC_JSON: &str = r#"
   ]
 }
 "#;
+// ─────────────────────────────────────────────────────────────
+// STEP 6: ADAPTIVE BASIS UPDATE (HARDENED)
+// W += η · R ⊗ (c / ||c||)
+// Deadzone-protected normalization for deterministic replay
+// ─────────────────────────────────────────────────────────────
+
+const EPSILON_Q31: i64 = 1 << 12; // fixed-point deadzone threshold
+
+#[inline(always)]
+fn compute_norm2(c: &[Q31; 2]) -> i64 {
+    let mut acc: i64 = 0;
+    for i in 0..2 {
+        let v = c[i].0;
+        acc = acc.saturating_add(((v as i128 * v as i128) >> 32) as i64);
+    }
+    acc
+}
+
+#[inline(always)]
+fn q31_inv_sqrt(x: i64) -> Q31 {
+    // deterministic placeholder inverse sqrt
+    // replace with LUT/Newton-Raphson for production parity
+    if x <= 0 {
+        return Q31(0);
+    }
+
+    let xf = (x as f64) / 4294967296.0;
+    Q31::from_f64(1.0 / xf.sqrt())
+}
+
+#[inline(always)]
+pub fn adaptive_basis_update(
+    w: &mut [Q31; RMAX * 2],
+    rvec: &[Q31; RMAX],
+    c: &[Q31; 2],
+    eta: Q31,
+) {
+    // ||c||²
+    let c_norm2 = compute_norm2(c);
+
+    // Deadzone guard:
+    // if projection collapses near origin, freeze basis update
+    if c_norm2 <= EPSILON_Q31 {
+        return;
+    }
+
+    // inv(||c||)
+    let inv_norm = q31_inv_sqrt(c_norm2);
+
+    // normalized coordinates
+    let cn0 = c[0].mul(inv_norm);
+    let cn1 = c[1].mul(inv_norm);
+
+    // W += η · R ⊗ ĉ
+    for k in 0..RMAX {
+        let rv = rvec[k];
+
+        w[k] = w[k].add(eta.mul(rv).mul(cn0));
+
+        w[RMAX + k] =
+            w[RMAX + k].add(eta.mul(rv).mul(cn1));
+    }
+}
