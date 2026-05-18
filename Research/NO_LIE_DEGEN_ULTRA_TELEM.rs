@@ -508,3 +508,182 @@ impl<T: Fp> Core<T> {
         }
     }
 }
+#![no_std]
+
+// ============================================================
+// DVSM-π+++ v1b // IP + ARCHITECTURAL CLAIM (RUST CORE)
+// ------------------------------------------------------------
+// Deterministic Projection-Stabilized Recurrence System
+// with Non-Mutative H-Metric Observability
+//
+// NOTE:
+// This is an ARCHITECTURAL SPECIFICATION KERNEL.
+// H is observational only. No control feedback is permitted.
+// ============================================================
+
+pub const RMAX: usize = 16;
+
+// ─────────────────────────────────────────────────────────────
+// FIXED POINT CORE (minimal deterministic integer model)
+// ─────────────────────────────────────────────────────────────
+
+#[derive(Clone, Copy)]
+pub struct Q31(pub i32);
+
+impl Q31 {
+    #[inline(always)]
+    pub fn zero() -> Self { Q31(0) }
+
+    #[inline(always)]
+    pub fn add(self, r: Self) -> Self {
+        Q31(self.0.wrapping_add(r.0))
+    }
+
+    #[inline(always)]
+    pub fn sub(self, r: Self) -> Self {
+        Q31(self.0.wrapping_sub(r.0))
+    }
+
+    #[inline(always)]
+    pub fn mul(self, r: Self) -> Self {
+        Q31(((self.0 as i64 * r.0 as i64) >> 16) as i32)
+    }
+
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        if self.0 < 0 { Q31(-self.0) } else { self }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CORE STATE
+// ─────────────────────────────────────────────────────────────
+
+pub struct DvsmIpClaim {
+    pub z: [Q31; RMAX],
+    pub s: [Q31; RMAX],
+    pub h: i64,
+    pub reset_gate: bool,
+}
+
+// ─────────────────────────────────────────────────────────────
+// NONLINEAR BOUNDED PROJECTION (VAJRA-SINK)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn vajra_sink(x: Q31, alpha: Q31, dt: Q31) -> Q31 {
+    // bounded contraction: x - α·x·dt
+    let damp = x.mul(alpha).mul(dt);
+    x.sub(damp)
+}
+
+// ─────────────────────────────────────────────────────────────
+// LIE-STYLE RECURRENCE (SIMPLIFIED DISCRETE OPERATOR)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn lie_step(z: Q31, s: Q31, kappa: Q31, dt: Q31, lambda: Q31) -> Q31 {
+    let interaction = z.mul(s).mul(kappa);
+    let decay = z.mul(lambda);
+    z.add(dt.mul(interaction.sub(decay)))
+}
+
+// ─────────────────────────────────────────────────────────────
+// EMA MEMORY UPDATE (REFERENCE FIELD)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn ema(old: Q31, new: Q31, alpha: Q31) -> Q31 {
+    old.mul(alpha).add(new.mul(Q31::from_i32(1).sub(alpha)))
+}
+
+// helper for fixed-point alpha construction
+impl Q31 {
+    #[inline(always)]
+    pub fn from_i32(v: i32) -> Self { Q31(v << 8) }
+}
+
+// ─────────────────────────────────────────────────────────────
+// H METRIC (OBSERVATIONAL ONLY)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn update_h(z: &[Q31; RMAX], s: &[Q31; RMAX], h: &mut i64) {
+    let mut acc: i64 = 0;
+
+    for i in 0..RMAX {
+        let dz = z[i].sub(s[i]).abs().0 as i64;
+        acc = acc.wrapping_add(dz >> 4);
+    }
+
+    *h = h.saturating_add(acc);
+}
+
+// ─────────────────────────────────────────────────────────────
+// GHOST SNAP (FAULT CONTAINMENT RESET POLICY)
+// ─────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn ghost_snap(core: &mut DvsmIpClaim) {
+    for i in 0..RMAX {
+        core.z[i] = Q31::zero();
+        core.s[i] = Q31::zero();
+    }
+    core.reset_gate = true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SINGLE STEP EXECUTION CONTRACT (FIXED ORDER)
+// ─────────────────────────────────────────────────────────────
+
+impl DvsmIpClaim {
+    /// Execution Order:
+    /// 1. Fault containment check
+    /// 2. Lie recurrence update
+    /// 3. Vajra projection
+    /// 4. H observation accumulation
+    /// 5. EMA memory commit
+    #[inline(always)]
+    pub fn step(
+        &mut self,
+        dt: Q31,
+        alpha: Q31,
+        lambda: Q31,
+        kappa: Q31,
+        fault_threshold: i64,
+    ) {
+        // 1. FAULT CHECK (simple energy proxy)
+        let mut energy: i64 = 0;
+        for i in 0..RMAX {
+            energy += self.z[i].abs().0 as i64;
+        }
+
+        if energy > fault_threshold {
+            ghost_snap(self);
+            return;
+        }
+
+        let mut next_z = self.z;
+
+        // 2. LIE RECURRENCE
+        for i in 0..RMAX {
+            next_z[i] = lie_step(self.z[i], self.s[i], kappa, dt, lambda);
+        }
+
+        // 3. VAJRA-SINK PROJECTION
+        for i in 0..RMAX {
+            next_z[i] = vajra_sink(next_z[i], alpha, dt);
+        }
+
+        // commit state
+        self.z = next_z;
+
+        // 4. H METRIC (OBSERVATIONAL ONLY)
+        update_h(&self.z, &self.s, &mut self.h);
+
+        // 5. EMA MEMORY COMMIT
+        for i in 0..RMAX {
+            self.s[i] = ema(self.s[i], self.z[i], alpha);
+        }
+    }
+}
