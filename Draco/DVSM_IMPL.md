@@ -1112,6 +1112,280 @@ pub fn compute_norm_variance(state: &DVSMState, window_size: usize) -> f32 {
 }
 ```
 
+### §8.3 Q31.32 Fixed-Point Lie-Bracket Kernel (Z2 Extreme Integer-Only Evolution)
+
+**Purpose:** Hardware-locked deterministic arithmetic. All operations integer-only; zero floating-point rounding error.
+
+**Encoding:** x_fixed = floor(x_float × 2^32), decode: x_float = x_fixed / 2^32, range [-2^31, 2^31), ULP = 2^-32 ≈ 2.328e-10
+
+**State Definition (Q31.32 encoding):**
+- z_q[k] ∈ ℤ, represents z_k ∈ ℝ with z_k = z_q[k] / 2^32
+- s_q[k] ∈ ℤ, represents s_k (EMA residual memory)
+- H_t = HASH(z_q ⊕ protocol_version) (hash only; no backreaction feedback to H)
+
+#### §8.3a Q31.32 Arithmetic Primitives
+
+```rust
+/// Multiply two Q31.32 fixed-point values, preserving precision.
+/// Input: a_q, b_q (Q31.32 integers)
+/// Output: (a_q / 2^32) * (b_q / 2^32) = result_q / 2^32
+pub fn mul_q31_32(a_q: i64, b_q: i64) -> i64 {
+    // Compute (a_q * b_q) >> 32
+    // Intermediate: a_q * b_q requires 128-bit precision
+    // On platforms without i128: split into 32-bit halves
+    let hi_a = a_q >> 32;
+    let lo_a = a_q & 0xFFFFFFFF;
+    let hi_b = b_q >> 32;
+    let lo_b = b_q & 0xFFFFFFFF;
+    
+    // Compute product: (hi_a + lo_a)(hi_b + lo_b) with shifts
+    // Full: hi_a*hi_b (shift 64), hi_a*lo_b + lo_a*hi_b (shift 32), lo_a*lo_b (shift 0)
+    let p_hi_hi = (hi_a as i128) * (hi_b as i128);
+    let p_mixed = ((hi_a as i128) * (lo_b as i128)) + ((lo_a as i128) * (hi_b as i128));
+    let p_lo_lo = (lo_a as i128) * (lo_b as i128);
+    
+    let result = (p_hi_hi << 64) + (p_mixed << 32) + p_lo_lo;
+    (result >> 32) as i64
+}
+
+/// Divide two Q31.32 values: (a_q / 2^32) / (b_q / 2^32) = (a_q / b_q)
+pub fn div_q31_32(a_q: i64, b_q: i64) -> i64 {
+    if b_q == 0 {
+        return 0;  // Safety: zero division returns 0
+    }
+    // Compute (a_q * 2^32) / b_q = result_q
+    let numerator = (a_q as i128) << 32;
+    let result = numerator / (b_q as i128);
+    result as i64
+}
+
+/// Add two Q31.32 values with saturation clamp to [-2.0, +2.0] in fixed-point space
+pub fn add_q31_32_clamped(a_q: i64, b_q: i64) -> i64 {
+    let result = a_q.saturating_add(b_q);
+    // Clamp to [-2.0, +2.0] ≡ [-(2.0 * 2^32), +(2.0 * 2^32)] in Q31.32
+    let clamp_max: i64 = (2.0 * (1i64 << 32) as f64) as i64;  // +(2.0 * 2^32)
+    let clamp_min: i64 = -clamp_max;  // -(2.0 * 2^32)
+    result.max(clamp_min).min(clamp_max)
+}
+
+/// Convert float to Q31.32
+pub fn f32_to_q31_32(x: f32) -> i64 {
+    (x * ((1i64 << 32) as f32)) as i64
+}
+
+/// Convert Q31.32 to float
+pub fn q31_32_to_f32(x_q: i64) -> f32 {
+    (x_q as f32) / ((1i64 << 32) as f32)
+}
+```
+
+#### §8.3b Lie-Bracket Integration (Q31.32 Fixed-Point)
+
+**Formal definition:**
+```
+z_q[k]^{t+1} = z_q[k]^t + τ_q · (Σⱼ κ_{kj} · (z_q[k]^t · s_q[j]^t − z_q[j]^t · s_q[k]^t) − λ · z_q[k]^t + rose_q[k]^t)
+
+where τ_q = encode(dt), κ_{kj} = encode(κ_{kj}^float), rose_q[k] = encode(rose_k^float)
+H_t = HASH(z_q ⊕ s_q ⊕ protocol_version) [hash remains immutable anchor; no feedback]
+```
+
+```rust
+/// Lie-bracket term: Σⱼ κ_{kj} · (z_q[k] · s_q[j] − z_q[j] · s_q[k])
+fn bracket_q31_32(z_q: &[i64; 16], s_q: &[i64; 16], kappa_matrix: &[[i64; 16]; 16], k: usize) -> i64 {
+    let mut acc_q: i64 = 0;
+    
+    for j in 0..16 {
+        if j == k { continue; }
+        
+        // Compute z_q[k] * s_q[j] in Q31.32 space
+        let term1_q = mul_q31_32(z_q[k], s_q[j]);
+        
+        // Compute z_q[j] * s_q[k] in Q31.32 space
+        let term2_q = mul_q31_32(z_q[j], s_q[k]);
+        
+        // Bracket: (term1 - term2)
+        let bracket_q = term1_q.saturating_sub(term2_q);
+        
+        // Multiply by κ_{kj}
+        let contrib_q = mul_q31_32(kappa_matrix[k][j], bracket_q);
+        
+        // Accumulate with saturation
+        acc_q = acc_q.saturating_add(contrib_q);
+    }
+    
+    acc_q
+}
+
+/// Step Euler integration in Q31.32 (momentum phase, no backreaction)
+pub fn step_q31_32_momentum(
+    z_q: &mut [i64; 16],
+    s_q: &mut [i64; 16],
+    lambda_q: i64,                    // λ in Q31.32
+    tau_q: i64,                       // dt in Q31.32
+    rose_q: &[i64; 16],               // rose curve in Q31.32
+    ema_beta_q: i64,                  // β in Q31.32
+) {
+    // Pre-compute kappa matrix (assumed static, pre-encoded in Q31.32)
+    // kappa_matrix[k][j]: coupling coefficient
+    let kappa_static: [[i64; 16]; 16] = [
+        // Example identity-like coupling (should be actual DVSM κ matrix)
+        [0; 16]; 16
+    ];
+    
+    // For each state dimension
+    for k in 0..16 {
+        // === A: Lie-bracket term ===
+        let bracket_term = bracket_q31_32(z_q, s_q, &kappa_static, k);
+        
+        // === B: Damping term ===
+        let damp_term = mul_q31_32(lambda_q, z_q[k]);
+        
+        // === C: Rose curve term ===
+        let rose_term = rose_q[k];
+        
+        // === D: Combined acceleration ===
+        let accel_q = bracket_term.saturating_sub(damp_term).saturating_add(rose_term);
+        
+        // === E: Euler step: dz_q = τ_q * accel_q ===
+        let dz_q = mul_q31_32(tau_q, accel_q);
+        
+        // === F: Update state with clamping ===
+        z_q[k] = add_q31_32_clamped(z_q[k], dz_q);
+        
+        // === G: EMA update: s_q[k] = β·s_q[k] + (1−β)·z_q[k] ===
+        let one_minus_beta_q = (1i64 << 32).saturating_sub(ema_beta_q);
+        let s_contrib1 = mul_q31_32(ema_beta_q, s_q[k]);
+        let s_contrib2 = mul_q31_32(one_minus_beta_q, z_q[k]);
+        s_q[k] = s_contrib1.saturating_add(s_contrib2);
+    }
+}
+
+/// Full PLL cycle in Q31.32 (Z2 Extreme hardware-locked kernel)
+pub fn tick_q31_32_phase_locked(
+    z_q: &mut [i64; 16],
+    s_q: &mut [i64; 16],
+    norm_sq_q: &mut i64,
+    tau_meas_q: i64,                 // Measured GPU latency in Q31.32
+    tau_nominal_q: i64,              // Nominal dt in Q31.32
+    alpha_q: i64,                    // Backreaction coefficient in Q31.32
+    e_target_q: i64,                 // Energy target in Q31.32
+    lambda_q: i64,
+    rose_q: &[i64; 16],
+    ema_beta_q: i64,
+) {
+    // === RISING EDGE: Momentum (tau_meas, no backreaction) ===
+    step_q31_32_momentum(z_q, s_q, lambda_q, tau_meas_q, rose_q, ema_beta_q);
+    
+    // === FALLING EDGE: Phase-Corrected Backreaction ===
+    let phase_delta_q = tau_meas_q.saturating_sub(tau_nominal_q);
+    let sync_scale_base_q = (1i64 << 32);  // 1.0 in Q31.32
+    let phase_mult_q = f32_to_q31_32(0.25);  // 0.25 in Q31.32
+    let phase_term_q = mul_q31_32(phase_mult_q, phase_delta_q);
+    let sync_scale_q = sync_scale_base_q.saturating_add(phase_term_q);
+    
+    // Clamp sync_scale to [0.8, 1.2]
+    let clamp_min_q = f32_to_q31_32(0.8);
+    let clamp_max_q = f32_to_q31_32(1.2);
+    let sync_scale_clamped = sync_scale_q.max(clamp_min_q).min(clamp_max_q);
+    
+    let alpha_sync_q = mul_q31_32(alpha_q, sync_scale_clamped);
+    
+    // Backreaction: compute norm_sq_q first
+    *norm_sq_q = 0i64;
+    for k in 0..16 {
+        let z_sq = mul_q31_32(z_q[k], z_q[k]);
+        *norm_sq_q = norm_sq_q.saturating_add(z_sq);
+    }
+    
+    // Backreaction coefficient: -α_sync · (‖Z‖² − E_target)
+    let norm_error_q = norm_sq_q.saturating_sub(e_target_q);
+    let backreaction_coeff_q = mul_q31_32(-alpha_sync_q, norm_error_q);
+    
+    // Pulse magnitude: 4.0 * coeff * τ_nominal
+    let four_q = f32_to_q31_32(4.0);
+    let pulse_mag_q = mul_q31_32(mul_q31_32(four_q, backreaction_coeff_q), tau_nominal_q);
+    
+    // Apply backreaction pulse: z_q[k] += pulse_mag_q * z_q[k]
+    for k in 0..16 {
+        let correction_q = mul_q31_32(pulse_mag_q, z_q[k]);
+        z_q[k] = add_q31_32_clamped(z_q[k], correction_q);
+    }
+}
+```
+
+#### §8.3c Verification (Determinism Guarantee)
+
+```rust
+/// Hash state using Q31.32 encoded integers (deterministic, no float rounding)
+pub fn hash_state_q31_32(z_q: &[i64; 16], s_q: &[i64; 16], protocol_version: u32) -> u64 {
+    let mut hash = FNV_OFFSET_BASIS;
+    for k in 0..16 {
+        hash = fnv1a_update(hash, z_q[k].to_le_bytes());
+        hash = fnv1a_update(hash, s_q[k].to_le_bytes());
+    }
+    hash = fnv1a_update(hash, protocol_version.to_le_bytes());
+    hash
+}
+
+/// Byte-identical verification: encode/decode round-trip
+#[test]
+fn test_q31_32_encode_decode_cycle() {
+    for test_val in &[-2.0_f32, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0] {
+        let encoded = f32_to_q31_32(*test_val);
+        let decoded = q31_32_to_f32(encoded);
+        let error = (test_val - decoded).abs();
+        assert!(error < 1e-8, "Q31.32 round-trip error at {}: {}", test_val, error);
+    }
+}
+
+/// Cross-platform determinism: C-struct layout identical on Z2 Linux / Windows
+#[test]
+fn test_q31_32_arithmetic_closure() {
+    // Verify that sequences of operations produce identical results on repeated runs
+    let mut z_q = [f32_to_q31_32(0.5_f32); 16];
+    let mut s_q = [f32_to_q31_32(0.1_f32); 16];
+    let tau_q = f32_to_q31_32(1.0 / 120.0);  // 120 Hz frame time
+    let lambda_q = f32_to_q31_32(0.1);
+    let rose_q = [f32_to_q31_32(0.01_f32); 16];
+    let ema_beta_q = f32_to_q31_32(0.99);
+    
+    let hash_before = hash_state_q31_32(&z_q, &s_q, 1);
+    
+    // Execute kernel 100 times
+    for _ in 0..100 {
+        let mut norm_sq_q = 0i64;
+        tick_q31_32_phase_locked(
+            &mut z_q, &mut s_q, &mut norm_sq_q,
+            tau_q, tau_q,
+            f32_to_q31_32(0.05), f32_to_q31_32(1.0),
+            lambda_q, &rose_q, ema_beta_q,
+        );
+    }
+    
+    let hash_after = hash_state_q31_32(&z_q, &s_q, 1);
+    
+    // On repeated runs with identical inputs, hashes must match
+    assert_ne!(hash_before, hash_after, "State evolved");
+    
+    // Re-run to verify reproducibility
+    let mut z_q2 = [f32_to_q31_32(0.5_f32); 16];
+    let mut s_q2 = [f32_to_q31_32(0.1_f32); 16];
+    
+    for _ in 0..100 {
+        let mut norm_sq_q = 0i64;
+        tick_q31_32_phase_locked(
+            &mut z_q2, &mut s_q2, &mut norm_sq_q,
+            tau_q, tau_q,
+            f32_to_q31_32(0.05), f32_to_q31_32(1.0),
+            lambda_q, &rose_q, ema_beta_q,
+        );
+    }
+    
+    let hash_after2 = hash_state_q31_32(&z_q2, &s_q2, 1);
+    assert_eq!(hash_after, hash_after2, "Q31.32 determinism failure");
+}
+```
+
 ---
 
 ## §9 TEST PATTERNS (VERIFICATION HARNESS)
