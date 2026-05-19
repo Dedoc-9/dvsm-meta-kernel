@@ -753,12 +753,15 @@ Frame rate is LOCKED per session:
 dvsm-core/
 ├── DVSM_SPEC.md                       (this file)
 ├── DVSM_IMPL.md                       (implementation + features)
+├── Z2_EXTREME_ADDENDUM.md             (hardware variant: ROG Ally X 2025, MSI Claw A8)
 ├── Cargo.toml
 │
 ├── rust/
 │   ├── base/
 │   │   ├── src/
 │   │   │   ├── lib.rs                 (state, operators, backreaction)
+│   │   │   │   ├── const MAX_CU: u32  (4 = Z1 Extreme, 16 = Z2 Extreme)
+│   │   │   │   └── const MAX_WAVES    (derived from MAX_CU, platform-specific)
 │   │   │   ├── fixed_point.rs         (Q31/Q16 codec)
 │   │   │   ├── hash.rs                (FNV1A + parity)
 │   │   │   └── cayley.rs              (projection + spyware detection)
@@ -772,22 +775,38 @@ dvsm-core/
 │   │   ├── src/lib.rs                 (frozen MLP for a, k params)
 │   │   └── Cargo.toml
 │   │
+│   ├── platform/
+│   │   ├── windows/
+│   │   │   ├── gpu_occupancy.rs       (Z1 vs Z2 wave slot calculation)
+│   │   │   └── profiler.rs            (RGP integration, FrameVarianceRing)
+│   │   └── linux/
+│   │       └── rocm_target.rs         (--offload-arch selection)
+│   │
 │   └── tests/
 │       ├── determinism.rs             (Q31/Q16 equivalence)
 │       ├── orthogonality.rs           (Z · S < ε)
 │       ├── ghostsnap.rs               (bit-creep purging)
 │       ├── suchness.rs                (tautology closure)
-│       └── cayley.rs                  (spyware rejection)
+│       ├── cayley.rs                  (spyware rejection)
+│       └── hardware_variant.rs        (Z1 vs Z2 occupancy model)
 │
 ├── swift/
 │   ├── DVSMCore.swift                 (Rust FFI or native)
 │   └── Tests/
+│
+├── config/
+│   └── profiles/
+│       ├── z1_extreme.toml            (Phoenix, gfx1103, 4 CU)
+│       └── z2_extreme.toml            (Strix Point, gfx1150, 16 CU)
 │
 └── spec/
     ├── Q31_codec.txt                  (fixed-point definition)
     ├── Rose_curves.txt                (harmonic analysis)
     └── Cayley_geometry.txt            (projection math)
 ```
+
+**Hardware Variant Note:**
+See §B.5 below and Z2_EXTREME_ADDENDUM.md for platform-specific configuration.
 
 ### §B.4 Determinism Contract
 
@@ -800,6 +819,55 @@ Enforced via:
 - GhostSnap checkpoints (resync on creep)
 - Suchness verification (detect inconsistency)
 - Cayley projection (reject spyware)
+
+---
+
+### §B.5 Hardware Variants (Platform-Specific Configuration)
+
+**Scope:** Z1 Extreme (Phoenix, gfx1103) vs Z2 Extreme (Strix Point, gfx1150)
+
+**Same Math, Different Hardware:**
+- State tuple σ_t identical across platforms
+- Operators (Lie bracket, backreaction, GhostSnap) identical
+- H_t binding identical
+- Suchness verification (L1-L7) identical
+- Only difference: GPU compute unit count (4 vs 16 CUs)
+
+**Platform-Specific Constants:**
+
+```
+Z1 Extreme (Phoenix, gfx1103):
+  MAX_CU = 4
+  MAX_WAVES = 4 × 2 × 16 = 128
+  Wave occupancy: 1 DVSM wave / 128 slots = 0.78%
+  Compile flag: --offload-arch=gfx1103
+
+Z2 Extreme (Strix Point, gfx1150):
+  MAX_CU = 16
+  MAX_WAVES = 16 × 2 × 16 = 512
+  Wave occupancy: 1 DVSM wave / 512 slots = 0.19%
+  Compile flag: --offload-arch=gfx1150
+```
+
+**Performance Implications:**
+- Z1: DVSM kernel consumes ~0.78% of GPU wave scheduling capacity
+- Z2: DVSM kernel consumes ~0.19% of GPU wave scheduling capacity
+- Z2 provides 4× more concurrent wave slots available for game renderer
+- Z2 wall-time per tick: ~0.25–0.33× of Z1 (due to 4× more SIMDs, embarrassingly parallel kernel)
+
+**Full Details:** See Z2_EXTREME_ADDENDUM.md
+- Hardware delta table (GPU architecture, SIMD count, texture throughput)
+- Code changes required (constant updates only)
+- Kernel optimizations (scalar FPU, s_singleuse_vdst)
+- Occupancy model revision
+- Frame generation with AFMF2 coexistence
+- Benchmark validation methodology
+
+**For Deployment:**
+1. Select appropriate profile: config/profiles/z1_extreme.toml or z2_extreme.toml
+2. Verify hardware: ROG Ally X 2025 (Z2) vs 2024 (Z1), or equivalent (MSI Claw A8, etc.)
+3. Compile with correct --offload-arch flag
+4. Run verification harness (§D tests; all pass identically on both platforms)
 
 ---
 
@@ -1063,9 +1131,7 @@ Paranoid mode (optional, 2x cost):
 ✓ Double-check Cayley skew-symmetry (two independent tests)
 ✓ GhostSnap every 100 ticks (vs default 1000)
 ```
-
 ---
-
 ## References
 
 - Protocol-frozen parameters: κ, λ, α, E_target, Q_mode, neural_enabled, protocol_version
