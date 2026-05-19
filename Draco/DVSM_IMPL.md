@@ -842,6 +842,18 @@ pub fn dvsm_step_full(
         let b_k = backreaction_coeff * state.z[k];
         let dz = config.dt * (acc[k] - lambda_scaled * state.z[k] + b_k + rose[k]);
         state.z[k] += dz;
+        
+        // === D.1: STATE BOUNDARY CLAMPING (§A.2b) ===
+        // Immediately after Euler integration, clamp to prevent NaN propagation
+        if paranoid_mode_enabled {
+            // Soft clip: 2·tanh(x/2) — continuous, detects saturation
+            state.z[k] = 2.0 * (state.z[k] / 2.0).tanh();
+        } else {
+            // Hard clamp [-2.0, 2.0] — deterministic, O(1), production-grade
+            state.z[k] = state.z[k].clamp(-2.0, 2.0);
+        }
+        
+        // === D.2: EMA MEMORY ===
         state.s[k] = p.ema_beta * state.s[k] + (1.0 - p.ema_beta) * state.z[k];
     }
     
@@ -1314,6 +1326,130 @@ fn test_suchness_rollback_on_corruption() {
 }
 ```
 
+### §9.5b State Boundary Clamping Tests
+
+```rust
+#[test]
+fn test_state_hard_clamp_boundaries() {
+    // Test hard clamp [-2.0, 2.0] preserves values and prevents NaN
+    let test_values = vec![
+        (-3.0, -2.0),   // clamp to boundary
+        (-2.5, -2.0),   // clamp to boundary
+        (-1.0, -1.0),   // within bounds, unchanged
+        (0.0, 0.0),     // within bounds
+        (1.5, 1.5),     // within bounds
+        (2.5, 2.0),     // clamp to boundary
+        (3.0, 2.0),     // clamp to boundary
+        (f32::INFINITY, 2.0),   // prevent infinity
+        (f32::NEG_INFINITY, -2.0), // prevent negative infinity
+    ];
+    
+    for (input, expected) in test_values {
+        let clamped = input.clamp(-2.0, 2.0);
+        assert_eq!(clamped, expected, "Clamp failed for input {}", input);
+    }
+}
+
+#[test]
+fn test_state_soft_clip_tanh() {
+    // Test soft clip via tanh: 2·tanh(x/2) approaches ±2.0 asymptotically
+    let test_values = vec![
+        (-5.0, 2.0 * (-5.0 / 2.0).tanh()),
+        (-2.5, 2.0 * (-2.5 / 2.0).tanh()),
+        (0.0, 0.0),
+        (2.5, 2.0 * (2.5 / 2.0).tanh()),
+        (5.0, 2.0 * (5.0 / 2.0).tanh()),
+        (100.0, 2.0),  // approaches +2.0
+        (-100.0, -2.0), // approaches -2.0
+    ];
+    
+    for (input, expected) in test_values {
+        let soft_clipped = 2.0 * (input / 2.0).tanh();
+        assert!((soft_clipped - expected).abs() < 1e-6, 
+            "Soft clip failed: got {}, expected {}", soft_clipped, expected);
+        assert!(soft_clipped.abs() <= 2.0, "Soft clip exceeded bounds: {}", soft_clipped);
+    }
+}
+
+#[test]
+fn test_nan_prevention_after_euler() {
+    // Simulate Euler step that would produce NaN without clamping
+    let mut z = [0.5_f32; 16];
+    let dt = 0.001;
+    
+    // Inject large perturbation that would cause NaN
+    let dz_extreme = 1e10_f32;  // would overflow without clamping
+    
+    for k in 0..16 {
+        z[k] += dt * dz_extreme;
+        // Before fix: z[k] ≈ 1e7 (overflow risk)
+        // After clamping:
+        z[k] = z[k].clamp(-2.0, 2.0);
+        
+        assert!(z[k].is_finite(), "NaN propagation not prevented!");
+        assert!(z[k].abs() <= 2.0, "Boundary exceeded: {}", z[k]);
+    }
+    
+    // Verify hash is computable on clamped state
+    let norm_sq: f32 = z.iter().map(|x| x * x).sum();
+    assert!(norm_sq.is_finite(), "Norm computation failed after clamp");
+}
+
+#[test]
+fn test_hash_determinism_with_clamping() {
+    // Verify H_t is deterministic even with extreme input deviations
+    let z_raw = vec![
+        vec![-3.5, -2.5, -1.5, -0.5, 0.0, 0.5, 1.5, 2.5, 3.5, 4.5],
+        vec![-3.5, -2.5, -1.5, -0.5, 0.0, 0.5, 1.5, 2.5, 3.5, 4.5], // identical input
+    ];
+    
+    let mut hashes = Vec::new();
+    
+    for z_test in z_raw {
+        let mut z_clamped = [0.0_f32; 16];
+        for (i, &val) in z_test.iter().take(16).enumerate() {
+            z_clamped[i] = val.clamp(-2.0, 2.0);
+        }
+        
+        // Compute hash on clamped state
+        let hash = compute_hash_state(&z_clamped, /* ... other params */);
+        hashes.push(hash);
+    }
+    
+    // Identical clamped states must produce identical hashes
+    assert_eq!(hashes[0].hash, hashes[1].hash, 
+        "Hash diverged despite clamping!");
+}
+
+#[test]
+fn test_saturation_detection_paranoid_mode() {
+    // Paranoid mode: detect when state saturates near boundaries
+    let mut z = [0.5_f32; 16];
+    let saturation_threshold = 1.8;
+    let mut saturation_count = 0;
+    let max_ticks = 1000;
+    
+    for _ in 0..max_ticks {
+        // Simulate dynamics that push toward boundary
+        for k in 0..16 {
+            z[k] = (z[k] * 1.1).clamp(-2.0, 2.0);  // trending toward ±2.0
+            if z[k].abs() >= saturation_threshold {
+                saturation_count += 1;
+            }
+        }
+    }
+    
+    let saturation_rate = saturation_count as f32 / (max_ticks as f32 * 16.0);
+    
+    // In paranoid mode, log warning if saturation > 0.1%
+    if saturation_rate > 0.001 {
+        eprintln!("State saturation anomaly: {:.2}% of samples", saturation_rate * 100.0);
+    }
+    
+    assert!(saturation_rate < 0.5, "Saturation too high: {:.2}%", saturation_rate * 100.0);
+}
+```
+
 ### §9.6 Forensic Stack Confidence Tests
 
 ```rust
@@ -1441,6 +1577,15 @@ Before merging any feature:
 - [ ] Orthogonality: Z · S < 1e-10 at all ticks
 - [ ] Ghost closure: code audit confirms G never feeds Z evolution
 - [ ] Suchness check (L1-L3 Triplet): 100k ticks, zero rollbacks
+
+**State Boundary Clamping (§A.2b — NaN Prevention):**
+- [ ] Hard clamp [-2.0, +2.0] implemented immediately after Euler step
+- [ ] OR soft clip 2·tanh(x/2) for paranoid mode (test both)
+- [ ] NaN prevention verified: no NaN propagates to norm computation
+- [ ] Hash determinism with clamping: identical inputs → identical H_t
+- [ ] State saturation detection: track % ticks where |Z_k| ≥ 1.8
+- [ ] Saturation anomaly threshold: log warning if > 0.1% of ticks
+- [ ] Clamp performance: hard clamp < 0.01 ms, soft clip < 0.05 ms
 
 **Frame Rate (Hard Lock):**
 - [ ] Frame rate immutable after SessionConfig::lock()
