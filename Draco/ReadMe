@@ -1,0 +1,70 @@
+# DVSM Core Equation: Full Derivation (2 Forms)
+
+## Form 1: Mathematical (Symbolic)
+
+**State Evolution:**
+
+dZ_k/dt = [Lie-bracket] + [Dissipation] + [Backreaction] + [Neural]
+= Σⱼ κ_{kj}(Z_k·S_j − Z_j·S_k) − λ·Z_k − α(‖Z‖² − E_target)·Z_k + β·a·cos(k·θ)·Z_k
+
+**Discrete step (Euler):**
+Z_{t+1} = Z_t + dt·(lie_bracket(Z_t, S_t, κ) − λ·Z_t − α·(norm²(Z_t) − E_target)·Z_t)
+S_{t+1} = β_ema·S_t + (1−β_ema)·Z_t
+H_t = FNV1A_PARITY(μ_t ⊕ Z_t ⊕ S_t ⊕ W_t ⊕ κ ⊕ λ ⊕ α ⊕ E_target ⊕ Q_mode ⊕ frame_rate ⊕ protocol_v)
+
+---
+
+## Form 2: Minimal Code (Computational)
+
+**Pseudocode (5 lines per tick):**
+```python
+# Step 1: Lie-bracket coupling
+acc = sum(kappa[k,j] * (z[k]*s[j] - z[j]*s[k]) for j in range(n))
+
+# Step 2-4: Dissipation + Backreaction + Neural
+norm_sq = sum(z[k]**2)
+coeff_backreact = -alpha * (norm_sq - e_target)
+dz_k = acc - lambda*z[k] + coeff_backreact*z[k] + rose_neural_term(z)
+
+# Step 5: Euler + EMA + Hash
+z[k] += dt * dz_k
+s[k] = ema_beta * s[k] + (1 - ema_beta) * z[k]
+h_t = fnv1a_parity(mu ⊕ z ⊕ s ⊕ w ⊕ kappa ⊕ lambda ⊕ alpha ⊕ e_target ⊕ q_mode ⊕ frame_hz ⊕ proto_v)
+```
+
+---
+
+## Layer Breakdown
+
+| Layer | Operator | Formula | Purpose |
+|-------|----------|---------|---------|
+| **L1: Input** | Parse (Lτ) | μ_t from sensors | Causal input |
+| **L2: Lie-bracket** | Couple (κ) | Σⱼ κ_{kj}(Z_k·S_j − Z_j·S_k) | State mixing |
+| **L3: Dissipation** | Decay (λ) | −λ·Z_k | Energy loss |
+| **L4: Backreaction** | Restore (α) | −α(‖Z‖² − E_target)·Z_k | Norm stabilization |
+| **L5: Neural** | Modulate (Rose) | β·a·cos(k·θ)·Z_k | Harmonic gating |
+| **L6: Memory** | EMA (β_ema) | S_{t+1} = β_ema·S_t + (1−β_ema)·Z_t | Causal history |
+| **L7: Binding** | Hash (H_t) | FNV1A_PARITY(...) | Consensus proof |
+
+---
+
+## Tautology (3 Invariants Must Hold)
+∀ tick t:
+
+H_t = HASH(σ_t)                           [Binding: hash uniquely identifies state]
+Z_t · S_t ≈ 0                             [Orthogonality: forward ⊥ residual]
+G_t = Z_t − Π_W(Z_t); G_t ↛ Z evolution   [Ghost closure: residual never fed back]
+
+
+**Failure → Rollback to last GhostSnap checkpoint where all 3 hold.**
+
+---
+
+## Critical Parameters (Protocol-Frozen)
+κ         = antisymmetric coupling matrix (16×16 or 20×20)
+λ         = dissipation (base; scaled by frame_rate_hz)
+α         = backreaction strength (base; scaled by frame_rate_hz)
+E_target  = target norm (typically 1.0)
+dt        = 1.0 / frame_rate_hz  [HARD LOCK: immutable per session]
+β_ema     = 0.92–0.95 (memory decay)
+frame_rate_hz ∈ {60, 120, 240} Hz [immutable in H_t hash]
