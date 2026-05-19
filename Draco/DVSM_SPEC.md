@@ -46,7 +46,101 @@ where:
   λ                        dissipation (always decay norm)
   α                        backreaction (restores toward E_target)
   Rose_k(Z, W_neural)      optional Rose curve logic (see §A.5)
+
+Euler Integration with State Boundary Clamping (§A.2b):
+  Z_k^{raw} = Z_k + dt·(dZ_k/dt)  [raw Euler step]
+  
+  CLAMP (immediately after integration):
+    Z_k^{clamped} = CLAMP(Z_k^{raw}, −2.0, +2.0)    [hard boundary, OR]
+    Z_k^{clamped} = 2·tanh(Z_k^{raw}/2)             [soft clip, continuous]
+  
+  Z_k := Z_k^{clamped}  [update state with bounded value]
+
+Purpose: Prevent NaN propagation, enforce state actor integrity, preserve H_t binding
 ```
+
+### §A.2b State Boundary Clamping (NaN Prevention & H_t Integrity)
+
+**Problem:** Euler integration can produce raw values outside physically valid range, leading to:
+- NaN in backreaction computation (norm → infinity)
+- Hash divergence (Z contains NaN → H_t unpredictable)
+- Unrecoverable state corruption
+
+**Solution:** Clamp Z_k immediately after Euler step, before norm/hash computation.
+
+**Two Strategies:**
+
+```
+STRATEGY 1: Hard Boundary ([-2.0, +2.0])
+  Z_k^{clamped} = max(-2.0, min(+2.0, Z_k^{raw}))
+  
+  Properties:
+    ✓ O(1) operation (no transcendental functions)
+    ✓ Deterministic (identical across platforms, languages)
+    ✓ Preserves sign (natural direction of state)
+    ✓ Prevents overflow in Q31 fixed-point (range [-1, 1) mapped to [-2, 2])
+    ✗ Discontinuous derivative at ±2.0 (but acceptable for state boundary)
+  
+  Recommended for: Production (low cost, predictable)
+
+STRATEGY 2: Soft Clip via tanh (Differentiable)
+  Z_k^{clamped} = 2·tanh(Z_k^{raw} / 2)
+  
+  Properties:
+    ✓ Smooth (continuous, C∞)
+    ✓ Approaches ±2.0 asymptotically (never exceeds bounds)
+    ✓ Naturally handles large deviations (e^x terms compress)
+    ✓ Compatible with gradient-based learning (if neural extension added)
+    ✗ O(log n) cost (transcendental function)
+    ✗ Platform variance (tanh implementations differ by ~1e-7)
+  
+  Recommended for: Development, neural variants
+
+Boundary Threshold Justification:
+  ‖Z‖_∞ ≤ 2.0 implies ‖Z‖₂ ≤ √n·2.0
+  For n=16: ‖Z‖₂ ≤ 8.0 (reasonable margin above E_target=1.0)
+  For n=20 (VR): ‖Z‖₂ ≤ 8.94 (accommodates spatial + angular state)
+```
+
+**H_t Binding Preservation:**
+
+```
+Before clamp: Z_k^{raw} could be NaN
+              → H_t = FNV1A(... ⊕ NaN ⊕ ...) = undefined or zero-filled
+              → Hash unpredictable; peer divergence
+
+After clamp:  Z_k ∈ [-2.0, +2.0] (bounded)
+              → norm(Z) ∈ [0, √(n·4)] (finite, computable)
+              → H_t = FNV1A_PARITY(...) = deterministic
+              → Hash identical across peers
+```
+
+**Integration Location:**
+```
+Euler step:           Z_k += dt·(dZ_k/dt)
+↓
+NaN PREVENTION ← [CLAMP Z_k here]  ← Must be IMMEDIATELY after integration
+↓
+Norm computation:     norm_sq = Σ_k Z_k²
+↓
+Backreaction coeff:   b_coeff = -α·(norm_sq - E_target)
+↓
+Hash computation:     H_t = FNV1A_PARITY(μ_t ⊕ Z_t ⊕ ...)
+↓
+Suchness check:       Verify H_t binding
+```
+
+**Selection Rule:**
+```
+if deployment_mode = "production":
+    use hard clamp ([-2.0, 2.0])  // fastest, most deterministic
+else if deployment_mode = "paranoid":
+    use soft clip (2·tanh(...))   // catches saturation events
+else if deployment_mode = "neural" or "ml":
+    use soft clip (gradient-compatible)
+```
+
+---
 
 ### §A.3 Hash Identity Binding (Immutable, Tautology-Critical)
 
@@ -1124,14 +1218,22 @@ Minimum compiler: C89 (ANSI C) + IEEE 754 support
 ✓ Frame rate lock flag (prevent mid-session change)
 ✓ Protocol version tag in hash (prevent version downgrade)
 ✓ Suchness triplet verification (tautology closure proof)
+✓ STATE BOUNDARY CLAMPING (§A.2b) — Immediately after Euler step
+  • Hard clamp [-2.0, +2.0] (production; O(1))
+  • OR soft clip 2·tanh(x/2) (paranoid; continuous)
+  • Prevents NaN propagation → preserves H_t binding
 
 Paranoid mode (optional, 2x cost):
 ✓ Recompute norm every 10 ticks (detect silent bit corruption)
 ✓ Hash entire Z, S, W each tick (catch any state mutation)
 ✓ Double-check Cayley skew-symmetry (two independent tests)
 ✓ GhostSnap every 100 ticks (vs default 1000)
+✓ State saturation detection: count ticks where |Z_k| ≥ 1.8 (near boundary)
+  → Log warning if saturation_count > 0.1% of ticks (anomaly indicator)
 ```
+
 ---
+
 ## References
 
 - Protocol-frozen parameters: κ, λ, α, E_target, Q_mode, neural_enabled, protocol_version
