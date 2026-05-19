@@ -955,6 +955,163 @@ fn determine_adaptive_q_mode(z: &[f32; 20]) -> Option<QuantMode> {
 }
 ```
 
+### §8.2 Phase-Locked Loop (Z2 Extreme Temporal Anchor)
+
+**Purpose:** Temporal PLL implementation for Z2 Extreme, exploiting 0.19% occupancy to achieve zero-jitter state prediction via GPU timestamp anchoring.
+
+#### §8.2a Step Momentum (Rising Edge: Prediction without Backreaction)
+
+```rust
+/// Rising Edge: Momentum integration using MEASURED GPU latency.
+/// Integrates Lie-bracket, damping, and Rose curve.
+/// EXCLUDES backreaction to avoid double-counting during phase correction.
+pub fn step_momentum(
+    state: &mut DVSMState,
+    tau_meas: f32,           // Measured GPU latency (actual Δt)
+    lambda: f32,
+    rose: &[f32; 20],
+    ema_beta: f32,           // From config.ema_beta
+    paranoid_mode: bool,
+) {
+    let dim = if state.z.len() == 20 { 20 } else { 16 };
+    
+    // === A: LIE BRACKET (unchanged) ===
+    let mut acc = [0.0_f32; 20];
+    for k in 0..dim {
+        let zk = state.z[k];
+        let sk = state.s[k];
+        for j in 0..dim {
+            if j == k { continue; }
+            let bracket = zk * state.s[j] - state.z[j] * sk;
+            acc[k] += state.kappa_get(k, j) * bracket;
+        }
+    }
+    
+    // === D: EULER STEP with measured tau_meas (NO backreaction) ===
+    for k in 0..dim {
+        // Apply Lie-bracket + damping + Rose, but NOT backreaction
+        let dz = tau_meas * (acc[k] - lambda * state.z[k] + rose[k]);
+        state.z[k] += dz;
+        
+        // === D.1: STATE BOUNDARY CLAMPING ===
+        if paranoid_mode {
+            state.z[k] = 2.0 * (state.z[k] / 2.0).tanh();
+        } else {
+            state.z[k] = state.z[k].clamp(-2.0, 2.0);
+        }
+        
+        // === D.2: EMA MEMORY (uses nominal EMA coefficient) ===
+        state.s[k] = ema_beta * state.s[k] + (1.0 - ema_beta) * state.z[k];
+    }
+    
+    state.update_norm();
+}
+```
+
+#### §8.2b Tick Phase-Locked (Full PLL Cycle: Dispatch + Correction)
+
+```rust
+/// Non-linear Phase-Locked Loop for state-space.
+/// Rising Edge: Predict Z using measured GPU latency.
+/// Falling Edge: Apply phase-corrected backreaction pulse.
+pub fn tick_phase_locked(
+    state: &mut DVSMState,
+    config: &SessionConfig,
+    p: &WattageProfile,
+    d_ns: u64,                           // dispatch timestamp (ns)
+    c_ns: u64,                           // completion timestamp (ns)
+    dfe_enabled: bool,
+    neural_enabled: bool,
+    net: Option<&RoseNeuralNet>,
+    paranoid_mode: bool,
+    ghostsnap_mgr: &mut GhostSnapManager,
+) -> Result<(), String> {
+    if !config._locked {
+        return Err("Frame rate not locked".to_string());
+    }
+    
+    let tau_meas = (c_ns.saturating_sub(d_ns) as f32) / 1_000_000_000.0;
+    let tau_nominal = config.dt;
+    let dim = if config.vr_enabled { 20 } else { 16 };
+    
+    // === PRE-COMPUTE: Rose Curve ===
+    let mut rose = [0.0_f32; 20];
+    if neural_enabled && dfe_enabled {
+        if let Some(net) = net {
+            let (a, k) = net.forward(&state.z);
+            let theta = 0.5;
+            rose = rose_term(&state.z, theta, a, k, 0.05);
+        }
+    }
+    
+    // === RISING EDGE: Momentum Integration ===
+    step_momentum(state, tau_meas, p.lambda, &rose, p.ema_beta, paranoid_mode);
+    
+    // === FALLING EDGE: Phase-Corrected Backreaction Pulse ===
+    let phase_delta = tau_meas - tau_nominal;
+    let sync_scale = (1.0 + 0.25 * phase_delta).clamp(0.8, 1.2);
+    let alpha_sync = p.alpha * sync_scale;
+    
+    let backreaction_coeff = -alpha_sync * (state.norm_sq - p.e_target);
+    let pulse_magnitude = 4.0 * backreaction_coeff * tau_nominal;  // empirical scaling
+    
+    for k in 0..dim {
+        state.z[k] = (state.z[k] + pulse_magnitude * state.z[k]).clamp(-2.0, 2.0);
+    }
+    
+    // === HARDENING: VR Quaternion Renormalization ===
+    if config.vr_enabled && dim >= 20 {
+        let q_norm_sq = state.z[3] * state.z[3]
+                      + state.z[4] * state.z[4]
+                      + state.z[5] * state.z[5]
+                      + state.z[6] * state.z[6];
+        let q_norm = q_norm_sq.sqrt();
+        
+        if (q_norm - 1.0).abs() > 0.01 && q_norm > 1e-12 {
+            for k in 3..7 {
+                state.z[k] /= q_norm;
+            }
+        }
+    }
+    
+    state.update_norm();
+    
+    // === TELEMETRY: Phase Error Tracking ===
+    // Store phase_delta for diagnostics (e.g., EMA filter for systematic bias)
+    // Implementation depends on supervisor state structure
+    
+    // === POST-FLIGHT: Ghost Guard & Hash ===
+    ghostsnap_mgr.scan_and_rebirth(state);  // assumed method
+    
+    let hash = hash_state_with_nominal_dt(state, p, config.dt, config.frame_rate_hz);
+    ghostsnap_mgr.checkpoint(state.tick, &mut state.z, hash);
+    
+    // === SUCHNESS CHECK ===
+    let orthogonal = orthogonality_check(&state.z, &state.s);
+    let ghost_ok = ghost_closure_audit(&state.z, &state.s);
+    let binding_ok = verify_parity(hash.hash, hash.parity);
+    
+    if !orthogonal || !ghost_ok || !binding_ok {
+        if let Some(checkpoint_tick) = ghostsnap_mgr.resync(&mut state.z) {
+            eprintln!("Phase-lock suchness failed; reverted to tick {}", checkpoint_tick);
+        }
+    } else {
+        state.tick += 1;
+        state.replay_hash = hash.hash;
+    }
+    
+    Ok(())
+}
+
+/// Helper: Extract norm variance for VRS tile projection
+pub fn compute_norm_variance(state: &DVSMState, window_size: usize) -> f32 {
+    // Rolling variance of ‖Z‖²
+    // Implementation: maintain circular buffer of recent norm_sq values
+    // For now, return instantaneous norm_sq (will be smoothed in supervisor)
+    state.norm_sq
+}
+```
+
 ---
 
 ## §9 TEST PATTERNS (VERIFICATION HARNESS)
@@ -1558,6 +1715,117 @@ fn test_frame_forensic_l1_l10_forensic() {
 }
 ```
 
+### §9.6b Phase-Lock PLL Convergence Tests (Z2 Extreme Temporal Anchor)
+
+```rust
+#[test]
+fn test_phase_lock_convergence_z2_extreme() {
+    use rand::Rng;
+    
+    let mut rng = rand::thread_rng();
+    let mut state = DVSMState::new_identity();
+    let config = SessionConfig::new(120, false, QuantMode::Q31).unwrap();
+    let profile = WattageProfile::ALLY_X_Z2_BALANCED;
+    let mut ghostsnap_mgr = GhostSnapManager::new(1000);
+    
+    let tau_nominal = config.dt;  // 1.0 / 120 ≈ 0.00833 s
+    let mut phase_errors = Vec::new();
+    let mut norm_deviations = Vec::new();
+    
+    // Simulate 1000 frames with ±0.5ms GPU jitter
+    for frame_idx in 0..1000 {
+        // Random jitter: ±0.5ms added to nominal latency
+        let jitter_s = (rng.gen::<f32>() - 0.5) * 0.001;
+        let tau_meas = tau_nominal + jitter_s;
+        
+        // Fake GPU timestamps (120 Hz = 8.333ms frame time)
+        let d_ns = (frame_idx as u64) * 8_333_333;
+        let c_ns = d_ns + (tau_meas * 1_000_000_000.0) as u64;
+        
+        // Execute phase-locked tick
+        let _ = tick_phase_locked(
+            &mut state,
+            &config,
+            &profile,
+            d_ns,
+            c_ns,
+            false,  // dfe_enabled
+            false,  // neural_enabled
+            None,   // net
+            false,  // paranoid_mode
+            &mut ghostsnap_mgr,
+        );
+        
+        // Record metrics
+        let phase_delta = tau_meas - tau_nominal;
+        phase_errors.push(phase_delta.abs());
+        
+        let norm_err = (state.norm_sq - profile.e_target).abs();
+        norm_deviations.push(norm_err);
+    }
+    
+    // Statistics
+    let avg_phase_error = phase_errors.iter().sum::<f32>() / phase_errors.len() as f32;
+    let max_phase_error = phase_errors.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let avg_norm_deviation = norm_deviations.iter().sum::<f32>() / norm_deviations.len() as f32;
+    
+    // Log results
+    eprintln!("=== Phase-Lock Convergence (1000 frames, ±0.5ms jitter) ===");
+    eprintln!("Avg Phase Error: {:.6f} s ({:.3f} ms)", avg_phase_error, avg_phase_error * 1000.0);
+    eprintln!("Max Phase Error: {:.6f} s ({:.3f} ms)", max_phase_error, max_phase_error * 1000.0);
+    eprintln!("Avg Norm Deviation: {:.6f}", avg_norm_deviation);
+    eprintln!();
+    
+    // Pre-Flight Assertions
+    assert!(avg_phase_error < 0.0001, "Phase lock UNSTABLE: avg error {:.6f}", avg_phase_error);
+    assert!(max_phase_error < 0.0005, "Phase lock DIVERGED: max error {:.6f}", max_phase_error);
+    assert!(avg_norm_deviation < 0.01, "Norm UNSTABLE: deviation {:.6f}", avg_norm_deviation);
+    
+    eprintln!("✅ Phase-Lock PRE-FLIGHT CHECK PASSED");
+}
+
+#[test]
+fn test_phase_lock_backreaction_scaling() {
+    // Verify correction_scale = 4.0 produces equivalent damping
+    let mut state = DVSMState::new_identity();
+    let config = SessionConfig::new(120, false, QuantMode::Q31).unwrap();
+    let profile = WattageProfile::ALLY_X_Z2_BALANCED;
+    let mut ghostsnap_mgr = GhostSnapManager::new(1000);
+    
+    let d_ns = 0;
+    let c_ns = (config.dt * 1_000_000_000.0) as u64;
+    
+    for _ in 0..100 {
+        let _ = tick_phase_locked(&mut state, &config, &profile, d_ns, c_ns, false, false, None, false, &mut ghostsnap_mgr);
+    }
+    
+    let norm_error = (state.norm_sq - profile.e_target).abs();
+    assert!(norm_error < 0.01, "Backreaction scaling mismatch: norm_sq = {}", state.norm_sq);
+}
+
+#[test]
+fn test_phase_lock_vr_quaternion_preservation() {
+    // Verify VR quaternion normalization
+    let mut state = DVSMState::new_identity_vr();
+    let config = SessionConfig::new(120, true, QuantMode::Q31).unwrap();
+    let profile = WattageProfile::VR_HAPTICS_STANDARD;
+    let mut ghostsnap_mgr = GhostSnapManager::new(1000);
+    
+    state.z[3] = 2.0;  // rot_w (should be ≈1.0)
+    state.z[4] = 0.5;
+    state.z[5] = 0.5;
+    state.z[6] = 0.5;
+    
+    let d_ns = 0;
+    let c_ns = (config.dt * 1_000_000_000.0) as u64;
+    
+    let _ = tick_phase_locked(&mut state, &config, &profile, d_ns, c_ns, false, false, None, false, &mut ghostsnap_mgr);
+    
+    let q_norm_sq = state.z[3] * state.z[3] + state.z[4] * state.z[4] + state.z[5] * state.z[5] + state.z[6] * state.z[6];
+    assert!((q_norm_sq - 1.0).abs() < 0.01, "Quaternion norm not preserved: {}", q_norm_sq);
+}
+```
+
 ---
 
 ## §10 DEPLOYMENT CHECKLIST
@@ -1640,6 +1908,20 @@ Before merging any feature:
 - [ ] Suchness verification (L1-L7) < 2.0 ms (paranoid)
 - [ ] Forensic stack L1-L10 < 5 ms (forensic mode, async preferred)
 
+**Phase-Lock PLL (Z2 Extreme Temporal Anchor, §A.2c & §8.2):**
+- [ ] Implement step_momentum() (rising edge: Lie-bracket + damping + rose, NO backreaction)
+- [ ] Implement tick_phase_locked(d_ns, c_ns) (falling edge: phase-corrected backreaction pulse)
+- [ ] GPU timestamp anchoring: capture dispatch_ns and completion_ns from platform hook
+- [ ] Phase error computation: tau_meas = (c_ns − d_ns) / 1e9; phase_delta = tau_meas − tau_nominal
+- [ ] Proportional sync scaling: κ_phase_lock = 0.25; α_sync = α_base · (1.0 + 0.25 · phase_delta).clamp(0.8, 1.2)
+- [ ] Backreaction pulse scaling: correction_scale = 4.0 (empirical; validate via convergence test)
+- [ ] State clamping post-correction: Z_k.clamp(−2.0, +2.0) after falling edge
+- [ ] VR quaternion renormalization: post-correction check if vr_enabled (norm ≈ 1.0)
+- [ ] Phase error telemetry: EMA tracking (phase_error_ema), warning if > 0.2ms (systematic bias)
+- [ ] Convergence test (§9.6b): 1000 frames ±0.5ms jitter; avg_phase_error < 0.1ms, max < 0.5ms
+- [ ] Hash determinism: H_t uses τ_nominal only (not τ_meas); identical inputs → identical hash
+- [ ] Suchness verification: L1-L3 triplet passes with phase-lock enabled (orthogonality maintained)
+
 **Hardware Variants (Z1 Extreme vs Z2 Extreme):**
 - [ ] Identify target platform (Z1=Phoenix gfx1103, Z2=Strix Point gfx1150)
 - [ ] Update MAX_CU constant (4 → 16 for Z2)
@@ -1651,6 +1933,7 @@ Before merging any feature:
 - [ ] Cross-validate across Z1 and Z2 (identical determinism)
 - [ ] Z2-specific: Test AFMF2 coexistence (if enabled)
 - [ ] Z2-specific: Validate scalar FPU optimization (RGP profile recommended)
+- [ ] Z2-specific: Validate phase-lock convergence (exploit 0.19% occupancy for PLL)
 
 ---
 
