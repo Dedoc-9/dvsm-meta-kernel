@@ -431,6 +431,8 @@ pub const MAX_CU: u32 = 16;
 
 ### Q: What's the performance gain I can expect?
 **A:** Kernel wall-time: ~0.25–0.33× of Z1 (due to 4× more SIMDs). Frame variance improvement: workload-dependent, measure with FrameVarianceRing.
+**A:** The only reason this wouldn't be massive is if the VRS (Variable Rate Shading) in your vrs_rate function is set too aggressively, causing visual artifacts. 
+However, with the 16 CUs on the Z2, you can likely dial back the VRS and still maintain these gains because the hardware has so much more "room to breathe."
 
 ### Q: Is paranoid mode necessary on Z2?
 **A:** No, but recommended for first deployment (2× cost to catch any edge cases). Switch to standard mode after validation.
