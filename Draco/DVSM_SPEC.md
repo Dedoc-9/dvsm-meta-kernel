@@ -142,6 +142,153 @@ else if deployment_mode = "neural" or "ml":
 
 ---
 
+### §A.2c Temporal Phase-Lock Loop (Z2 Extreme Non-Linear PLL)
+
+**Purpose:** Exploit Z2's 0.19% GPU occupancy via phase-locked state prediction anchored to GPU completion timestamps. Transforms reactive integrator into predictive state engine via DDR-mimicry.
+
+**Core Mechanism:**
+
+```
+Rising Edge (Dispatch):   Measure Z state at GPU dispatch (t_d)
+                          ↓
+Prediction Integration:   Z_future = Z + ∫ V_manifold · τ_meas
+                          where τ_meas = (t_c - t_d) / 1e9
+                          ↓
+Falling Edge (Completion): Measure actual GPU completion (t_c)
+                           ↓
+Phase Error Detection:    phase_delta = τ_meas − τ_nominal
+                          ↓
+Correction Pulse:         B_corrected = B_base · (1.0 + κ_sync · phase_delta)
+                          ↓
+State Anchoring:          Apply backreaction correction with scaled magnitude
+                          ↓
+Final Binding:            H_t = FNV1A_PARITY(..., τ_nominal)  [NOT τ_meas]
+```
+
+**Velocity Manifold (Lie-Bracket Evolution):**
+
+```
+V_manifold[k] = dZ_k/dτ
+              = Σⱼ κ_{kj}(Z_k·S_j − Z_j·S_k) − λ·Z_k + Rose_k(Z, W_neural)
+
+where:
+  Lie-bracket momentum:    Σⱼ κ_{kj}(Z_k·S_j − Z_j·S_k)
+  Dissipation:             −λ·Z_k
+  Optional Rose modulation: Rose_k (neural or deterministic)
+  NOTE: Backreaction B_k NOT included here; applied only in falling edge
+```
+
+**Phase Correction Dynamics:**
+
+```
+Rising Edge Step:
+  Z_future[k] = Z_k + τ_meas · (V_manifold[k] − λ·Z_k + Rose_k)
+  
+  State Boundary Clamp (§A.2b):
+    Z_future[k] := CLAMP(Z_future[k], −2.0, +2.0)
+
+Falling Edge Correction:
+  phase_delta = τ_meas − τ_nominal
+  
+  Proportional Sync Scaling (κ_sync = 0.25):
+    α_sync = α_base · (1.0 + 0.25 · phase_delta).clamp(0.8, 1.2)
+  
+  Backreaction Pulse Magnitude (correction_scale = 4.0):
+    B_k = −α_sync · (‖Z_future‖² − E_target) · Z_future[k]
+    Correction[k] = 4.0 · B_k · τ_nominal
+  
+  Apply Correction with Clamping:
+    Z_corrected[k] = (Z_future[k] + Correction[k]).clamp(−2.0, +2.0)
+    
+  EMA Update:
+    S_k ← ema_beta · S_k + (1.0 − ema_beta) · Z_corrected[k]
+```
+
+**Hash Binding (Critical: τ_nominal only):**
+
+```
+H_t = FNV1A_PARITY(
+    μ_t 
+    ⊕ Z_t^{corrected}
+    ⊕ S_t
+    ⊕ W_t
+    ⊕ κ 
+    ⊕ λ 
+    ⊕ α 
+    ⊕ E_target 
+    ⊕ Q_mode 
+    ⊕ frame_rate_hz        ← NOMINAL dt, NOT τ_meas
+    ⊕ vr_enabled
+    ⊕ neural_enabled
+    ⊕ protocol_version
+)
+
+CRITICAL: H_t binds τ_nominal (immutable), not τ_meas (jittery).
+          This ensures peer consensus despite GPU latency variance.
+```
+
+**Telemetry & Stability:**
+
+```
+Phase Error EMA (for diagnostics):
+  phase_error_ema = 0.95 · phase_error_ema + 0.05 · |phase_delta|
+  
+  Warning threshold: if phase_error_ema > 0.0002 s (0.2ms)
+                      → GPU systematically underperforming or clock skew
+
+Saturation Detection (paranoid mode):
+  For each tick, count dimensions where |Z_k| ≥ 1.8
+  saturation_rate = count / (dim · total_ticks)
+  
+  Alert: if saturation_rate > 0.001 (0.1%)
+         → State manifold near boundary; possible numerical stress
+```
+
+**VR Quaternion Renormalization (Post-Correction):**
+
+```
+if vr_enabled:
+    q_norm_sq = Z_3² + Z_4² + Z_5² + Z_6²
+    
+    if |q_norm_sq − 1.0| > 0.01:
+        q_norm = √q_norm_sq
+        Z_3 := Z_3 / q_norm
+        Z_4 := Z_4 / q_norm
+        Z_5 := Z_5 / q_norm
+        Z_6 := Z_6 / q_norm
+```
+
+**Hardware Specificity:**
+
+```
+Z1 Extreme (RDNA 3, gfx1103):
+  MAX_CU = 4
+  MAX_WAVES = 128
+  DVSM occupancy = 0.78%
+  Expected phase_error convergence: < 0.5 ms
+
+Z2 Extreme (RDNA 3.5, gfx1150):
+  MAX_CU = 16
+  MAX_WAVES = 512
+  DVSM occupancy = 0.19%  ← Exploited by PLL
+  Expected phase_error convergence: < 0.1 ms (4× better headroom)
+```
+
+**Validation Criteria (§9.6b Convergence Test):**
+
+```
+1000 frames with ±0.5ms random GPU jitter:
+
+  ✓ avg_phase_error < 0.1 ms
+  ✓ max_phase_error < 0.5 ms
+  ✓ avg_norm_deviation < 0.01 (toward E_target)
+  ✓ No suchness rollbacks (orthogonality maintained)
+  ✓ Quaternion norm preserved (if VR enabled)
+  ✓ Hash determinism with clamped state
+```
+
+---
+
 ### §A.3 Hash Identity Binding (Immutable, Tautology-Critical)
 
 ```
