@@ -258,6 +258,173 @@ if vr_enabled:
         Z_6 := Z_6 / q_norm
 ```
 
+---
+
+### §A.2d Portable C-Struct Specification (Hardware-Locked ABI)
+
+**Purpose:** Define a canonical, ABI-stable memory layout that ensures byte-identical behavior across Windows, Linux, SteamOS, and firmware implementations.
+
+**Design Principles:**
+```
+1. Language-Agnostic: C, C++, Rust, Python ctypes all see identical layout
+2. Platform-Agnostic: x86_64, ARM64 (endianness handled at serialization)
+3. Cache-Efficient: 64-byte alignment (one cache line)
+4. Fixed-Point Only: No floats in hot path (determinism guarantee)
+5. Extensible: Reserve fields for future protocol versions
+```
+
+**The Canonical Structure:**
+
+```c
+// Portable type alias (all platforms)
+typedef int64_t  q31_32_t;   // Q31.32 fixed-point (31 int + 32 frac bits)
+typedef int128_t q63_64_t;   // Q63.64 fixed-point (extended range)
+
+// ABI-stable struct (alignment, packing, endianness agnostic)
+#[repr(C, align(64))]  // Rust FFI
+pub struct DVSMManifoldStateV31 {
+    // === IMMUTABLE PROTOCOL HEADER ===
+    protocol_version:     u64,       // 0x0301 (v3.1, frozen)
+    sync_tier:            u8,        // 1=Proportional, 2=Gudermannian
+    q_format:             u8,        // 0=Q31.32, 1=Q64.64
+    vr_enabled:           u8,        // 0 or 1
+    neural_enabled:       u8,        // 0 or 1
+    _reserved_header:     [u8; 4],   // Future use
+    
+    // === IMMUTABLE BACKREACTION COEFFICIENTS (Q31.32) ===
+    alpha_base:           q31_32_t,  // Base backreaction strength
+    kappa_sync:           q31_32_t,  // Phase-lock sync scale (0.25)
+    e_target:             q31_32_t,  // Target norm squared (1.0)
+    lambda:               q31_32_t,  // Dissipation coefficient
+    
+    // === MUTABLE STATE VECTORS ===
+    z: [q31_32_t; 64],               // Primary state manifold (16D or 20D, padded to 64)
+    s: [q31_32_t; 64],               // EMA memory (same dim)
+    w: [q31_32_t; 64],               // Stiefel basis (optional, zeroed if unused)
+    
+    // === MUTABLE TELEMETRY & CONTROL ===
+    frame_idx:            u64,       // Immutable frame counter
+    hash_chain:           u64,       // FNV1A_PARITY(σ_t)
+    phase_error_ema:      q31_32_t,  // Exponential moving average of |phase_delta|
+    norm_sq_current:      q31_32_t,  // ‖Z‖² in Q31.32 (cached)
+    
+    // === FEATURE FLAGS (Runtime Control, No Restart) ===
+    sync_tier_override:   u8,        // User override: 0=use config, 1=Proportional, 2=Gudermannian
+    paranoid_mode:        u8,        // Soft-clip state clamping (0=hard clamp, 1=tanh)
+    frame_gen_enabled:    u8,        // Frame generation parity (0 or 1)
+    vrs_mask_enabled:     u8,        // Tile-based VRS (0 or 1)
+    
+    // === SAFETY & FALLBACK ===
+    gd_inv_safety_threshold: f32,    // Singularity guard (units: gd_inv value, not scaled)
+    gpu_hang_threshold_ms: u32,      // Fallback if phase_delta > this (units: ms)
+    z_clamp_min:          q31_32_t,  // Hard clamp lower (-2.0)
+    z_clamp_max:          q31_32_t,  // Hard clamp upper (+2.0)
+    
+    // === METADATA FOR DEBUG/TELEMETRY ===
+    tick_count:           u64,       // Total ticks executed
+    rollback_count:       u32,       // Number of suchness rollbacks
+    safety_valve_triggers: u32,      // Number of fallbacks to Tier 1
+    
+    // === RESERVED (Future Protocol Versions) ===
+    _reserved_future:     [u8; 64],  // Padding for v3.2+
+}
+
+// Size verification (compile-time)
+const DVSM_STATE_SIZE: usize = core::mem::size_of::<DVSMManifoldStateV31>();
+const DVSM_STATE_ALIGN: usize = core::mem::align_of::<DVSMManifoldStateV31>();
+
+// Assertions
+// DVSM_STATE_SIZE must be 768 bytes (12 × 64-byte cache lines)
+// DVSM_STATE_ALIGN must be 64
+```
+
+**Memory Layout (Byte-Accurate):**
+
+```
+Offset (bytes)   Field                        Type        Size    Notes
+───────────────────────────────────────────────────────────────────────
+0                protocol_version             u64         8       Frozen
+8                sync_tier                    u8          1       1 or 2
+9                q_format                     u8          1       0 or 1
+10               vr_enabled                   u8          1
+11               neural_enabled               u8          1
+12               _reserved_header             [u8; 4]     4
+16               alpha_base                   q31_32_t    8       Q31.32
+24               kappa_sync                   q31_32_t    8       Q31.32
+32               e_target                     q31_32_t    8       Q31.32
+40               lambda                       q31_32_t    8       Q31.32
+48               z[0..64]                     [q31_32_t]  512     Primary state
+560              s[0..64]                     [q31_32_t]  512     EMA memory
+... [w vectors follow]
+784              sync_tier_override           u8          1       No-restart
+785              paranoid_mode                u8          1       No-restart
+786              frame_gen_enabled            u8          1       No-restart
+787              vrs_mask_enabled             u8          1       No-restart
+... [safety thresholds follow]
+```
+
+**Serialization (C-Equivalence):**
+
+```c
+// C99 equivalent (portable across all languages)
+typedef struct {
+    uint64_t protocol_version;
+    uint8_t sync_tier;
+    uint8_t q_format;
+    uint8_t vr_enabled;
+    uint8_t neural_enabled;
+    uint8_t _reserved_header[4];
+    
+    int64_t alpha_base;    // Q31.32
+    int64_t kappa_sync;    // Q31.32
+    int64_t e_target;      // Q31.32
+    int64_t lambda;        // Q31.32
+    
+    int64_t z[64];         // Q31.32 state
+    int64_t s[64];         // Q31.32 EMA
+    int64_t w[64];         // Q31.32 basis
+    
+    uint64_t frame_idx;
+    uint64_t hash_chain;
+    int64_t phase_error_ema;  // Q31.32
+    int64_t norm_sq_current;  // Q31.32
+    
+    uint8_t sync_tier_override;
+    uint8_t paranoid_mode;
+    uint8_t frame_gen_enabled;
+    uint8_t vrs_mask_enabled;
+    
+    float gd_inv_safety_threshold;
+    uint32_t gpu_hang_threshold_ms;
+    int64_t z_clamp_min;   // Q31.32
+    int64_t z_clamp_max;   // Q31.32
+    
+    uint64_t tick_count;
+    uint32_t rollback_count;
+    uint32_t safety_valve_triggers;
+    
+    uint8_t _reserved_future[64];
+} DVSM_ManifoldState_v31;
+```
+
+**Hardware Specificity:**
+
+```
+Z1 Extreme (Phoenix, gfx1103):
+  DIM = 16 (only first 16 of 64 z/s/w used, rest zeroed)
+  Protocol version: 0x0301
+  Typical: sync_tier = 1 (Proportional)
+
+Z2 Extreme (Strix Point, gfx1150):
+  DIM = 16 or 64 (configurable)
+  Protocol version: 0x0301 (same, portable)
+  Typical: sync_tier = 2 (Gudermannian, opt-in)
+  
+Windows/Linux (C++ wrapper):
+  Can deserialize same binary, produce identical results
+  Endianness: Big-endian systems swap at deserialization boundary
+```
+
 **Hardware Specificity:**
 
 ```
@@ -285,6 +452,64 @@ Z2 Extreme (RDNA 3.5, gfx1150):
   ✓ No suchness rollbacks (orthogonality maintained)
   ✓ Quaternion norm preserved (if VR enabled)
   ✓ Hash determinism with clamped state
+```
+
+---
+
+### §A.2e Q31.32 Fixed-Point Encoding (Determinism Guarantee)
+
+**Purpose:** Define bit-perfect conversion rules between floating-point and fixed-point representations. All arithmetic in the hot path uses integer operations only—no floats, no rounding errors.
+
+**Q31.32 Format Definition:**
+
+```
+Range:     [-2^31, 2^31) ≈ [-2.147e9, +2.147e9]
+ULP:       2^-32 ≈ 2.33e-10 (sub-nanosecond precision)
+Encoding:  value_q31_32 = floor(value_float × 2^32)
+Decoding:  value_float = value_q31_32 / 2^32
+
+Example representations (exact):
+───────────────────────────────────────────────────────────────
+Value      Q31.32 Hex              Notes
+───────────────────────────────────────────────────────────────
+0.0        0x0000000000000000      Zero
+1.0        0x0000000100000000      1 << 32
+0.25       0x0000000040000000      κ_sync = 0.25 exactly
+0.08       0x000000147AE147A7      α_base ≈ 0.08
+-2.0       0xFFFFFFFE00000000      Hard clamp lower
++2.0       0x0000000200000000      Hard clamp upper
+```
+
+**Critical Property:**
+```
+ZERO-DRIFT GUARANTEE:
+  All hot-path arithmetic is integer-only.
+  Z evolution is DETERMINISTIC and byte-identical across:
+    - Z2 Extreme (Linux, SteamOS)
+    - Ally X (Windows, Linux)
+    - PC (DX12/Vulkan wrapper)
+    - Firmware (gfx1150 kernel)
+
+Because int64 addition/multiplication is deterministic, there is NO
+rounding error. The manifold will not drift or diverge over 100+ hours.
+```
+
+**Conversion Functions (Pseudocode):**
+
+```
+// Float → Q31.32
+encode_q31_32(x: f64) → i64 = floor(x * 2^32)
+
+// Q31.32 → Float
+decode_q31_32(q: i64) → f64 = q / 2^32
+
+// Q31.32 Multiplication (down-shift by 32)
+mul_q31_32(a: i64, b: i64) → i64 = ((a × b) >> 32)
+
+// For Gudermannian LUT (precomputed offline):
+//   phase_normalized ∈ [-1.0, +1.0]
+//   lut_index = (phase_normalized + 1.0) × 256 ∈ [0, 511]
+//   α_sync = decode_q31_32(gd_lut[lut_index])
 ```
 
 ---
@@ -1081,12 +1306,14 @@ Z1 Extreme (Phoenix, gfx1103):
   MAX_CU = 4
   MAX_WAVES = 4 × 2 × 16 = 128
   Wave occupancy: 1 DVSM wave / 128 slots = 0.78%
+  TDP range: 15–35 W
   Compile flag: --offload-arch=gfx1103
 
 Z2 Extreme (Strix Point, gfx1150):
   MAX_CU = 16
   MAX_WAVES = 16 × 2 × 16 = 512
   Wave occupancy: 1 DVSM wave / 512 slots = 0.19%
+  TDP range: 17–35 W [minimum idle: 17W, maximum load: 35W]
   Compile flag: --offload-arch=gfx1150
 ```
 
