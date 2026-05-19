@@ -1,4 +1,3 @@
-# Author: Daniel J. Dillberg
 # DVSM-DFE Integration Bridge
 
 **Purpose**: Integrate the Lie-bracket spectral dynamics (DFE) as a pluggable **Transform+Adapt derivative** within the immutable core tautology.
