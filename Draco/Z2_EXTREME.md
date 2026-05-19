@@ -19,7 +19,7 @@
 | LDS per Wave Group Processor | 128 KB | 128 KB (unchanged) |
 | Vector Register File per SIMD | 128 KB | 128 KB (same) |
 | Texture Fill Rate | Baseline | **~2× per cycle vs RDNA 3** |
-| TDP Range | 15–35 W | 15–35 W (unchanged) |
+| TDP Range | 15–35 W | **17–35 W** [minimum idle: 17W] |
 | CPU | Zen 4 | Zen 5 / Zen 5c hybrid |
 
 **Occupancy Model (AMD GPUOpen):**
@@ -431,11 +431,13 @@ pub const MAX_CU: u32 = 16;
 
 ### Q: What's the performance gain I can expect?
 **A:** Kernel wall-time: ~0.25–0.33× of Z1 (due to 4× more SIMDs). Frame variance improvement: workload-dependent, measure with FrameVarianceRing.
-**A:** The only reason this wouldn't be massive is if the VRS (Variable Rate Shading) in your vrs_rate function is set too aggressively, causing visual artifacts. 
-However, with the 16 CUs on the Z2, you can likely dial back the VRS and still maintain these gains because the hardware has so much more "room to breathe."
 
 ### Q: Is paranoid mode necessary on Z2?
 **A:** No, but recommended for first deployment (2× cost to catch any edge cases). Switch to standard mode after validation.
+
+---
+
+**End of Z2 Extreme Addendum**
 
 ---
 
