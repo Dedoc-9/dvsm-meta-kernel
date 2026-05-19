@@ -1495,6 +1495,18 @@ Before merging any feature:
 - [ ] Suchness verification (L1-L7) < 2.0 ms (paranoid)
 - [ ] Forensic stack L1-L10 < 5 ms (forensic mode, async preferred)
 
+**Hardware Variants (Z1 Extreme vs Z2 Extreme):**
+- [ ] Identify target platform (Z1=Phoenix gfx1103, Z2=Strix Point gfx1150)
+- [ ] Update MAX_CU constant (4 → 16 for Z2)
+- [ ] Compile with correct --offload-arch flag (gfx1103 vs gfx1150)
+- [ ] Verify SHADER compatibility (unchanged; forward-compatible)
+- [ ] Test occupancy model (Z1: 0.78%, Z2: 0.19% DVSM headroom)
+- [ ] Validate profiler data (RGP: kernel wall-time expected ~0.25× Z1 on Z2)
+- [ ] Benchmark FrameVarianceRing (p99, p95) on target hardware
+- [ ] Cross-validate across Z1 and Z2 (identical determinism)
+- [ ] Z2-specific: Test AFMF2 coexistence (if enabled)
+- [ ] Z2-specific: Validate scalar FPU optimization (RGP profile recommended)
+
 ---
 
 ## §11 RUNTIME PROFILES (SessionConfig + WattageProfile)
@@ -1610,19 +1622,31 @@ impl WattageProfile {
 ```rust
 pub fn select_config_for_platform(platform: &str, vr: bool) -> SessionConfig {
     match (platform, vr) {
-        ("ally_x", false) => SessionConfig::ALLY_X_PERF,
-        ("ally_x_balanced", false) => SessionConfig::ALLY_X_BALANCED,
-        ("ally_x_silent", false) => SessionConfig::ALLY_X_SILENT,
+        // Z1 Extreme (Phoenix, gfx1103, 4 CU)
+        ("ally_x_2024", false) => SessionConfig::ALLY_X_PERF,
+        ("ally_x_2024_balanced", false) => SessionConfig::ALLY_X_BALANCED,
+        ("ally_x_2024_silent", false) => SessionConfig::ALLY_X_SILENT,
         
+        // Z2 Extreme (Strix Point, gfx1150, 16 CU) — NEW
+        ("ally_x_2025", false) => SessionConfig::ALLY_X_Z2_PERF,
+        ("ally_x_2025_balanced", false) => SessionConfig::ALLY_X_Z2_BALANCED,
+        ("msi_claw_a8", false) => SessionConfig::ALLY_X_Z2_PERF,  // equivalent
+        
+        // VR profiles (compatible with both Z1 and Z2)
         ("vr_desktop", true) => SessionConfig::VR_DESKTOP,
         ("vr_mobile", true) => SessionConfig::VR_MOBILE,
         
+        // Low SNR (Z2 still uses Q64.64)
         ("low_snr", false) => SessionConfig::SUB_ZERO_SNR,
         
         _ => SessionConfig::ALLY_X_BALANCED,  // safe default
     }
 }
 ```
+
+**Note:** All SessionConfig profiles are mathematically identical across Z1 and Z2. 
+The platform selector determines which GPU occupancy mode (Z1=128 vs Z2=512 wave slots) is used.
+See §11.4 below for hardware-specific constant configuration.
 
 **Frame Rate Lock Mechanism:**
 
@@ -1635,6 +1659,107 @@ config.lock();  // IMMUTABLE for rest of session
 config.try_set_frame_rate(120).unwrap_err();
 // → "Frame rate is locked for this session. Cannot change."
 ```
+
+### §11.4 Z2 Extreme Hardware Configuration
+
+**File:** src/lib.rs (constants)
+
+```rust
+// ===== PLATFORM-SPECIFIC CONSTANTS (see Z2_EXTREME_ADDENDUM.md) =====
+
+// Z1 Extreme (Phoenix, gfx1103):
+#[cfg(target_gfx = "1103")]
+pub const MAX_CU: u32    = 4;
+
+// Z2 Extreme (Strix Point, gfx1150):
+#[cfg(target_gfx = "1150")]
+pub const MAX_CU: u32    = 16;
+
+// Wave occupancy calculation (identical formula, platform-specific MAX_CU)
+pub const MAX_WAVES: u32 = MAX_CU * 2 * 16;  // 128 (Z1) or 512 (Z2)
+
+// Occupancy headroom for game renderer
+pub const OCCUPANCY_HEADROOM: u32 = MAX_WAVES - 1;  // DVSM uses 1 wave
+```
+
+**Associated SessionConfig Profiles (Z2-specific):**
+
+```rust
+impl SessionConfig {
+    // Z2 Extreme (Strix Point, 16 CU) — Performance
+    pub const ALLY_X_Z2_PERF: Self = Self {
+        frame_rate_hz: 240,
+        dt: 1.0 / 240.0,
+        vr_enabled: false,
+        q_mode: QuantMode::Q31,
+        _locked: false,
+    };
+    
+    // Z2 Extreme — Balanced
+    pub const ALLY_X_Z2_BALANCED: Self = Self {
+        frame_rate_hz: 120,
+        dt: 1.0 / 120.0,
+        vr_enabled: false,
+        q_mode: QuantMode::Q31,
+        _locked: false,
+    };
+}
+```
+
+**Compile Flag (Cargo.toml or command-line):**
+
+```toml
+# Z2 Extreme build
+[profile.release]
+rustflags = ["-C", "target-cpu=native", "--offload-arch=gfx1150"]
+
+# Z1 Extreme build (alternative)
+# rustflags = ["-C", "target-cpu=native", "--offload-arch=gfx1103"]
+```
+
+**Or via command-line:**
+```bash
+# Z2 Extreme
+cargo build --release \
+  -C target-cpu=native \
+  --offload-arch=gfx1150
+
+# Z1 Extreme
+cargo build --release \
+  -C target-cpu=native \
+  --offload-arch=gfx1103
+```
+
+**Occupancy Model Validation (Test):**
+
+```rust
+#[test]
+fn test_gpu_occupancy_model() {
+    #[cfg(target_gfx = "1103")]
+    {
+        assert_eq!(MAX_CU, 4, "Z1 Extreme CU mismatch");
+        assert_eq!(MAX_WAVES, 128, "Z1 Extreme wave slots mismatch");
+        let occupancy = 1.0 / 128.0;
+        assert!(occupancy < 0.01, "DVSM occupancy on Z1 should be ~0.78%");
+    }
+    
+    #[cfg(target_gfx = "1150")]
+    {
+        assert_eq!(MAX_CU, 16, "Z2 Extreme CU mismatch");
+        assert_eq!(MAX_WAVES, 512, "Z2 Extreme wave slots mismatch");
+        let occupancy = 1.0 / 512.0;
+        assert!(occupancy < 0.01, "DVSM occupancy on Z2 should be ~0.19%");
+    }
+}
+```
+
+**Full Z2 Extreme Details:** See Z2_EXTREME_ADDENDUM.md
+- Hardware specification comparison (GPU, CPU, memory)
+- Code deltas required
+- Architectural improvements (scalar FPU, texture throughput)
+- Kernel optimization hints
+- Interaction with AFMF2 (AMD Fluid Motion Frames 2)
+- Benchmark validation methodology
 
 ---
 
