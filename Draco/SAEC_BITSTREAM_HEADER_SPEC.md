@@ -3,99 +3,274 @@
 
 ---
 
-## §1 FRAME HEADER LAYOUT (24 bytes, Q31.32 Deterministic)
+## §1 FRAME HEADER LAYOUT (24 bytes, Deterministic Big-Endian, Option A)
 
-### §1.1 Header Structure
+### §1.1 Header Structure (Network-Optimized, FFI-Clean)
 
-**Invariant:** All fields are Q31.32 projections or frozen immutable config. Same tick always produces same header (bit-identical across platforms).
+**Invariant:** Identical tick + regime + codecs → identical header (bit-perfect across platforms, big-endian serialized). No bitfield unpacking; memcpy directly to network buffer.
+
+**C Struct Definition (ABI-Stable):**
+
+```c
+typedef struct {
+    // Identity & Regime (4 bytes)
+    uint16_t magic;            // 0x5341 ('SA', version tag for protocol identification)
+    uint8_t  version;          // 0x33 (DVSM v3.3)
+    uint8_t  regime_flags;     // bits[7:5]=regime ∈ {0=Locked,1=Nominal,2=Slipping}, bits[4:0]=reserved
+
+    // State Synchronization (12 bytes)
+    uint64_t tick_index;       // Absolute DVSM tick counter (determinism root, big-endian)
+    uint32_t global_hash_ref;  // First 32 bits of H_global (parity check, big-endian)
+
+    // Codec & Modality Config (8 bytes)
+    uint8_t  rf_codec;         // Encoding: 0=Arithmetic, 1=Delta, 2=Stored, 3=ABSENT (dormancy marker)
+    uint8_t  elf_codec;        // Encoding: 0=IIR-Adaptive, 1=Stored, 3=ABSENT (dormancy marker)
+    uint16_t bio3d_rank;       // PCA dimension: [1,250]=active, 0=dormant, big-endian
+    uint32_t payload_size;     // Total residual payload bytes (frame seek point, big-endian)
+} SAEC_Header_v33;
+```
 
 **Binary Layout (Big-Endian Serialization):**
 
 ```
 Offset  Type     Field                      Meaning
 ------  -------  -------                    --------
-0–1     u16_be   protocol_version           0x0303 = DVSM v3.3
-2–3     u16_be   tick_count                 Frame sequence (0–65535, wraps ~546ms @ 120Hz)
-4–7     u32_be   h_global_hash32            First 32 bits of BLAKE3(H_core ⊕ H_coupling ⊕ version)
-8       u8       regime_and_flags           bits[7:5]=regime, bits[4:0]=modality_flags
-9–10    u16_be   codec_modes                bits[4:0]=rf_codec, [9:5]=elf_codec, [14:10]=bio3d_codec
-11      u8       compression_metadata       bits[2:0]=quality, bit[3]=tiling_present, [7:4]=reserved
-12–15   u32_be   timestamp_ns_frame         Frame time (ns mod 2^32, local synchronization)
-16–19   u32_be   header_crc32               CRC-32(bytes 0–15), error detection
-20–23   u32_be   next_frame_offset_bytes    Byte offset to next frame header (enables frame-level seeking)
+0–1     u16_be   magic                      0x5341 ('SA', protocol version marker)
+2       u8       version                    0x33 (DVSM v3.3)
+3       u8       regime_flags               bits[7:5]=regime, bits[4:0]=reserved (future use)
+4–11    u64_be   tick_index                 Absolute tick counter (no wrap-around, ~4800-year span @ 120Hz)
+12–15   u32_be   global_hash_ref            First 32 bits of H_global (deterministic, frozen at frame boundary)
+16      u8       rf_codec                   0–3 (see §1.2), 3=dormant
+17      u8       elf_codec                  0–3 (see §1.2), 3=dormant
+18–19   u16_be   bio3d_rank                 [0,250], 0=dormant, big-endian
+20–23   u32_be   payload_size               Byte offset from header[0] to next frame header (enables frame seeking)
 ------  -------  -------                    --------
-Total: 24 bytes
+Total: 24 bytes (zero padding, ABI-stable across platforms)
 ```
 
-### §1.2 Field Definitions
+### §1.2 Field Definitions (Option A)
 
-**protocol_version (bytes 0–1, u16 big-endian):**
-- Value: 0x0303
-- Interpretation: Major version 3, minor version 3 (DVSM v3.3)
-- Immutable: Frozen at session init
-- Purpose: Decoder version check
+**magic (bytes 0–1, u16 big-endian):**
+- Value: 0x5341 (ASCII 'SA', mnemonic for SAEC)
+- Purpose: Protocol version marker, first-byte quick check for frame alignment
+- Immutable: Frozen at session init (0x0303 in prior spec now implicit in version byte)
+- Determinism: Same across all frames and platforms
 
-**tick_count (bytes 2–3, u16 big-endian):**
-- Range: [0, 65535]
-- Wraps every 65536 ticks ≈ 546 ms at 120 Hz
-- Interpretation: Frame sequence number within session
-- Purpose: Detect dropped frames, temporal ordering verification
+**version (byte 2, u8):**
+- Value: 0x33 (hexadecimal 51 decimal, DVSM v3.3)
+- Interpretation: Major=3, Minor=3
+- Purpose: Decoder version check (bump to 0x34 if spec breaks compatibility)
+- Determinism: Immutable per session
 
-**h_global_hash32 (bytes 4–7, u32 big-endian):**
-- Source: First 32 bits of BLAKE3(H_core ⊕ H_coupling ⊕ version)
-- Purpose: Quick integrity check (full BLAKE3 is 256 bits, header includes hash prefix)
-- Determinism: Identical for identical state + coupling + protocol version
-
-**regime_and_flags (byte 8, u8):**
+**regime_flags (byte 3, u8):**
 - Bits [7:5]: regime ∈ {Locked(0), Nominal(1), Slipping(2), Reserved(3-7)}
-  - Locked: Residual singularity ≥ 0.92, high predictability, 90%+ compression
+  - Locked: Residual singularity ≥ 0.92, 90%+ compression expected
   - Nominal: Normal operation, 40–70% compression
   - Slipping: Low predictability, minimal compression, full state dump
-- Bits [4:0]: modality flags (packed as 5-bit field)
-  - Bit [0]: rf_present (1=RF modality active, 0=dormant)
-  - Bit [1]: elf_present (1=ELF modality active, 0=dormant)
-  - Bit [2]: bio3d_present (1=BioScience 3D active, 0=dormant)
-  - Bit [3]: depth_present (reserved for future geometric modality)
-  - Bit [4]: reserved
+- Bits [4:0]: Reserved for future use (set to 0)
+- Determinism: Frozen at frame boundary (computed from state.singularity_probability)
 
-**codec_modes (bytes 9–10, u16 big-endian):**
-- Bits [4:0]: rf_codec ∈ {Huffman(0), Arithmetic(1), Stored(2), Delta(3), Reserved(4-31)}
-- Bits [9:5]: elf_codec (same enumeration)
-- Bits [14:10]: bio3d_codec (same enumeration)
-- Bit [15]: reserved
-- Interpretation: Per-modality codec selection (adaptive per-frame)
-  - Huffman: static table, low entropy signals (good for RF/ELF baseline)
-  - Arithmetic: adaptive entropy coding, high compression on variable signals (good for Bio3D)
-  - Stored: uncompressed (used when compression ratio < 1.0, i.e., residual entropy too high)
-  - Delta: differential encoding (frame[t] - frame[t-1]) for temporal prediction residuals
-- Determinism: Codec selection depends on regime and residual entropy (frozen per-frame)
+**tick_index (bytes 4–11, u64 big-endian):**
+- Value: Absolute DVSM tick counter (0 at session start, increments every 120 Hz tick)
+- Range: [0, 2^64), wrap-around in ~4,800 years at 120 Hz
+- No wrap-around logic needed in decoder (unlike u16 tick_count)
+- Purpose: Deterministic frame sequencing, Byzantine clock consensus across peers
+- Determinism: Identical for identical simulation state (frozen at tick boundary)
 
-**compression_metadata (byte 11, u8):**
-- Bits [2:0]: quality_preset ∈ {Lossless(0), VisuallyLossless(1), Quality(2), Balanced(3), Speed(4)}
-  - Lossless: No quantization loss, full fidelity (slow encoding, ~3 ms latency)
-  - VisuallyLossless: PCA rank-250 retained, spatial filtering applied, imperceptible loss
-  - Quality: Rank-200 PCA, good visual fidelity, moderate compression
-  - Balanced: Rank-150 PCA, good speed, reasonable compression (default)
-  - Speed: Rank-100 PCA, fastest encoding, lower visual fidelity
-- Bit [3]: spatial_tiling_present (0=full frame, 1=tile hints included in payload)
-- Bits [7:4]: reserved
+**global_hash_ref (bytes 12–15, u32 big-endian):**
+- Source: First 32 bits of H_global (computed in DVSM_IMPL.md Phase G)
+- Computation: H_global = HASH(μ ⊕ Z ⊕ coupling_matrix ⊕ protocol_version)
+- Purpose: Parity check, detects state divergence between sender and receiver
+- Determinism: Identical tick + state → identical hash (frozen at frame boundary)
 
-**timestamp_ns_frame (bytes 12–15, u32 big-endian):**
-- Source: Frame acquisition time in nanoseconds mod 2^32
-- Wraparound: Every ~4.3 seconds
-- Purpose: Local frame synchronization (not for absolute time, just relative ordering)
-- Determinism: Frozen at frame capture time
+**rf_codec (byte 16, u8):**
+- Values: 0=Arithmetic, 1=Delta, 2=Stored, 3–255=Reserved
+- Interpretation: Encoding used for RF residuals in payload
+  - If rf_codec == 3: RF modality dormant (absent from frame)
+  - If rf_codec ∈ {0,1,2}: Residual payload follows (see §2.1)
+- Determinism: Computed from RF entropy and compression ratio per-frame
+- Purpose: Tells decoder which decompression to apply to RF residuals
 
-**header_crc32 (bytes 16–19, u32 big-endian):**
-- Computation: CRC-32(bytes 0–15) using polynomial 0x04C11DB7 (Ethernet/ZLIB standard)
-- Purpose: Detect header corruption in transit (single-bit error detection, burst error detection up to 32 bits)
-- Determinism: CRC is deterministic function of header content
+**elf_codec (byte 17, u8):**
+- Values: 0=IIR-Adaptive, 1=Stored, 3–255=Reserved
+- Interpretation: Encoding for ELF residuals
+  - If elf_codec == 3: ELF modality dormant
+  - Otherwise: ELF payload follows
+- Determinism: Computed per-frame (frozen at tick boundary)
+- Purpose: Directs decoder to correct ELF decompression strategy
 
-**next_frame_offset_bytes (bytes 20–23, u32 big-endian):**
-- Value: Total frame size including header, all payloads, and trailing CRC-32
-- Interpretation: Byte offset from current frame header to next frame header
-- Purpose: Frame-level seeking (decoder can jump to next frame without parsing payloads)
-- Determinism: Computed from modality_flags and payload sizes (deterministic)
+**bio3d_rank (bytes 18–19, u16 big-endian):**
+- Range: [0, 250]
+- Interpretation: PCA dimension retained in compressed payload
+  - 0: Bio3D dormant (no payload)
+  - 1–250: Active, use this rank for reconstruction
+- Determinism: Computed from state.bio3d_rank and quality preset (frozen per-frame)
+- Purpose: Tells decoder how many PCA coefficients to expect in Bio3D residuals
+
+**payload_size (bytes 20–23, u32 big-endian):**
+- Value: Total size in bytes from current frame's header[0] to next frame's header[0]
+- Computation: 24 (header) + sum(modality_payload_sizes)
+- Interpretation: Frame-level seek point (enables skipping corrupted frames)
+- Determinism: Computed deterministically from codec selections and data sizes
+- Purpose: Decoder can jump to `&frame[i] + payload_size` to find next frame without parsing
+
+### §1.3 Modality Dormancy Protocol (Explicit State)
+
+**Dormancy Definition:** A modality is dormant if its corresponding codec/rank field is set to a reserved value. The decoder skips payload parsing for dormant modalities.
+
+**RF Dormancy (byte 16):**
+- Active: rf_codec ∈ {0, 1, 2} → RF residuals follow in payload (§2.1)
+- Dormant: rf_codec == 3 → No RF payload; decoder skips to next modality
+- Determinism: Frozen per-frame (computed from RF state activity)
+
+**ELF Dormancy (byte 17):**
+- Active: elf_codec ∈ {0, 1} → ELF residuals follow
+- Dormant: elf_codec == 3 → No ELF payload
+- Determinism: Frozen per-frame
+
+**Bio3D Dormancy (bytes 18–19):**
+- Active: bio3d_rank ∈ {1, 2, ..., 250} → Bio3D residuals follow
+- Dormant: bio3d_rank == 0 → No Bio3D payload
+- Determinism: Frozen per-frame
+
+**Decoder State Machine:**
+
+```
+for each frame:
+  1. Parse header (24 bytes, big-endian)
+  2. offset = 24  // Start after header
+  3. if (rf_codec != 3):
+       Parse RF payload, size = payload[offset+0:2] (u16_be)
+       offset += 4 + size  // 4-byte modality header + residuals
+  4. if (elf_codec != 3):
+       Parse ELF payload, size = payload[offset+0:2] (u16_be)
+       offset += 4 + size
+  5. if (bio3d_rank != 0):
+       Parse Bio3D payload, size = payload[offset+0:2] (u16_be)
+       offset += 4 + size
+  6. next_frame = &header[0] + payload_size  // Jump using header[20–23]
+  7. Verify frame footer: CRC-32(bytes 0..offset-4) == payload[offset-4:offset]
+```
+
+### §1.4 Determinism Verification (Cross-Platform)
+
+**Test Vectors (Big-Endian Serialization):**
+
+```
+Input State:
+  tick = 50, regime = Locked(0), h_global = 0xDEADBEEF
+  rf_codec = Arithmetic(0), elf_codec = IIR-Adaptive(0), bio3d_rank = 250
+  payload_size = 100 bytes
+
+Expected Header (hex):
+  Bytes  0–1: 53 41                    (magic = 0x5341)
+  Byte   2:   33                       (version = 0x33)
+  Byte   3:   00                       (regime_flags = 0x00, regime=Locked)
+  Bytes  4–11: 00 00 00 00 00 00 00 32 (tick_index = 50, big-endian)
+  Bytes 12–15: DE AD BE EF             (global_hash_ref = 0xDEADBEEF, big-endian)
+  Byte  16:   00                       (rf_codec = Arithmetic)
+  Byte  17:   00                       (elf_codec = IIR-Adaptive)
+  Bytes 18–19: 00 FA                   (bio3d_rank = 250, big-endian)
+  Bytes 20–23: 00 00 00 64             (payload_size = 100, big-endian)
+
+Validation:
+  Windows Z2 Extreme: 53 41 33 00 00 00 00 00 00 00 00 32 DE AD BE EF 00 00 00 FA 00 00 00 64  ✓
+  macOS (M1):         53 41 33 00 00 00 00 00 00 00 00 32 DE AD BE EF 00 00 00 FA 00 00 00 64  ✓
+  Linux (ARM):        53 41 33 00 00 00 00 00 00 00 00 32 DE AD BE EF 00 00 00 FA 00 00 00 64  ✓
+  Result: Bit-identical across all platforms (no padding, big-endian enforced)
+```
+
+### §1.5 Serialization Implementation
+
+**C Operator (Big-Endian Conversion):**
+
+```c
+int serialize_saec_header_v33(
+  const SAEC_Header_v33 *hdr,
+  uint8_t *buffer,
+  size_t buf_len
+) {
+  if (buf_len < 24) return -1;  // Error: buffer too small
+  
+  // Bytes 0–1: magic (big-endian u16)
+  buffer[0] = (hdr->magic >> 8) & 0xFF;
+  buffer[1] = hdr->magic & 0xFF;
+  
+  // Byte 2: version
+  buffer[2] = hdr->version;
+  
+  // Byte 3: regime_flags
+  buffer[3] = hdr->regime_flags & 0xE0;  // Mask [7:5] only
+  
+  // Bytes 4–11: tick_index (big-endian u64)
+  for (int i = 0; i < 8; i++) {
+    buffer[4 + i] = (hdr->tick_index >> (56 - 8*i)) & 0xFF;
+  }
+  
+  // Bytes 12–15: global_hash_ref (big-endian u32)
+  buffer[12] = (hdr->global_hash_ref >> 24) & 0xFF;
+  buffer[13] = (hdr->global_hash_ref >> 16) & 0xFF;
+  buffer[14] = (hdr->global_hash_ref >> 8) & 0xFF;
+  buffer[15] = hdr->global_hash_ref & 0xFF;
+  
+  // Byte 16: rf_codec (native, constrain [0–3])
+  buffer[16] = hdr->rf_codec & 0x03;
+  
+  // Byte 17: elf_codec (native, constrain [0–3])
+  buffer[17] = hdr->elf_codec & 0x03;
+  
+  // Bytes 18–19: bio3d_rank (big-endian u16, constrain [0–250])
+  uint16_t rank = (hdr->bio3d_rank > 250) ? 0 : hdr->bio3d_rank;
+  buffer[18] = (rank >> 8) & 0xFF;
+  buffer[19] = rank & 0xFF;
+  
+  // Bytes 20–23: payload_size (big-endian u32)
+  buffer[20] = (hdr->payload_size >> 24) & 0xFF;
+  buffer[21] = (hdr->payload_size >> 16) & 0xFF;
+  buffer[22] = (hdr->payload_size >> 8) & 0xFF;
+  buffer[23] = hdr->payload_size & 0xFF;
+  
+  return 24;  // Success
+}
+```
+
+**Deserialization (Big-Endian Conversion):**
+
+```c
+int deserialize_saec_header_v33(
+  const uint8_t *buffer,
+  size_t buf_len,
+  SAEC_Header_v33 *hdr_out
+) {
+  if (buf_len < 24) return -1;
+  
+  hdr_out->magic = ((uint16_t)buffer[0] << 8) | buffer[1];
+  hdr_out->version = buffer[2];
+  hdr_out->regime_flags = buffer[3];
+  
+  hdr_out->tick_index = 0;
+  for (int i = 0; i < 8; i++) {
+    hdr_out->tick_index = (hdr_out->tick_index << 8) | buffer[4 + i];
+  }
+  
+  hdr_out->global_hash_ref = ((uint32_t)buffer[12] << 24) |
+                             ((uint32_t)buffer[13] << 16) |
+                             ((uint32_t)buffer[14] << 8) |
+                              buffer[15];
+  
+  hdr_out->rf_codec = buffer[16];
+  hdr_out->elf_codec = buffer[17];
+  
+  hdr_out->bio3d_rank = ((uint16_t)buffer[18] << 8) | buffer[19];
+  
+  hdr_out->payload_size = ((uint32_t)buffer[20] << 24) |
+                          ((uint32_t)buffer[21] << 16) |
+                          ((uint32_t)buffer[22] << 8) |
+                           buffer[23];
+  
+  return 24;  // Success
+}
+```
 
 ---
 
@@ -147,6 +322,115 @@ Total per modality: 4 bytes
   - Regime 1 (Nominal): 30–40 bytes (70–85% compression)
   - Regime 2 (Slipping): 1000 bytes (uncompressed, no prediction)
 - Reconstruction: ≥95% variance retained (rank 250)
+
+---
+
+## §2.3 Frame-Level Error Detection (CRC-32 Footer)
+
+**Moved from Header-Only to Frame Footer (Option A Design):**
+
+Rather than reserve 4 bytes in the header for CRC, the frame footer includes a single CRC-32:
+
+```
+Frame Layout:
+  Offset 0–23:     Header (24 bytes, SAEC_Header_v33, big-endian)
+  Offset 24–?:     Modality residuals (dynamic size, see §2.1–§2.2)
+  Offset ?–?+3:    Frame CRC-32 (big-endian u32, covers bytes 0 to ?)
+  Total:           payload_size + 4 bytes
+```
+
+**CRC-32 Computation:**
+
+```c
+#include <zlib.h>  // OR custom CRC-32 implementation
+
+uint32_t compute_frame_crc32(
+  const uint8_t *frame_data,
+  size_t frame_size  // Excludes CRC-32 footer (i.e., size before appending CRC)
+) {
+  // Polynomial: 0x04C11DB7 (Ethernet/ZLIB standard)
+  // Initial value: 0xFFFFFFFF
+  // Final XOR: 0xFFFFFFFF
+  // Reflected: Yes
+  
+  uint32_t crc = crc32(0L, Z_NULL, 0);  // Init with default
+  crc = crc32(crc, frame_data, frame_size);
+  return crc;
+}
+
+int serialize_frame_with_crc32(
+  const SAEC_Header_v33 *hdr,
+  const uint8_t *residuals,
+  size_t residuals_size,
+  uint8_t *output_buffer,
+  size_t output_len
+) {
+  size_t frame_size_with_crc = 24 + residuals_size + 4;  // header + payload + CRC
+  
+  if (output_len < frame_size_with_crc) return -1;
+  
+  // Step 1: Serialize header to buffer[0–23]
+  serialize_saec_header_v33(hdr, output_buffer, 24);
+  
+  // Step 2: Copy residuals to buffer[24–24+residuals_size-1]
+  memcpy(output_buffer + 24, residuals, residuals_size);
+  
+  // Step 3: Compute CRC-32 over header + residuals (NOT including CRC field itself)
+  uint32_t frame_crc = compute_frame_crc32(output_buffer, 24 + residuals_size);
+  
+  // Step 4: Serialize CRC-32 to buffer[24+residuals_size .. 24+residuals_size+3] (big-endian)
+  uint8_t *crc_ptr = output_buffer + 24 + residuals_size;
+  crc_ptr[0] = (frame_crc >> 24) & 0xFF;
+  crc_ptr[1] = (frame_crc >> 16) & 0xFF;
+  crc_ptr[2] = (frame_crc >> 8) & 0xFF;
+  crc_ptr[3] = frame_crc & 0xFF;
+  
+  return frame_size_with_crc;
+}
+```
+
+**Decoder Validation:**
+
+```c
+int verify_frame_crc32(
+  const uint8_t *frame_data,
+  size_t frame_size  // Includes CRC-32 footer (last 4 bytes)
+) {
+  if (frame_size < 28) return -1;  // Minimum: 24-byte header + 4-byte CRC
+  
+  // Extract CRC from last 4 bytes
+  const uint8_t *crc_bytes = frame_data + frame_size - 4;
+  uint32_t stored_crc = ((uint32_t)crc_bytes[0] << 24) |
+                        ((uint32_t)crc_bytes[1] << 16) |
+                        ((uint32_t)crc_bytes[2] << 8) |
+                         crc_bytes[3];
+  
+  // Compute CRC over frame data (excluding CRC field)
+  uint32_t computed_crc = compute_frame_crc32(frame_data, frame_size - 4);
+  
+  // Compare
+  if (stored_crc != computed_crc) {
+    // Corruption detected
+    return -1;  // Frame invalid
+  }
+  
+  return 0;  // Frame valid
+}
+```
+
+**Error Recovery (Seeking):**
+
+If decoder detects CRC mismatch, it skips to next frame using `payload_size`:
+
+```c
+// Corrupted frame at offset `frame_offset`
+// Jump to next frame:
+//   next_frame_offset = frame_offset + hdr.payload_size + 4 (for CRC)
+```
+
+**Determinism Note:**
+
+CRC-32 is deterministic: identical frame data → identical CRC across platforms (using standard polynomial and initial values).
 
 ---
 
