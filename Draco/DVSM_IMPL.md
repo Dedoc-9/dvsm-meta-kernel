@@ -3416,7 +3416,7 @@ int32_t saec_encode_bitstream_frame_q31_32(
 
 **Overview:** Supervisor tick (120 Hz, 8.33 ms budget) orchestrates 10 phases: core update, coupling, validation, VRS projection, SRI verification, hash binding, frame dispatch, display output, audit logging, bitstream finalization.
 
-**Timeline (Phase A–J):**
+**Timeline (Phase A–K):**
 
 ```
 Phase A: Core state update (tick_q31_32)                   [0.27 ms, 3.2% budget]
@@ -3427,13 +3427,17 @@ Phase E: SRI shadow wave dispatch (GPU async)              [0.002 ms, 0.02% budg
 Phase F: Bitstream config enqueue (async worker)           [0.002 ms, 0.02% budget]
 Phase G: Hash binding (H_global computation)               [0.05 ms, 0.6% budget]
 Phase H: SRI poll + Byzantine decision (blocking)          [5.0 ms, 60% budget]
-Phase I: Display output (VRS tile rates)                   [1.0 ms, 12% budget]
+Phase H.5: Upload SRI to staging buffer (CPU memcpy)       [0.02 ms, 0.24% budget]
+Phase I.1: Record D3D12 GPU commands (copy + barriers)     [0.0135 ms, 0.16% budget]
+Phase I.2: Display output (VRS tile rates)                 [1.0 ms, 12% budget]
+Phase I.3: Signal SRI ready fence (GPU async)              [0.0005 ms, 0.006% budget]
 Phase J: Audit logging (ProofRecord write, if enabled)     [0.2 ms, 2.4% budget]
 ---
-TOTAL SEQUENTIAL (A–J):                                    [7.06 ms, 84.8% budget]
+TOTAL SEQUENTIAL (A–J):                                    [7.36 ms, 88.3% budget]
 
 Phase K: Bitstream finalization (async worker, parallel)   [3.0 ms (no blocking)]
-TOTAL WITH ASYNC:                                          [8.33 ms, 100% budget]
+GPU Fence Sync (sync_sri_texture_ready, at present time)   [0.1 ms typical, 5 ms max]
+TOTAL WITH ASYNC & FENCE:                                  [8.33 ms, 100% budget]
 ```
 
 **C Pseudocode (Simplified):**
@@ -3447,7 +3451,9 @@ void dvsm_supervisor_tick_optimized_v3_3(
   DVSM_Config *config,
   MQTT_Client *mqtt_client,
   PublishContext *mqtt_pub_ctx,
-  SubscriptionContext *mqtt_sub_ctx
+  SubscriptionContext *mqtt_sub_ctx,
+  ID3D12GraphicsCommandList5 *cmd_list_d3d12,
+  D3D12_SRITextureContext *sri_ctx
 ) {
   // PHASE A: Core state update
   tick_q31_32(state, config);  // 0.27 ms
@@ -3570,8 +3576,44 @@ void dvsm_supervisor_tick_optimized_v3_3(
     return;
   }
   
-  // PHASE I: Display output
+  // PHASE H.5 (NEW): Upload SRI projection to staging buffer
+  int upload_result = upload_sri_projection_to_staging(sri_ctx, sri_projection);
+  if (upload_result != 0) {
+    fprintf(stderr, "[TICK %u] SRI staging buffer upload failed\n", state->tick);
+    return;
+  }
+  // Latency: ~20 μs (memcpy + map/unmap overhead)
+  
+  // PHASE I.1 (NEW): Record D3D12 GPU commands for SRI texture upload
+  int d3d12_result = record_sri_copy_to_texture(sri_ctx, cmd_list_d3d12, state->tick);
+  if (d3d12_result != 0) {
+    fprintf(stderr, "[TICK %u] D3D12 SRI copy command recording failed\n", state->tick);
+    return;
+  }
+  
+  // Record RSSetShadingRateImage command
+  d3d12_result = record_set_shading_rate_image(sri_ctx, cmd_list_d3d12);
+  if (d3d12_result != 0) {
+    fprintf(stderr, "[TICK %u] D3D12 SetShadingRateImage command failed\n", state->tick);
+    return;
+  }
+  // Latency: ~13.5 μs (barrier + copy command + SRS command recording)
+  
+  // PHASE I.2: Display output with VRS rates
   display_frame_vrs(observation_frame, sri_projection, state);  // ~1.0 ms
+  
+  // PHASE I.3 (NEW): Signal GPU fence (SRI texture ready, command list injection complete)
+  // Recorded in command buffer; GPU will signal fence when command list execution completes
+  uint64_t sri_fence_value = state->tick;  // Use tick as fence value for tracking
+  int fence_result = signal_sri_ready_fence(sri_ctx, cmd_list_d3d12, g_frame_fence, sri_fence_value);
+  if (fence_result != 0) {
+    fprintf(stderr, "[TICK %u] SRI fence signal failed\n", state->tick);
+    // Non-fatal: continue (worst case, GPU-CPU sync will timeout)
+  }
+  // Latency: ~0.5 μs (GPU command queue entry)
+  
+  // NOTE: sync_sri_texture_ready() called after ExecuteCommandLists() / Present()
+  // See display/present function in Phase I or Phase J handler
   
   // PHASE J: Audit logging (if enabled)
   if (config->audit_config.enable_recording) {
