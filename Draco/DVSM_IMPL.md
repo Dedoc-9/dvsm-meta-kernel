@@ -3459,11 +3459,13 @@ void dvsm_supervisor_tick_optimized_v3_3(
   update_bio3d_state_q31_32(state, observation_frame, config);  // ~100 μs
   // Total: 0.35 ms
   
-  // PHASE B.5 (NEW): MQTT Regime Alert Handshake (Deterministic Multi-Peer Sync)
+  // PHASE B.5 (NEW, LOCK-FREE): MQTT Regime Alert Fire-and-Forget
+  // CRITICAL FIX: Non-blocking enqueue to shadow dispatcher, NO blocking ACK wait
+  // This solves the latency singularity (2ms ACK wait was causing frame drops)
   enum DVSMRegime regime_detected = detect_regime_from_singularity_q31_32(state);
   
   if (regime_detected != state->regime_prior) {
-    // Regime CHANGED: publish alert with deterministic message_id
+    // Regime CHANGED: create alert and enqueue to lock-free ring buffer
     MQTT_RegimeAlert_QoS1 alert = {
       .tick_count = state->tick,
       .regime_prior = state->regime_prior,
@@ -3474,33 +3476,27 @@ void dvsm_supervisor_tick_optimized_v3_3(
       .byzantine_flag = (state->sri_divergence_flag ? 1 : 0),
     };
     
-    // Publish with QoS 1 + RETAIN (deterministic message_id ensures idempotency)
-    publish_regime_alert_qos1(mqtt_client, &alert, mqtt_pub_ctx);  // ~65 μs
+    // Compute immutable message_id (deterministic hash, Q31.32)
+    alert.message_id = compute_message_id_q31_32(
+      state->tick,
+      state->regime_prior,
+      regime_detected,
+      0x0303
+    );
     
-    // Wait for PUBACK (blocking timeout, only if regime changed, rare event)
-    uint64_t deadline_ns = get_frame_timestamp_ns() + 2_000_000;  // 2ms timeout
-    while (mqtt_pub_ctx->state != STATE_ACK_RECEIVED && 
-           get_frame_timestamp_ns() < deadline_ns) {
-      mqtt_client_process(mqtt_client);  // Poll for PUBACK
-      if (mqtt_pub_ctx->state == STATE_FAILED) {
-        fprintf(stderr, "[TICK %u] MQTT publish failed (best-effort, continuing)\n", state->tick);
-        break;
-      }
-      usleep(10);  // 10 μs spin sleep
-    }
+    // LOCK-FREE FIRE-AND-FORGET: Enqueue to ring buffer, continue immediately
+    // Shadow dispatcher thread handles MQTT handshake asynchronously
+    int enqueue_result = enqueue_regime_alert_lockfree(g_alert_queue, &alert);
     
-    if (mqtt_pub_ctx->state == STATE_ACK_RECEIVED) {
-      // ACK confirmed, regime synchronized with peers
-      state->regime_prior = regime_detected;
-    } else if (mqtt_pub_ctx->state == STATE_FAILED) {
-      // Publish failed after retries, log but continue (best-effort)
-      fprintf(stderr, "[TICK %u] MQTT ACK timeout, regime may be out of sync (continuing anyway)\n", state->tick);
+    if (enqueue_result == 0) {
+      // Successfully enqueued (took ~5 μs)
       state->regime_prior = regime_detected;
     } else {
-      // ACK timeout (no response within 2ms), continue anyway
-      fprintf(stderr, "[TICK %u] MQTT ACK timeout (best-effort publish)\n", state->tick);
-      state->regime_prior = regime_detected;
+      // Queue overflow (alert dropped, but log it)
+      fprintf(stderr, "[TICK %u] Alert queue full, regime change may be delayed\n", state->tick);
+      state->regime_prior = regime_detected;  // Update locally anyway
     }
+    // TOTAL TIME: ~10 μs (lock-free push, no blocking)
   }
   
   // PHASE B.5b (NEW): Process Incoming Regime Alerts (Remote Peers' Consensus)
