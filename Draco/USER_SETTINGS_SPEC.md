@@ -111,6 +111,80 @@ typedef struct {
 } DVSMUserSettings;
 
 #pragma pack(pop)
+
+---
+
+### §1.3 Multimodal Coupling Configuration (DVSM v3.2–v3.3)
+
+**Purpose:** Session-immutable parameters for RF/ELF/BioScience 3D modality coupling. All parameters are set at initialization; changes require session restart to recalculate H_global.
+
+```c
+#pragma pack(push, 1)
+
+typedef struct {
+    // === MULTIMODAL INFLUENCE WEIGHTS (Q31.32, immutable per session) ===
+    int64_t   rf_influence_q31_32;      // Radio frequency coupling strength [0.0, 1.0)
+    int64_t   elf_influence_q31_32;     // ELF biological coupling strength [0.0, 1.0)
+    int64_t   bio3d_influence_q31_32;   // BioScience 3D coupling strength [0.0, 1.0)
+    
+    // === COUPLING MODE ===
+    uint8_t   coupling_mode;             // 0=off, 1=additive, 2=multiplicative
+    uint8_t   _reserved[7];              // Padding to 64-byte alignment
+    
+    // === TOTAL SIZE: 32 bytes ===
+} CouplingConfig;
+
+#pragma pack(pop)
+
+**JSON Representation (in user_settings.json):**
+
+```json
+{
+  "coupling": {
+    "rf_influence": 0.5,        // 0.0–1.0, strength of RF EM influence on backreaction
+    "elf_influence": 0.75,      // 0.0–1.0, strength of ELF bio-sync influence
+    "bio3d_influence": 0.0,     // 0.0–1.0, strength of BioScience 3D feedback
+    "mode": 1                   // 0=off, 1=additive, 2=multiplicative
+  }
+}
+```
+
+**Conversion Rule (UI Slider to Q31.32):**
+
+```rust
+pub fn ui_slider_to_q31_32(slider_value: f32) -> i64 {
+    // slider_value ∈ [0.0, 1.0] → Q31.32 ∈ [0, 2^31)
+    assert!(slider_value >= 0.0 && slider_value <= 1.0);
+    let scaled = (slider_value * (1i64 << 32) as f32) as i64;
+    cmp::min(scaled, (1i64 << 31) - 1)
+}
+```
+
+**Hash Binding (Session Initialization):**
+
+```rust
+pub fn hash_coupling_config(config: &CouplingConfig) -> [u8; 32] {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&config.rf_influence_q31_32.to_le_bytes());
+    hasher.update(&config.elf_influence_q31_32.to_le_bytes());
+    hasher.update(&config.bio3d_influence_q31_32.to_le_bytes());
+    hasher.update(&[config.coupling_mode]);
+    hasher.finalize().into()
+}
+```
+
+**Immutability Constraint:**
+
+```
+Once H_global = HASH(H_core ⊕ H_aux ⊕ H_bio3d ⊕ hash_coupling_config(config) ⊕ version)
+is computed at session initialization, config must remain unchanged.
+
+If any coupling parameter is modified:
+  → config hash changes
+  → H_global is invalidated
+  → All previously compressed frames become incompatible
+  → REJECT configuration changes after initialization (or restart session)
+```
 ```
 
 ---
@@ -270,6 +344,65 @@ pub fn validate_user_settings(settings: &DVSMUserSettings) -> Result<(), String>
     }
     
     settings.validation_status = 0;  // OK
+    Ok(())
+}
+
+// ============================================================================
+// Rule 5: Multimodal Coupling Configuration Validation
+// ============================================================================
+
+pub fn validate_coupling_config(
+    config: &CouplingConfig,
+    protocol_version: u16,
+) -> Result<(), String> {
+    
+    // Protocol version gates
+    if config.rf_influence_q31_32 > 0 || config.elf_influence_q31_32 > 0 {
+        if protocol_version < 0x0302 {
+            return Err("RF/ELF coupling requires DVSM v3.2+".to_string());
+        }
+    }
+    
+    if config.bio3d_influence_q31_32 > 0 {
+        if protocol_version < 0x0303 {
+            return Err("BioScience coupling requires DVSM v3.3+".to_string());
+        }
+    }
+    
+    // All influence values must be valid Q31.32 ∈ [0, 1)
+    let valid_range_max = (1i64 << 31) - 1;  // 2^31 - 1
+    
+    if config.rf_influence_q31_32 < 0 || config.rf_influence_q31_32 > valid_range_max {
+        return Err(format!("rf_influence out of range: {}", config.rf_influence_q31_32));
+    }
+    
+    if config.elf_influence_q31_32 < 0 || config.elf_influence_q31_32 > valid_range_max {
+        return Err(format!("elf_influence out of range: {}", config.elf_influence_q31_32));
+    }
+    
+    if config.bio3d_influence_q31_32 < 0 || config.bio3d_influence_q31_32 > valid_range_max {
+        return Err(format!("bio3d_influence out of range: {}", config.bio3d_influence_q31_32));
+    }
+    
+    // Coupling mode must be valid (0=off, 1=additive, 2=multiplicative)
+    if config.coupling_mode > 2 {
+        return Err(format!("coupling_mode invalid: {}", config.coupling_mode));
+    }
+    
+    Ok(())
+}
+
+// Rule 6: Hash Binding Verification (Session Immutability)
+pub fn verify_coupling_hash_immutable(
+    config: &CouplingConfig,
+    expected_hash: &[u8; 32],
+) -> Result<(), String> {
+    let computed_hash = hash_coupling_config(config);
+    
+    if computed_hash != *expected_hash {
+        return Err("Coupling config hash mismatch (config was modified)".to_string());
+    }
+    
     Ok(())
 }
 ```
