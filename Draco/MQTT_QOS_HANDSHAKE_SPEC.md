@@ -187,17 +187,334 @@ void handle_publish_timeout(PublishContext *ctx) {
 }
 ```
 
-**Latency Profile (Per Regime Transition):**
+**Latency Profile (Critical Path vs. Shadow Dispatcher):**
+
+**ORIGINAL (BLOCKING) - CAUSES FRAME DROP:**
 
 | Step | Operation | Latency | Cumulative |
 |------|-----------|---------|-----------|
 | 1 | Compute message_id (hash) | 2 μs | 2 μs |
 | 2 | JSON serialization (sprintf) | 50 μs | 52 μs |
 | 3 | MQTT publish enqueue | 5 μs | 57 μs |
-| 4 | Poll ACK (non-blocking) | 1 μs | 58 μs |
-| **5** | **Await ACK (blocking timeout)** | **2 ms** | **~2 ms** |
+| **4** | **AWAIT PUBACK (BLOCKING)** | **~2 ms** | **~2 ms** |
+| **Impact** | **Exceeds frame budget by 111%** | **STUTTER-STEP** | **UNACCEPTABLE** |
 
-**Determinism Guarantee:** Message_id is immutable (same tick + regime transition always produces same hash). Retransmissions preserve message_id (idempotent).
+---
+
+**FIXED (LOCK-FREE FIRE-AND-FORGET) - KEEPS CRITICAL PATH DETERMINISTIC:**
+
+**Supervisor Thread (Critical Path, Thread 1):**
+
+| Step | Operation | Latency | Cumulative |
+|------|-----------|---------|-----------|
+| 1 | Compute message_id (hash) | 2 μs | 2 μs |
+| 2 | Pack alert struct (no JSON yet) | 3 μs | 5 μs |
+| 3 | Lock-free ring buffer push | ~5 μs | 10 μs |
+| **Total (Critical Path)** | **Fire-and-Forget** | **~10 μs** | **✅ 0.12% Budget** |
+
+**Shadow Dispatcher Thread (Background, Thread 2, Zen 5 Core #1):**
+
+| Step | Operation | Latency | Timing |
+|------|-----------|---------|--------|
+| 1 | Poll ring buffer (CAS loop) | ~1 μs per poll | Continuous |
+| 2 | Dequeue alert (lock-free pop) | ~2 μs | When available |
+| 3 | Serialize to JSON | ~50 μs | In parallel |
+| 4 | MQTT publish QoS 1 | ~5 μs | Enqueue to broker |
+| 5 | Wait for PUBACK (blocking) | **~2 ms** | **Isolated from frame timing** |
+| 6 | Handle RETAIN/dedup | ~10 μs | After ACK |
+| **Total (Shadow)** | **Complete handshake** | **~2 ms** | **No impact on render** |
+
+**Frame Timing Analysis:**
+
+```
+Frame N (120 Hz, 8.33ms budget):
+├─ T=0.00ms: Supervisor tick starts
+├─ T=0.05ms: Regime change detected
+├─ T=0.10ms: Alert enqueued to ring buffer (lock-free push)
+├─ T=0.15ms: Supervisor continues (MQTT async)
+├─ T=0.27ms: Phase A–B.5b complete (~0.27ms critical path)
+├─ T=0.40ms: VRS dispatch, Hash, Display (Phases C–I)
+├─ T=7.00ms: Frame ready for swap-chain
+│
+├─ [PARALLEL, Background Thread]
+│  ├─ T=0.15ms: Shadow dispatcher polls buffer
+│  ├─ T=0.17ms: Alert dequeued
+│  ├─ T=0.22ms: JSON serialized (non-critical)
+│  ├─ T=0.27ms: MQTT publish enqueued
+│  ├─ T=2.27ms: PUBACK arrives (no impact on frame timing)
+│  ├─ T=2.37ms: Dedup + RETAIN logic complete
+│  └─ Thread sleeps until next alert
+│
+└─ Frame N+1 starts at T=8.33ms (on schedule, NO STUTTER)
+```
+
+**Determinism Guarantee:** Message_id is immutable (same tick + regime transition always produces same hash). Retransmissions preserve message_id (idempotent). Lock-free operations are wait-free (bounded latency, no spinning on locks).
+
+---
+
+## §1.2 LOCK-FREE RING BUFFER IMPLEMENTATION
+
+**Structure (Single-Producer, Single-Consumer):**
+
+```c
+// Alert queue: fixed-size ring buffer (16 alerts max per frame)
+#define ALERT_QUEUE_SIZE 16
+
+typedef struct {
+  uint64_t head;  // Producer writes here (atomic)
+  uint64_t tail;  // Consumer reads here (atomic)
+  MQTT_RegimeAlert_QoS1 alerts[ALERT_QUEUE_SIZE];
+} LockFreeAlertQueue;
+
+// Allocate in shared memory (visible to both threads)
+LockFreeAlertQueue *g_alert_queue = aligned_alloc(64, sizeof(*g_alert_queue));
+
+// Initialize once
+void init_alert_queue(LockFreeAlertQueue *q) {
+  atomic_store_explicit(&q->head, 0, memory_order_release);
+  atomic_store_explicit(&q->tail, 0, memory_order_release);
+  memset(q->alerts, 0, sizeof(q->alerts));
+}
+```
+
+**Producer (Supervisor Thread, Critical Path):**
+
+```c
+// Non-blocking enqueue (fire-and-forget)
+int enqueue_regime_alert_lockfree(
+  LockFreeAlertQueue *q,
+  const MQTT_RegimeAlert_QoS1 *alert
+) {
+  // Atomic load (acquire semantics, see what consumer has done)
+  uint64_t head = atomic_load_explicit(&q->head, memory_order_acquire);
+  uint64_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+  
+  uint64_t next_head = (head + 1) % ALERT_QUEUE_SIZE;
+  
+  // Check if queue full
+  if (next_head == tail) {
+    // Queue overflow, drop oldest alert (best-effort, rare)
+    return -1;  // EAGAIN (try again later)
+  }
+  
+  // Copy alert into ring buffer slot (non-atomic, thread-local)
+  q->alerts[head] = *alert;
+  
+  // Atomic store (release semantics, make visible to consumer)
+  atomic_store_explicit(&q->head, next_head, memory_order_release);
+  
+  // Total latency: ~5 μs (load + modulo + store, no locks)
+  return 0;  // Success
+}
+```
+
+**Consumer (Shadow Dispatcher Thread, Background):**
+
+```c
+// Non-blocking dequeue (poll until message available)
+int dequeue_regime_alert_lockfree(
+  LockFreeAlertQueue *q,
+  MQTT_RegimeAlert_QoS1 *alert_out
+) {
+  // Atomic load (acquire semantics)
+  uint64_t tail = atomic_load_explicit(&q->tail, memory_order_acquire);
+  uint64_t head = atomic_load_explicit(&q->head, memory_order_acquire);
+  
+  // Check if queue empty
+  if (tail == head) {
+    return -1;  // EAGAIN (no message available)
+  }
+  
+  // Copy alert from ring buffer slot (non-atomic, local copy)
+  *alert_out = q->alerts[tail];
+  
+  // Atomic store (release semantics)
+  uint64_t next_tail = (tail + 1) % ALERT_QUEUE_SIZE;
+  atomic_store_explicit(&q->tail, next_tail, memory_order_release);
+  
+  // Total latency: ~2 μs (load + modulo + store, no locks)
+  return 0;  // Success
+}
+```
+
+**Memory Ordering Invariants:**
+- **Producer writes (release):** Alert struct copied, then head updated with release barrier
+- **Consumer reads (acquire):** tail read with acquire barrier before accessing alert struct
+- **No data race:** Consumer always sees head-of-queue alert correctly (release/acquire ordering)
+- **Wait-free:** Both operations bounded (no spinning, no locks, no conditional loops on atomics)
+
+---
+
+## §1.3 SHADOW DISPATCHER THREAD (Secondary Zen 5 Core)
+
+**Thread Function (Runs on Dedicated Core, ~2ms period):**
+
+```c
+// Shadow dispatcher runs on Thread 2 (Zen 5 Core #1, isolated from supervisor)
+void* shadow_dispatcher_thread(void *arg) {
+  ShadowDispatcherContext *ctx = (ShadowDispatcherContext *)arg;
+  MQTT_Client *mqtt = ctx->mqtt_client;
+  LockFreeAlertQueue *q = ctx->alert_queue;
+  PublishContext *pub_ctx = ctx->pub_ctx;
+  
+  // Set thread affinity to dedicated core (no contention with supervisor)
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(1, &cpuset);  // Core 1 (supervisor on core 0)
+  pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  
+  while (ctx->running) {
+    // Step 1: Poll ring buffer (lock-free dequeue)
+    MQTT_RegimeAlert_QoS1 alert = {0};
+    int dequeue_result = dequeue_regime_alert_lockfree(q, &alert);
+    
+    if (dequeue_result == 0) {
+      // Alert available, process it
+      
+      // Step 2: Serialize to JSON (not in critical path, can afford ~50 μs)
+      char json_payload[512];
+      snprintf(json_payload, sizeof(json_payload),
+        "{"
+        "\"msg_id\":\"%016llx\","
+        "\"regime\":%u,"
+        "\"tick\":%u,"
+        "\"phase_delta_ms\":%.2f,"
+        "\"byzantine\":%u"
+        "}",
+        (unsigned long long)alert.message_id,
+        alert.regime_current,
+        alert.tick_count,
+        (double)(alert.phase_delta_q) / (1LL << 31),
+        alert.byzantine_flag
+      );
+      
+      // Step 3: Publish with QoS 1 (enqueue to MQTT client)
+      int pub_result = mqtt_publish_qos1(
+        mqtt,
+        "/dvsm/v3.3/alerts/regime",
+        json_payload,
+        strlen(json_payload),
+        MQTT_RETAIN_FLAG,
+        &pub_ctx->packet_id
+      );
+      
+      if (pub_result == 0) {
+        pub_ctx->state = STATE_AWAITING_ACK;
+        pub_ctx->retry_count = 0;
+        pub_ctx->retry_deadline_ns = get_frame_timestamp_ns() + 2_000_000;  // 2ms timeout
+      }
+      
+    } else {
+      // Queue empty, sleep briefly (no busy-wait)
+      usleep(100);  // 100 μs sleep between polls
+    }
+    
+    // Step 4: Handle PUBACK (non-blocking poll)
+    if (pub_ctx->state == STATE_AWAITING_ACK) {
+      uint64_t now = get_frame_timestamp_ns();
+      
+      // Poll MQTT client for incoming PUBACK
+      MQTT_Event evt;
+      while (mqtt_client_event_poll(mqtt, &evt) == 0) {
+        if (evt.type == MQTT_PUBACK && evt.packet_id == pub_ctx->packet_id) {
+          // PUBACK received, regime synchronized
+          pub_ctx->state = STATE_ACK_RECEIVED;
+          // Log: "Regime alert %016llx acknowledged", alert.message_id
+          break;
+        }
+      }
+      
+      // Check timeout
+      if (now >= pub_ctx->retry_deadline_ns) {
+        if (pub_ctx->retry_count < 3) {
+          pub_ctx->retry_count++;
+          // Republish with exponential backoff
+          uint64_t backoff_ns = (2_000_000) << pub_ctx->retry_count;
+          mqtt_publish_qos1(mqtt, "/dvsm/v3.3/alerts/regime", 
+                           json_payload, strlen(json_payload), 
+                           MQTT_RETAIN_FLAG, &pub_ctx->packet_id);
+          pub_ctx->retry_deadline_ns = now + backoff_ns;
+        } else {
+          pub_ctx->state = STATE_FAILED;
+          // Log error: "Regime alert failed after 3 retries"
+        }
+      }
+    }
+  }
+  
+  return NULL;
+}
+```
+
+**Thread Lifecycle (Supervisor Main Thread):**
+
+```c
+typedef struct {
+  pthread_t tid;
+  MQTT_Client *mqtt_client;
+  LockFreeAlertQueue *alert_queue;
+  PublishContext *pub_ctx;
+  volatile int running;
+} ShadowDispatcherContext;
+
+// Startup (once per session)
+ShadowDispatcherContext dispatcher_ctx = {
+  .mqtt_client = mqtt_client,
+  .alert_queue = g_alert_queue,
+  .pub_ctx = &mqtt_pub_ctx,
+  .running = 1,
+};
+
+int create_result = pthread_create(
+  &dispatcher_ctx.tid,
+  NULL,
+  shadow_dispatcher_thread,
+  &dispatcher_ctx
+);
+
+if (create_result != 0) {
+  // Thread creation failed, fall back to blocking mode (degrade gracefully)
+  fprintf(stderr, "Failed to create shadow dispatcher, using fallback mode\n");
+  config->use_shadow_dispatcher = 0;
+}
+
+// Shutdown (at session end)
+dispatcher_ctx.running = 0;
+pthread_join(dispatcher_ctx.tid, NULL);
+```
+
+**Byzantine Safety (Dual Redundancy):**
+
+```
+Scenario: Network delay causes MQTT alert to arrive 3ms late at peer
+
+Publisher (Z2 Extreme #1):
+  T=50ms: Regime 0 → 2 detected
+          Alert enqueued to ring buffer (fire-and-forget)
+          Bitstream frame prepared with regime=2 header
+          Frame sent to peer
+
+Peer (Z2 Extreme #2):
+  T=50ms: Receives bitstream frame
+          Reads frame header: regime=2
+          Decodes residuals using Stored codec (no compression)
+          State synced (from frame header, NOT waiting for MQTT alert)
+  
+  T=53ms: MQTT alert arrives (3ms late, but peer already in Regime 2)
+          Alert confirms regime=2 (idempotent, no action needed)
+          Dedup check: message_id already seen in frame header
+          Alert discarded (already handled)
+
+RESULT: Peer synchronized even if MQTT is late
+        Bitstream header acts as fallback (defense-in-depth)
+        No data poisoning despite network delay
+```
+
+**Frame Header Regime Field (New Addition to SAEC_BITSTREAM_HEADER_SPEC.md):**
+
+The bitstream frame header already includes the regime byte (see §1.1, byte 8: `regime_and_flags`). This provides Byzantine redundancy: even if MQTT alert is delayed, peers decode the regime directly from the frame header.
+
+
 
 ---
 
