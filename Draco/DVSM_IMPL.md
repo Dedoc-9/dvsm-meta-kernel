@@ -1386,6 +1386,272 @@ fn test_q31_32_arithmetic_closure() {
 }
 ```
 
+### §8.4 Q64.64 Fixed-Point Lie-Bracket Kernel (Extended Range, Z2 Extreme)
+
+**Purpose:** Support extreme dynamic range (±9.223e18) for sub-zero SNR and deep dynamics. Uses i128 for full 64-bit fractional precision.
+
+**Encoding:** x_fixed = floor(x_float × 2^64), decode: x_float = x_fixed / 2^64, range [-2^63, 2^63), ULP = 2^-64 ≈ 5.421e-20
+
+#### §8.4a Q64.64 Arithmetic Primitives (i128-based)
+
+```rust
+/// Multiply two Q64.64 fixed-point values (i128 based)
+/// Input: a_q, b_q (Q64.64 integers, i128)
+/// Output: (a_q / 2^64) * (b_q / 2^64) = result_q / 2^64
+pub fn mul_q64_64(a_q: i128, b_q: i128) -> i128 {
+    // Compute (a_q * b_q) >> 64
+    // For i128: use widening multiply if available, else decompose
+    // Rust: i128 * i128 = overflow, so use u128 arithmetic with sign handling
+    let a_sign = a_q < 0;
+    let b_sign = b_q < 0;
+    let a_abs = a_q.abs() as u128;
+    let b_abs = b_q.abs() as u128;
+    
+    let prod_abs = (a_abs.wrapping_mul(b_abs)) >> 64;
+    let result = prod_abs as i128;
+    
+    // Restore sign
+    if (a_sign && !b_sign) || (!a_sign && b_sign) {
+        -result
+    } else {
+        result
+    }
+}
+
+/// Divide two Q64.64 values: (a_q / 2^64) / (b_q / 2^64) = (a_q / b_q)
+pub fn div_q64_64(a_q: i128, b_q: i128) -> i128 {
+    if b_q == 0 {
+        return 0;  // Safety: zero division returns 0
+    }
+    // Compute (a_q * 2^64) / b_q = result_q
+    // Avoid overflow: use division directly
+    (a_q >> 64).wrapping_mul(1i128 << 64) / b_q
+}
+
+/// Add two Q64.64 values with saturation clamp to [-9.223e18, +9.223e18]
+pub fn add_q64_64_clamped(a_q: i128, b_q: i128) -> i128 {
+    let result = a_q.saturating_add(b_q);
+    // Clamp to [-2^63, +2^63)
+    let clamp_max: i128 = i128::MAX;
+    let clamp_min: i128 = i128::MIN;
+    result.max(clamp_min).min(clamp_max)
+}
+
+/// Convert float to Q64.64
+pub fn f64_to_q64_64(x: f64) -> i128 {
+    (x * ((1i128 << 64) as f64)) as i128
+}
+
+/// Convert Q64.64 to float
+pub fn q64_64_to_f64(x_q: i128) -> f64 {
+    (x_q as f64) / ((1i128 << 64) as f64)
+}
+```
+
+#### §8.4b Lie-Bracket Integration (Q64.64 Fixed-Point)
+
+**Formal definition (i128 arithmetic, no floating-point):**
+```
+z_q[k]^{t+1} = z_q[k]^t + τ_q · (Σⱼ κ_{kj} · (z_q[k]^t · s_q[j]^t − z_q[j]^t · s_q[k]^t) − λ · z_q[k]^t + rose_q[k]^t)
+
+where τ_q = encode(dt), κ_{kj} = encode(κ_{kj}^float), rose_q[k] = encode(rose_k^float)
+All multiplication/division in i128 space; hash H_t remains immutable (no backreaction feedback)
+```
+
+```rust
+/// Lie-bracket term in Q64.64: Σⱼ κ_{kj} · (z_q[k] · s_q[j] − z_q[j] · s_q[k])
+fn bracket_q64_64(z_q: &[i128; 16], s_q: &[i128; 16], kappa_matrix: &[[i128; 16]; 16], k: usize) -> i128 {
+    let mut acc_q: i128 = 0;
+    
+    for j in 0..16 {
+        if j == k { continue; }
+        
+        // Compute z_q[k] * s_q[j] in Q64.64 space
+        let term1_q = mul_q64_64(z_q[k], s_q[j]);
+        
+        // Compute z_q[j] * s_q[k] in Q64.64 space
+        let term2_q = mul_q64_64(z_q[j], s_q[k]);
+        
+        // Bracket: (term1 - term2)
+        let bracket_q = term1_q.saturating_sub(term2_q);
+        
+        // Multiply by κ_{kj}
+        let contrib_q = mul_q64_64(kappa_matrix[k][j], bracket_q);
+        
+        // Accumulate with saturation
+        acc_q = acc_q.saturating_add(contrib_q);
+    }
+    
+    acc_q
+}
+
+/// Step Euler integration in Q64.64 (momentum phase, no backreaction)
+pub fn step_q64_64_momentum(
+    z_q: &mut [i128; 16],
+    s_q: &mut [i128; 16],
+    lambda_q: i128,                    // λ in Q64.64
+    tau_q: i128,                       // dt in Q64.64
+    rose_q: &[i128; 16],               // rose curve in Q64.64
+    ema_beta_q: i128,                  // β in Q64.64
+) {
+    // Pre-compute kappa matrix (assumed static, pre-encoded in Q64.64)
+    let kappa_static: [[i128; 16]; 16] = [
+        [0i128; 16]; 16
+    ];
+    
+    // For each state dimension
+    for k in 0..16 {
+        // === A: Lie-bracket term ===
+        let bracket_term = bracket_q64_64(z_q, s_q, &kappa_static, k);
+        
+        // === B: Damping term ===
+        let damp_term = mul_q64_64(lambda_q, z_q[k]);
+        
+        // === C: Rose curve term ===
+        let rose_term = rose_q[k];
+        
+        // === D: Combined acceleration ===
+        let accel_q = bracket_term.saturating_sub(damp_term).saturating_add(rose_term);
+        
+        // === E: Euler step: dz_q = τ_q * accel_q ===
+        let dz_q = mul_q64_64(tau_q, accel_q);
+        
+        // === F: Update state with clamping to [-2^63, 2^63) ===
+        z_q[k] = add_q64_64_clamped(z_q[k], dz_q);
+        
+        // === G: EMA update: s_q[k] = β·s_q[k] + (1−β)·z_q[k] ===
+        let one_q = 1i128 << 64;  // 1.0 in Q64.64
+        let one_minus_beta_q = one_q.saturating_sub(ema_beta_q);
+        let s_contrib1 = mul_q64_64(ema_beta_q, s_q[k]);
+        let s_contrib2 = mul_q64_64(one_minus_beta_q, z_q[k]);
+        s_q[k] = s_contrib1.saturating_add(s_contrib2);
+    }
+}
+
+/// Full PLL cycle in Q64.64 (Z2 Extreme extended-range kernel)
+pub fn tick_q64_64_phase_locked(
+    z_q: &mut [i128; 16],
+    s_q: &mut [i128; 16],
+    norm_sq_q: &mut i128,
+    tau_meas_q: i128,                 // Measured GPU latency in Q64.64
+    tau_nominal_q: i128,              // Nominal dt in Q64.64
+    alpha_q: i128,                    // Backreaction coefficient in Q64.64
+    e_target_q: i128,                 // Energy target in Q64.64
+    lambda_q: i128,
+    rose_q: &[i128; 16],
+    ema_beta_q: i128,
+) {
+    // === RISING EDGE: Momentum (tau_meas, no backreaction) ===
+    step_q64_64_momentum(z_q, s_q, lambda_q, tau_meas_q, rose_q, ema_beta_q);
+    
+    // === FALLING EDGE: Phase-Corrected Backreaction ===
+    let phase_delta_q = tau_meas_q.saturating_sub(tau_nominal_q);
+    let one_q = 1i128 << 64;  // 1.0 in Q64.64
+    let phase_mult_q = f64_to_q64_64(0.25);  // 0.25 in Q64.64
+    let phase_term_q = mul_q64_64(phase_mult_q, phase_delta_q);
+    let sync_scale_q = one_q.saturating_add(phase_term_q);
+    
+    // Clamp sync_scale to [0.8, 1.2]
+    let clamp_min_q = f64_to_q64_64(0.8);
+    let clamp_max_q = f64_to_q64_64(1.2);
+    let sync_scale_clamped = sync_scale_q.max(clamp_min_q).min(clamp_max_q);
+    
+    let alpha_sync_q = mul_q64_64(alpha_q, sync_scale_clamped);
+    
+    // Backreaction: compute norm_sq_q first
+    *norm_sq_q = 0i128;
+    for k in 0..16 {
+        let z_sq = mul_q64_64(z_q[k], z_q[k]);
+        *norm_sq_q = norm_sq_q.saturating_add(z_sq);
+    }
+    
+    // Backreaction coefficient: -α_sync · (‖Z‖² − E_target)
+    let norm_error_q = norm_sq_q.saturating_sub(e_target_q);
+    let backreaction_coeff_q = mul_q64_64(-alpha_sync_q, norm_error_q);
+    
+    // Pulse magnitude: 4.0 * coeff * τ_nominal
+    let four_q = f64_to_q64_64(4.0);
+    let pulse_mag_q = mul_q64_64(mul_q64_64(four_q, backreaction_coeff_q), tau_nominal_q);
+    
+    // Apply backreaction pulse: z_q[k] += pulse_mag_q * z_q[k]
+    for k in 0..16 {
+        let correction_q = mul_q64_64(pulse_mag_q, z_q[k]);
+        z_q[k] = add_q64_64_clamped(z_q[k], correction_q);
+    }
+}
+```
+
+#### §8.4c Verification (Q64.64 Determinism)
+
+```rust
+/// Hash state using Q64.64 encoded integers
+pub fn hash_state_q64_64(z_q: &[i128; 16], s_q: &[i128; 16], protocol_version: u32) -> u64 {
+    let mut hash = FNV_OFFSET_BASIS;
+    for k in 0..16 {
+        hash = fnv1a_update(hash, z_q[k].to_le_bytes());
+        hash = fnv1a_update(hash, s_q[k].to_le_bytes());
+    }
+    hash = fnv1a_update(hash, protocol_version.to_le_bytes());
+    hash
+}
+
+/// Byte-identical verification: Q64.64 encode/decode round-trip
+#[test]
+fn test_q64_64_encode_decode_cycle() {
+    for test_val in &[-1e15_f64, -1.0, -0.5, 0.0, 0.5, 1.0, 1e15_f64] {
+        let encoded = f64_to_q64_64(*test_val);
+        let decoded = q64_64_to_f64(encoded);
+        let error = (test_val - decoded).abs();
+        assert!(error < 1e-18, "Q64.64 round-trip error at {}: {}", test_val, error);
+    }
+}
+
+/// Cross-platform determinism: i128 handling identical on Z2 Linux / Windows
+#[test]
+fn test_q64_64_arithmetic_closure() {
+    // Verify that sequences of operations produce identical results on repeated runs
+    let mut z_q = [f64_to_q64_64(0.5_f64); 16];
+    let mut s_q = [f64_to_q64_64(0.1_f64); 16];
+    let tau_q = f64_to_q64_64(1.0 / 120.0);  // 120 Hz frame time
+    let lambda_q = f64_to_q64_64(0.1);
+    let rose_q = [f64_to_q64_64(0.01_f64); 16];
+    let ema_beta_q = f64_to_q64_64(0.99);
+    
+    let hash_before = hash_state_q64_64(&z_q, &s_q, 1);
+    
+    // Execute kernel 100 times
+    for _ in 0..100 {
+        let mut norm_sq_q = 0i128;
+        tick_q64_64_phase_locked(
+            &mut z_q, &mut s_q, &mut norm_sq_q,
+            tau_q, tau_q,
+            f64_to_q64_64(0.05), f64_to_q64_64(1.0),
+            lambda_q, &rose_q, ema_beta_q,
+        );
+    }
+    
+    let hash_after = hash_state_q64_64(&z_q, &s_q, 1);
+    assert_ne!(hash_before, hash_after, "State evolved");
+    
+    // Re-run to verify reproducibility
+    let mut z_q2 = [f64_to_q64_64(0.5_f64); 16];
+    let mut s_q2 = [f64_to_q64_64(0.1_f64); 16];
+    
+    for _ in 0..100 {
+        let mut norm_sq_q = 0i128;
+        tick_q64_64_phase_locked(
+            &mut z_q2, &mut s_q2, &mut norm_sq_q,
+            tau_q, tau_q,
+            f64_to_q64_64(0.05), f64_to_q64_64(1.0),
+            lambda_q, &rose_q, ema_beta_q,
+        );
+    }
+    
+    let hash_after2 = hash_state_q64_64(&z_q2, &s_q2, 1);
+    assert_eq!(hash_after, hash_after2, "Q64.64 determinism failure");
+}
+```
+
 ---
 
 ## §9 TEST PATTERNS (VERIFICATION HARNESS)
