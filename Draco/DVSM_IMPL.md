@@ -3444,7 +3444,10 @@ void dvsm_supervisor_tick_optimized_v3_3(
   const uint8_t *observation_frame,
   size_t frame_width,
   size_t frame_height,
-  DVSM_Config *config
+  DVSM_Config *config,
+  MQTT_Client *mqtt_client,
+  PublishContext *mqtt_pub_ctx,
+  SubscriptionContext *mqtt_sub_ctx
 ) {
   // PHASE A: Core state update
   tick_q31_32(state, config);  // 0.27 ms
@@ -3455,6 +3458,69 @@ void dvsm_supervisor_tick_optimized_v3_3(
   update_elf_state_q31_32(state, observation_frame, config);   // ~60 μs
   update_bio3d_state_q31_32(state, observation_frame, config);  // ~100 μs
   // Total: 0.35 ms
+  
+  // PHASE B.5 (NEW): MQTT Regime Alert Handshake (Deterministic Multi-Peer Sync)
+  enum DVSMRegime regime_detected = detect_regime_from_singularity_q31_32(state);
+  
+  if (regime_detected != state->regime_prior) {
+    // Regime CHANGED: publish alert with deterministic message_id
+    MQTT_RegimeAlert_QoS1 alert = {
+      .tick_count = state->tick,
+      .regime_prior = state->regime_prior,
+      .regime_current = regime_detected,
+      .protocol_version = 0x0303,
+      .phase_delta_q = compute_phase_delta_q31_32(state),
+      .entropy_bits = estimate_residual_entropy(state),
+      .byzantine_flag = (state->sri_divergence_flag ? 1 : 0),
+    };
+    
+    // Publish with QoS 1 + RETAIN (deterministic message_id ensures idempotency)
+    publish_regime_alert_qos1(mqtt_client, &alert, mqtt_pub_ctx);  // ~65 μs
+    
+    // Wait for PUBACK (blocking timeout, only if regime changed, rare event)
+    uint64_t deadline_ns = get_frame_timestamp_ns() + 2_000_000;  // 2ms timeout
+    while (mqtt_pub_ctx->state != STATE_ACK_RECEIVED && 
+           get_frame_timestamp_ns() < deadline_ns) {
+      mqtt_client_process(mqtt_client);  // Poll for PUBACK
+      if (mqtt_pub_ctx->state == STATE_FAILED) {
+        fprintf(stderr, "[TICK %u] MQTT publish failed (best-effort, continuing)\n", state->tick);
+        break;
+      }
+      usleep(10);  // 10 μs spin sleep
+    }
+    
+    if (mqtt_pub_ctx->state == STATE_ACK_RECEIVED) {
+      // ACK confirmed, regime synchronized with peers
+      state->regime_prior = regime_detected;
+    } else if (mqtt_pub_ctx->state == STATE_FAILED) {
+      // Publish failed after retries, log but continue (best-effort)
+      fprintf(stderr, "[TICK %u] MQTT ACK timeout, regime may be out of sync (continuing anyway)\n", state->tick);
+      state->regime_prior = regime_detected;
+    } else {
+      // ACK timeout (no response within 2ms), continue anyway
+      fprintf(stderr, "[TICK %u] MQTT ACK timeout (best-effort publish)\n", state->tick);
+      state->regime_prior = regime_detected;
+    }
+  }
+  
+  // PHASE B.5b (NEW): Process Incoming Regime Alerts (Remote Peers' Consensus)
+  // Handle any messages received from other peers (subscription updates)
+  MQTT_Message *incoming = NULL;
+  while ((incoming = mqtt_receive_message(mqtt_client)) != NULL) {
+    if (strcmp(incoming->topic, "/dvsm/v3.3/alerts/regime") == 0) {
+      // Decode remote peer's regime transition
+      handle_regime_alert_message(
+        (const char *)incoming->payload,
+        incoming->payload_size,
+        mqtt_sub_ctx,
+        state
+      );  // ~100 μs (including JSON parse + idempotency check)
+    }
+  }
+  
+  // Update local codec mode based on peer consensus
+  state->codec_mode = mqtt_sub_ctx->codec_mode_current;
+  // Phase B.5 Total: ~65 μs (publish) + ~2 ms (ACK wait, only on regime change) + ~100 μs (receive)
   
   // PHASE C: State envelope validation
   int32_t envelope_result = validate_state_envelopes_q31_32(
