@@ -3151,11 +3151,402 @@ pub fn update_bio3d_state_q31_32(
 
 ---
 
+### §12.5 State Envelope Validator (Structural Bounds Enforcement)
+
+**Purpose:** Explicit bounds-checking before state commit. Ensures all modality states conform to structural envelopes, preventing invalid configurations from propagating into H_global.
+
+**Signature:**
+```rust
+pub fn validate_state_envelopes_q31_32(
+    μ_core: &[i64; 12],
+    μ_rf: Option<&[i64; 4]>,
+    μ_elf: Option<&[i64; 3]>,
+    μ_bio3d: Option<&[i64; 250]>,
+    W_coupling: &[[i64; 6]; 6],
+) -> Result<(), String>
+```
+
+**Implementation (C pseudocode):**
+
+```c
+int32_t validate_state_envelopes_q31_32(
+  const int64_t mu_core[12],
+  const int64_t mu_rf[4],    // NULL if rf not present
+  const int64_t mu_elf[3],   // NULL if elf not present
+  const int64_t mu_bio3d[250], // NULL if bio3d not present
+  const int64_t W_coupling[6][6]
+) {
+  // Envelope 1: Core norm within [-2.0, +2.0] Q31.32
+  int64_t norm_sq = 0;
+  for (int k = 0; k < 12; k++) {
+    int64_t abs_val = (mu_core[k] < 0) ? -mu_core[k] : mu_core[k];
+    norm_sq += (abs_val * abs_val) >> 32;  // Approximate L2 norm squared
+  }
+  int64_t norm_q = isqrt_q31_32(norm_sq);  // Fixed-point square root
+  
+  if (norm_q < -0x100000000LL || norm_q > 0x100000000LL) {
+    return -1;  // Core norm out of bounds (should not happen with clamping)
+  }
+  
+  // Envelope 2: RF amplitude in [0.0, 1.0) Q31.32
+  if (mu_rf != NULL) {
+    int64_t amplitude_q = mu_rf[1];  // RF state[1] is amplitude
+    if (amplitude_q < 0 || amplitude_q >= 0x80000000LL) {
+      return -2;  // RF amplitude out of bounds
+    }
+  }
+  
+  // Envelope 3: ELF coherence in [0.0, 1.0) Q31.32, frequency in [-180.0, 180.0) Hz
+  if (mu_elf != NULL) {
+    int64_t coherence_q = mu_elf[1];  // ELF state[1] is coherence
+    int64_t frequency_q = mu_elf[0];  // ELF state[0] is frequency
+    
+    if (coherence_q < 0 || coherence_q >= 0x80000000LL) {
+      return -3;  // ELF coherence out of bounds
+    }
+    
+    // Frequency in Hz (approximately [-180, 180) after wrapping)
+    // In Q31.32, this is roughly [-0xB4000000, 0xB4000000)
+    if (frequency_q < -0xB4000000LL || frequency_q >= 0xB4000000LL) {
+      return -4;  // ELF frequency out of bounds
+    }
+  }
+  
+  // Envelope 4: Bio3D coefficients in [-1.0, 1.0) Q31.32
+  if (mu_bio3d != NULL) {
+    for (int k = 0; k < 250; k++) {
+      int64_t coeff = mu_bio3d[k];
+      if (coeff < -0x80000000LL || coeff >= 0x80000000LL) {
+        return -5;  // Bio3D coefficient k out of bounds
+      }
+    }
+  }
+  
+  // Envelope 5: Coupling matrix diagonals in [-1.0, 1.0) Q31.32
+  for (int i = 0; i < 6; i++) {
+    int64_t diag = W_coupling[i][i];
+    if (diag < -0x80000000LL || diag >= 0x80000000LL) {
+      return -6;  // Coupling matrix diagonal out of bounds
+    }
+  }
+  
+  return 0;  // All envelopes valid
+}
+```
+
+**Call Site (Supervisor Phase C, DVSM_IMPL.md §13.3):**
+
+```c
+// After state update, before H_global commit
+int32_t envelope_check = validate_state_envelopes_q31_32(
+  state->mu_core,
+  (config->rf_enabled ? state->mu_rf : NULL),
+  (config->elf_enabled ? state->mu_elf : NULL),
+  (config->bio3d_enabled ? state->mu_bio3d : NULL),
+  state->W_coupling
+);
+
+if (envelope_check != 0) {
+  // Behavioral anomaly: state violates structural envelope
+  // Roll back to prior frame, log event, apply smoothing policy
+  rollback_to_prior_state(state);
+  log_event(tick, "Envelope violation", envelope_check);
+  return;  // Skip frame dispatch
+}
+// Else: proceed to next phase
+```
+
+**Determinism:** Envelope checks use only Q31.32 comparisons (no floats). Same state always produces same validation result.
+
+**For full implementation:** See RF_ELF_BIOMODALITY_SPEC.md §2.2 (ELF gating envelope formalization)
+
 ---
 
-## §13 C LANGUAGE REFERENCE IMPLEMENTATION
+---
 
-### §12.1 Core Header (dvsm_core.h, C89 Compatible)
+## §13 OPTIMIZATION INTEGRATION (VRS Tier 2 + SAEC Bitstream)
+
+### §13.1 SRI-Integrity Shadow Wave Verifier (Byzantine Detection, GPU)
+
+**Overview:** Parallel compute shader running on Z2 Extreme GPU (1 wave / 512 available, 0.19% occupancy). Verifies that D3D12 rasterizer tile-rate output matches Q31.32 deterministic projection. If divergence detected, halts frame dispatch (Byzantine, not behavioral anomaly).
+
+**Integration Point:** Supervisor Phase E (after coupling operator, before frame dispatch decision)
+
+**For full implementation:** See D3D12_VRS_TIER2_SPEC.md §2.1–§2.2
+
+**Call Sequence (C pseudocode):**
+
+```c
+// Phase D: VRS tile-cost projection (CPU, deterministic)
+int64_t core_norm_q = compute_l1_norm_q31_32(state->mu_core);
+int64_t lambda_q = state->coupling_matrix_eigenvalue_cache;
+
+uint8_t sri_projection[8][8];
+for (int i = 0; i < 8; i++) {
+  for (int j = 0; j < 8; j++) {
+    sri_projection[i][j] = compute_tile_cost_q31_32(
+      core_norm_q, lambda_q, i * 8 + j
+    );  // ~120 μs total for all 64 tiles
+  }
+}
+
+// Phase E: Dispatch shadow verifier (GPU async)
+gpu_upload_uniform_buffer(
+  .mu_core = state->mu_core,
+  .lambda_dominant = lambda_q,
+  .tick_count = state->tick,
+  .protocol_version = 0x0303
+);  // ~1 μs
+
+gpu_dispatch_compute_shader(
+  shader: "sri_integrity_verifier",
+  workgroups: (1, 1, 1),
+  uniforms_binding: gpu_buffer_uniforms,
+  sri_observed_binding: gpu_rasterizer_output
+);  // ~1 μs (enqueue only, runs in parallel)
+
+// Phase H: Poll Byzantine flag (blocking with timeout)
+bool sri_match = gpu_poll_divergence_flag(timeout_ms: 5);  // ~100 μs compute + 5 ms poll
+if (!sri_match) {
+  HALT_FRAME_DISPATCH("Byzantine: SRI mismatch");
+  return;
+}
+```
+
+**Determinism Guarantee:** Both CPU projection (Phase D) and GPU shadow verifier (Phase E) use identical `compute_tile_cost_q31_32()` function. Same core_norm_q + lambda_q → identical tile costs on CPU and GPU. Divergence = driver bug or Byzantine behavior.
+
+### §13.2 SAEC Bitstream Header & Encoding
+
+**Overview:** Deterministic frame serialization for network streaming. 24-byte header (protocol version, tick, H_global hash, regime, modality flags, codec select, quality preset, timestamp, CRC-32, frame offset). Modality-specific payloads follow (RF/ELF/Bio3D with regime-adaptive compression).
+
+**Integration Point:** Supervisor Phase K (async worker thread, bitstream encoding runs in parallel with frame dispatch)
+
+**For full implementation:** See SAEC_BITSTREAM_HEADER_SPEC.md §1–§4
+
+**Header Structure (Q31.32 Deterministic):**
+
+```c
+typedef struct {
+  uint16_t protocol_version;     // 0x0303 (DVSM v3.3)
+  uint16_t tick_count;           // Frame sequence [0, 65535]
+  uint32_t h_global_hash32;      // BLAKE3 prefix (integrity check)
+  uint8_t regime_and_flags;      // bits[7:5]=regime, [4:0]=modality_flags
+  uint16_t codec_modes;          // bits[4:0]=rf_codec, [9:5]=elf_codec, [14:10]=bio3d_codec
+  uint8_t compression_metadata;  // bits[2:0]=quality, bit[3]=tiling
+  uint32_t timestamp_ns_frame;   // Local frame time
+  uint32_t header_crc32;         // CRC-32(bytes 0–15)
+  uint32_t next_frame_offset_bytes; // Total frame size (for seeking)
+} SAEC_BitstreamHeader;
+
+// Encoding function
+int32_t saec_encode_bitstream_frame_q31_32(
+  const DVSM_State *state,
+  const RF_ModalityState *mu_rf,
+  const ELF_ModalityState *mu_elf,
+  const Bio3DState *mu_bio3d,
+  uint8_t quality_preset,
+  uint8_t *output_buffer,
+  size_t output_buffer_size,
+  size_t *bytes_written_out
+) {
+  // Build header
+  SAEC_BitstreamHeader hdr = {
+    .protocol_version = 0x0303,
+    .tick_count = (uint16_t)(state->tick & 0xFFFFu),
+    .h_global_hash32 = state->h_global & 0xFFFFFFFFu,
+    .regime_and_flags = (encode_regime(state->regime) << 5) |
+                        pack_modality_flags(mu_rf != NULL, mu_elf != NULL, mu_bio3d != NULL),
+    .codec_modes = pack_codec_modes(rf_codec, elf_codec, bio3d_codec),
+    .compression_metadata = quality_preset & 0x07,
+    .timestamp_ns_frame = get_frame_timestamp_ns(),
+  };
+  
+  // Serialize header (big-endian)
+  write_u16_be(output_buffer + 0, hdr.protocol_version);
+  write_u16_be(output_buffer + 2, hdr.tick_count);
+  write_u32_be(output_buffer + 4, hdr.h_global_hash32);
+  output_buffer[8] = hdr.regime_and_flags;
+  write_u16_be(output_buffer + 9, hdr.codec_modes);
+  output_buffer[11] = hdr.compression_metadata;
+  write_u32_be(output_buffer + 12, hdr.timestamp_ns_frame);
+  
+  // Compute header CRC-32
+  uint32_t crc = crc32_compute(output_buffer, 16);
+  write_u32_be(output_buffer + 16, crc);
+  
+  // Encode modality payloads and compute total frame size
+  size_t offset = 24;
+  if (mu_rf != NULL) {
+    size_t rf_size = encode_rf_residuals(mu_rf, state->regime, output_buffer + offset + 4);
+    write_u16_le(output_buffer + offset + 0, (uint16_t)rf_size);
+    offset += 4 + rf_size;
+  }
+  if (mu_elf != NULL) {
+    size_t elf_size = encode_elf_residuals(mu_elf, output_buffer + offset + 4);
+    write_u16_le(output_buffer + offset + 0, (uint16_t)elf_size);
+    offset += 4 + elf_size;
+  }
+  if (mu_bio3d != NULL) {
+    size_t bio_size = encode_bio3d_residuals(mu_bio3d, state->regime, output_buffer + offset + 4);
+    write_u16_le(output_buffer + offset + 0, (uint16_t)bio_size);
+    output_buffer[offset + 3] = 250;  // PCA rank hint
+    offset += 4 + bio_size;
+  }
+  
+  // Write frame CRC-32
+  uint32_t frame_crc = crc32_compute(output_buffer, offset);
+  write_u32_be(output_buffer + offset, frame_crc);
+  offset += 4;
+  
+  // Update header next_frame_offset
+  write_u32_be(output_buffer + 20, (uint32_t)offset);
+  
+  *bytes_written_out = offset;
+  return (int32_t)offset;
+}
+```
+
+**Bitrate Targets:**
+- Scenario A (RF+ELF only): ~30 kbps @ 120 Hz (29 bytes/frame)
+- Scenario B (all modalities, Regime 0 Locked): ~49 kbps @ 120 Hz (51 bytes/frame, 85–95% compression on Bio3D)
+- Scenario C (all modalities, Regime 2 Slipping): ~1.1 Mbps @ 120 Hz (1104 bytes/frame, no compression)
+- **Target Efficiency: 75%+ (compressed size / raw state size)**
+
+### §13.3 Supervisor Loop Integration (Full Tick Sequence)
+
+**Overview:** Supervisor tick (120 Hz, 8.33 ms budget) orchestrates 10 phases: core update, coupling, validation, VRS projection, SRI verification, hash binding, frame dispatch, display output, audit logging, bitstream finalization.
+
+**Timeline (Phase A–J):**
+
+```
+Phase A: Core state update (tick_q31_32)                   [0.27 ms, 3.2% budget]
+Phase B: Coupling operator (RF/ELF/Bio3D + eigenvalue)    [0.35 ms, 4.2% budget]
+Phase C: State envelope validation (bounds check)          [0.08 ms, 1.0% budget]
+Phase D: VRS tile-cost projection (norm + lambda)          [0.12 ms, 1.4% budget]
+Phase E: SRI shadow wave dispatch (GPU async)              [0.002 ms, 0.02% budget]
+Phase F: Bitstream config enqueue (async worker)           [0.002 ms, 0.02% budget]
+Phase G: Hash binding (H_global computation)               [0.05 ms, 0.6% budget]
+Phase H: SRI poll + Byzantine decision (blocking)          [5.0 ms, 60% budget]
+Phase I: Display output (VRS tile rates)                   [1.0 ms, 12% budget]
+Phase J: Audit logging (ProofRecord write, if enabled)     [0.2 ms, 2.4% budget]
+---
+TOTAL SEQUENTIAL (A–J):                                    [7.06 ms, 84.8% budget]
+
+Phase K: Bitstream finalization (async worker, parallel)   [3.0 ms (no blocking)]
+TOTAL WITH ASYNC:                                          [8.33 ms, 100% budget]
+```
+
+**C Pseudocode (Simplified):**
+
+```c
+void dvsm_supervisor_tick_optimized_v3_3(
+  DVSM_State *state,
+  const uint8_t *observation_frame,
+  size_t frame_width,
+  size_t frame_height,
+  DVSM_Config *config
+) {
+  // PHASE A: Core state update
+  tick_q31_32(state, config);  // 0.27 ms
+  
+  // PHASE B: Coupling operator
+  compute_coupling_matrix_q31_32(state, config);  // ~80 μs
+  update_rf_state_q31_32(state, observation_frame, config);    // ~50 μs
+  update_elf_state_q31_32(state, observation_frame, config);   // ~60 μs
+  update_bio3d_state_q31_32(state, observation_frame, config);  // ~100 μs
+  // Total: 0.35 ms
+  
+  // PHASE C: State envelope validation
+  int32_t envelope_result = validate_state_envelopes_q31_32(
+    state->mu_core,
+    state->mu_rf,
+    state->mu_elf,
+    state->mu_bio3d,
+    state->W_coupling
+  );  // ~80 μs
+  if (envelope_result != 0) {
+    rollback_to_prior_state(state);
+    return;  // Behavioral anomaly, skip frame dispatch
+  }
+  
+  // PHASE D: VRS tile-cost projection
+  int64_t core_norm_q = compute_l1_norm_q31_32(state->mu_core);
+  int64_t lambda_q = state->coupling_matrix_eigenvalue_cache;
+  uint8_t sri_projection[8][8];
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      sri_projection[i][j] = compute_tile_cost_q31_32(core_norm_q, lambda_q, i * 8 + j);
+    }
+  }  // ~120 μs
+  
+  // PHASE E: SRI shadow wave dispatch (async to GPU)
+  gpu_upload_uniform_buffer(state->mu_core, lambda_q, state->tick, 0x0303);
+  gpu_dispatch_compute_shader("sri_integrity_verifier", (1,1,1));  // ~2 μs
+  
+  // PHASE F: Bitstream config enqueue (async to worker)
+  SAEC_BitstreamFrameConfig bitstream_cfg = {
+    .state = state,
+    .regime = detect_regime(state),
+    .h_global = state->h_global,
+    .tick = state->tick,
+    .rf_present = (config->coupling.rf_influence > 0),
+    .elf_present = (config->coupling.elf_influence > 0),
+    .bio3d_present = (config->coupling.bio3d_influence > 0),
+    .quality_preset = config->quality_preset,
+    .timestamp_ns = get_frame_timestamp_ns(),
+  };
+  enqueue_compression_job_q31_32(state, config, observation_frame, frame_width, frame_height);  // ~2 μs
+  
+  // PHASE G: Hash binding
+  compute_h_global_q31_32(state);  // ~50 μs
+  
+  // PHASE H: SRI poll + Byzantine decision (blocking with timeout)
+  bool sri_match = gpu_poll_divergence_flag(timeout_ms: 5);
+  if (!sri_match) {
+    HALT_FRAME_DISPATCH("Byzantine: SRI projection diverged");
+    log_audit_entry(state->tick, "Byzantine SRI mismatch", state);
+    return;
+  }
+  
+  // PHASE I: Display output
+  display_frame_vrs(observation_frame, sri_projection, state);  // ~1.0 ms
+  
+  // PHASE J: Audit logging (if enabled)
+  if (config->audit_config.enable_recording) {
+    ProofRecord record = {
+      .tick = state->tick,
+      .H_prev = state->h_global_prior,
+      .H_curr = state->h_global,
+      .mu_snapshot = *state->mu_core,
+      .z_snapshot = *state->z,
+      .config_hash = hash_mediator_config_q31_32(config),
+      .W_coupling = state->W_coupling,
+      .input_hash = hash_observation_frame(observation_frame, frame_width, frame_height),
+      .timestamp_ns = get_frame_timestamp_ns(),
+      .protocol_version = 0x0303,
+      .proof_chain = compute_merkle_link(state->proof_chain_prior),
+    };
+    write_audit_record(&record);  // ~0.2 ms
+  }
+  
+  // PHASE K: Bitstream finalization (async, runs in background)
+  // Worker thread: saec_encode_bitstream_frame_q31_32(bitstream_cfg, ...)
+  // Completes: 0.6–3.0 ms (well under 8.33 ms frame budget)
+  
+  state->tick++;
+}
+```
+
+**Error Handling:**
+- **Phase C (Envelope):** Behavioral anomaly → rollback, return (skip frame)
+- **Phase H (SRI):** Byzantine detection → HALT_FRAME_DISPATCH (terminal, requires reset)
+- **Phases D, E, F, G:** No error cases (Q31.32 deterministic, GPU dispatch always enqueues)
+
+**For full implementation:** See D3D12_VRS_TIER2_SPEC.md §3 and SAEC_BITSTREAM_HEADER_SPEC.md §4
+
+---
+
+## §14 C LANGUAGE REFERENCE IMPLEMENTATION
 
 ```c
 #ifndef DVSM_CORE_H
@@ -3248,7 +3639,7 @@ int dvsm_suchness_check(const DVSMState *state, const DVSMState *prev);
 #endif
 ```
 
-### §12.2 Core Implementation (dvsm_core.c, Portable)
+### §14.2 Core Implementation (dvsm_core.c, Portable)
 
 ```c
 #include "dvsm_core.h"
@@ -3371,9 +3762,9 @@ int dvsm_suchness_check(const DVSMState *state, const DVSMState *prev) {
 
 ---
 
-## §14 CONTROL PANEL IMPLEMENTATION
+## §15 CONTROL PANEL IMPLEMENTATION
 
-### §14.1 On-Screen Rendering
+### §15.1 On-Screen Rendering
 
 ```c
 /* Control panel telemetry capture */
@@ -3431,7 +3822,7 @@ void dvsm_render_control_panel(const ControlPanelState *panel) {
 }
 ```
 
-### §14.2 BIOS Configuration Storage
+### §15.2 BIOS Configuration Storage
 
 ```c
 /* BIOS config structure (EEPROM/NVRAM) */
@@ -3474,9 +3865,9 @@ int bios_config_save(const BIOSConfig *cfg) {
 
 ---
 
-## §15 HARDENING REVIEW
+## §16 HARDENING REVIEW
 
-### §15.1 Bounds & Overflow Protection
+### §16.1 Bounds & Overflow Protection
 
 ```c
 /* Safe Q31 encoding */
@@ -3526,7 +3917,7 @@ static inline void normalize_quat(float *q) {
 #endif
 ```
 
-### §15.2 Paranoid Mode (Optional 2x Cost)
+### §16.2 Paranoid Mode (Optional 2x Cost)
 
 ```c
 typedef struct {
@@ -3559,9 +3950,9 @@ void dvsm_step_paranoid(DVSMState *state, const ParanoidConfig *paranoid) {
 
 ---
 
-## §16 DISPLAY GEOMETRY TRANSFORMS
+## §17 DISPLAY GEOMETRY TRANSFORMS
 
-### §16.1 Flat 2D/3D
+### §17.1 Flat 2D/3D
 
 ```c
 void apply_flat_2d(float *z) {
@@ -3577,7 +3968,7 @@ void apply_flat_3d(float *z) {
 }
 ```
 
-### §16.2 Concave Distortion
+### §17.2 Concave Distortion
 
 ```c
 void apply_concave_3d(float *z, float kappa_display) {
@@ -3594,9 +3985,9 @@ void apply_concave_3d(float *z, float kappa_display) {
 
 ---
 
-## §17 FPS BOOST MODE (PORTING-FRIENDLY)
+## §18 FPS BOOST MODE (PORTING-FRIENDLY)
 
-### §17.1 Lightweight Kernel
+### §18.1 Lightweight Kernel
 
 ```c
 void dvsm_step_boost(DVSMState *state, const SessionConfig *config,
