@@ -811,6 +811,104 @@ Haptic feedback adjustment:
   (curved displays redistribute forces to match perceived pressure)
 ```
 
+### §A.9e Multimodal Extensibility (RF/ELF/BioScience 3D Integration)
+
+**Purpose:** Extend DVSM state space to include RF (radio frequency), ELF (extremely low frequency biological), and BioScience 3D (volumetric medical imaging) modalities via layered auxiliary architecture.
+
+**Protocol Version Gating:**
+```
+DVSM v3.1: Core DVSM only (μ_core, Z_core, 12D)
+DVSM v3.2: Core + RF + ELF (μ_rf, μ_elf, Z_rf, Z_elf added)
+DVSM v3.3: Core + RF + ELF + BioScience 3D (μ_bio3d, Z_bio3d added)
+```
+
+**State Augmentation (Option C: Layered Auxiliary):**
+```
+State_t = (
+  H_core,           [immutable core hash, 256-bit]
+  μ_core, Z_core,   [12D DVSM, unchanged]
+  
+  H_aux,            [immutable auxiliary hash, 256-bit, v3.2+]
+  μ_rf, Z_rf,       [4D RF state + residuals, v3.2+]
+  μ_elf, Z_elf,     [3D ELF state + residuals, v3.2+]
+  
+  H_bio3d,          [immutable volumetric hash, 256-bit, v3.3+]
+  μ_bio3d, Z_bio3d, [R-dimensional PCA coefficients + residuals, v3.3+]
+  
+  config_coupling,  [coupling parameter vector, immutable per session]
+  
+  H_global = HASH(H_core ⊕ H_aux ⊕ H_bio3d ⊕ HASH(config_coupling) ⊕ version)
+)
+```
+
+**Modality State Dimensions:**
+```
+RF (4D):           freq_norm_q, amplitude_q, phase_rf_q, bandwidth_q
+ELF (3D):          frequency_elf_q, coherence_q, envelope_q
+BioScience 3D (R): c₁, c₂, ..., c_R  (PCA coefficients, R ∈ [50, 500])
+```
+
+**Discrete Update Rules:**
+```
+Per-tick supervisor loop (120 Hz):
+  μ_core[t+1] ← tick_phase_locked_q31_32(μ_core[t], Z_core[t])
+  
+  if protocol_version ≥ 0x0302:
+    μ_rf[t+1] ← update_rf_state_q31_32(μ_rf[t], Z_rf[t], config)
+    μ_elf[t+1] ← update_elf_state_q31_32(μ_elf[t], Z_elf[t], μ_core[t], config)
+  
+  if protocol_version ≥ 0x0303:
+    μ_bio3d[t+1] ← update_bio3d_state_q31_32(μ_bio3d[t], Z_bio3d[t], config)
+  
+  W_coupling[t] ← compute_coupling_matrix_q31_32(μ_core, μ_rf, μ_elf, μ_bio3d, config)
+  
+  H_global[t] ← HASH(H_core ⊕ H_aux ⊕ H_bio3d ⊕ HASH(config) ⊕ version)
+```
+
+**Determinism Guarantee:**
+```
+All arithmetic is Q31.32 (RF/ELF) or Q64.64 (BioScience 3D intensity) fixed-point.
+No floating-point operations in modality update rules.
+config_coupling is session-immutable (changes require session restart).
+Therefore: H_global[t] is deterministic iff H_global[0] and config_coupling are identical.
+```
+
+**Coupling to Core Manifold:**
+```
+W_coupling = 6×6 modulation matrix (applied to backreaction in next tick)
+  • RF coupling: α_rf * amplitude_q (always active if enabled)
+  • ELF coupling: gated by coherence_q ≥ 0.7 and frequency within 1 Hz of core PLL
+  • BioScience 3D: eigenvalue delta from baseline (structural changes feed back)
+
+Coupling parameters (session-immutable, Q31.32):
+  config.rf_influence_q31_32     ∈ [0.0, 1.0)
+  config.elf_influence_q31_32    ∈ [0.0, 1.0)
+  config.bio3d_influence_q31_32  ∈ [0.0, 1.0)
+```
+
+**Standards Mapping:**
+```
+ELF → HL7 Vital Signs (frequency as HR/RR, envelope as SaO2)
+BioScience 3D → DICOM Enhanced MR/CT (μ_bio3d in private tags, residuals as secondary capture)
+RF/ELF → MQTT JSON (real-time streaming, phase-lock metrics)
+```
+
+**Full Specification:**
+Refer to RF_ELF_BIOMODALITY_SPEC.md for:
+  • Discrete update rule implementations (§1–3)
+  • Hash binding validation tests (§7.1–7.2)
+  • Standards mapping details (§5.2)
+  • Integration call sequence (§6.1)
+
+Refer to DVSM_IMPL.md for:
+  • compute_coupling_matrix_q31_32() implementation (§12.1)
+  • update_rf_state_q31_32() implementation (§12.2)
+  • update_elf_state_q31_32() implementation (§12.3)
+  • update_bio3d_state_q31_32() implementation (§12.4)
+```
+
+---
+
 ### §A.10 Frame Rate Lock (Hard Fix Switch)
 
 ```
