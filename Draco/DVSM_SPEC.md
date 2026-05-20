@@ -278,7 +278,7 @@ if vr_enabled:
 ```c
 // Portable type alias (all platforms)
 typedef int64_t  q31_32_t;   // Q31.32 fixed-point (31 int + 32 frac bits)
-typedef int128_t q63_64_t;   // Q63.64 fixed-point (extended range)
+typedef int128_t q64_64_t;   // Q64.64 fixed-point (64 int + 64 frac bits, extended range)
 
 // ABI-stable struct (alignment, packing, endianness agnostic)
 #[repr(C, align(64))]  // Rust FFI
