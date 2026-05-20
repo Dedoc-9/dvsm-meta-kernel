@@ -3633,20 +3633,74 @@ void dvsm_supervisor_tick_optimized_v3_3(
     write_audit_record(&record);  // ~0.2 ms
   }
   
-  // PHASE K: Bitstream finalization (async, runs in background)
-  // Worker thread: saec_encode_bitstream_frame_q31_32(bitstream_cfg, ...)
-  // Completes: 0.6–3.0 ms (well under 8.33 ms frame budget)
+  // PHASE K: Bitstream finalization (async, runs in background on worker thread)
+  
+  // Step 1: Build SAEC_Header_v33 (deterministic, big-endian)
+  SAEC_Header_v33 saec_hdr = {
+    .magic = 0x5341,                    // 'SA'
+    .version = 0x33,                    // v3.3
+    .regime_flags = (regime_detected << 5),  // regime in bits [7:5]
+    .tick_index = state->tick,          // Absolute tick (no wrap-around)
+    .global_hash_ref = (state->h_global & 0xFFFFFFFF),  // First 32 bits of H_global
+    .rf_codec = (config->rf_enabled ? (rf_compression_ratio < 1.0 ? 2 : 0) : 3),  // 0=Arith, 2=Stored, 3=Absent
+    .elf_codec = (config->elf_enabled ? (elf_compression_ratio < 1.0 ? 1 : 0) : 3), // 0=IIR, 1=Stored, 3=Absent
+    .bio3d_rank = (config->bio3d_enabled ? state->bio3d_rank : 0),  // 0=Dormant
+    .payload_size = 0,  // Updated after encoding (placeholder)
+  };
+  
+  // Step 2: Serialize header to output buffer[0–23] (big-endian)
+  uint8_t bitstream_buffer[8192];  // ~8KB working buffer
+  int header_bytes = serialize_saec_header_v33(&saec_hdr, bitstream_buffer, sizeof(bitstream_buffer));
+  if (header_bytes != 24) {
+    fprintf(stderr, "[TICK %u] SAEC header serialization failed\n", state->tick);
+    return;  // Phase K skip
+  }
+  // Latency: ~20 ns (big-endian conversion with MOVBE/BSWAP instructions)
+  
+  // Step 3: Enqueue to bitstream compression worker (async)
+  // Worker thread will:
+  //   1. Encode residuals based on regime + codecs (0.6–3.0 ms)
+  //   2. Compute frame CRC-32 (cover bytes 0 to payload_offset)
+  //   3. Append CRC-32 footer (4 bytes, big-endian)
+  //   4. Write to ring buffer or network socket
+  
+  SAEC_BitstreamJob job = {
+    .tick = state->tick,
+    .header = saec_hdr,
+    .header_bytes = bitstream_buffer,
+    .state = state,
+    .residuals_out = bitstream_buffer + 24,  // Write residuals after header
+    .residuals_size_out = 0,
+    .completion_callback = mark_bitstream_complete,  // Async callback
+  };
+  
+  enqueue_bitstream_job(&job);  // Fire-and-forget
+  // Latency: ~2 μs (ring buffer enqueue, lock-free)
+  // Decoder sees frame only after Phase K completes (via payload_size field)
+  
+  // For full implementation: See SAEC_BITSTREAM_HEADER_SPEC.md §2–§3
+  // For compression algorithms: See SAEC_BITSTREAM_HEADER_SPEC.md §2.1–§2.2
   
   state->tick++;
 }
 ```
 
+**Integration Summary:**
+
+- **Phase K Entry:** SAEC_Header_v33 struct built deterministically from state (tick, regime, h_global, codec selection)
+- **Big-Endian Serialization:** 24 bytes written with native byte-swap instructions (~20 ns)
+- **Async Compression:** Worker thread encodes residuals (0.6–3.0 ms, parallel with next frame's render)
+- **Frame Integrity:** CRC-32 appended at footer (covers header + residuals, 4 bytes)
+- **Determinism:** Identical tick + regime → identical header (bit-perfect across platforms)
+- **Network Payload:** `payload_size` enables frame-level seeking; decoder can skip corrupted frames using this field
+
 **Error Handling:**
 - **Phase C (Envelope):** Behavioral anomaly → rollback, return (skip frame)
 - **Phase H (SRI):** Byzantine detection → HALT_FRAME_DISPATCH (terminal, requires reset)
+- **Phase K (Bitstream):** Compression failure → skip to next tick (non-fatal; frame not transmitted)
 - **Phases D, E, F, G:** No error cases (Q31.32 deterministic, GPU dispatch always enqueues)
 
-**For full implementation:** See D3D12_VRS_TIER2_SPEC.md §3 and SAEC_BITSTREAM_HEADER_SPEC.md §4
+**For full implementation:** See SAEC_BITSTREAM_HEADER_SPEC.md §1–§3 (header spec, dormancy protocol, serialization) and D3D12_VRS_TIER2_SPEC.md §3 (GPU integration)
 
 ---
 
