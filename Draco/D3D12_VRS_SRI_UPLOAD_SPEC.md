@@ -436,3 +436,8 @@ The lock-free SPSC ring buffer (5 μs enqueue, 2 μs dequeue) is safe under Zen 
 - Telemetry dashboard (Core 0/1 occupancy, MQTT latency, Byzantine flag, GPU power/thermal)
 - Hazard pointer upgrade if drift detected
 - Full multi-peer validation (3+ Z2 Extremes, network partition injection)
+
+**Future (Session N+2+):**
+- Telemetry dashboard (Core 0/1 occupancy, MQTT latency, Byzantine flag, GPU power/thermal)
+- Hazard pointer upgrade if drift detected
+- Full multi-peer validation (3+ Z2 Extremes, network partition injection)
