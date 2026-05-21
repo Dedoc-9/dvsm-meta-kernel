@@ -9,8 +9,8 @@
 /// - L1D cache conflicts are measured (Core 0 ↔ Core 1 coherency monitoring)
 /// - Frame marking enables downstream protocol integrity
 
+use crate::dvsm_state::DVSMState;
 use crate::compression::TilePool;
-use std::sync::atomic::Ordering;
 
 /// Cycle-accurate timing (x86-64 RDTSC instruction)
 /// On Zen 5, this is deterministic and serialized
@@ -37,71 +37,9 @@ pub mod flags {
     pub const FLAG_PHASE_SHEDDING: u8 = 0x02; // Supervisor is in Phase Shedding mode
 }
 
-/// Supervisor State: Carries flags and telemetry through the frame
-pub struct SupervisorFlags {
-    pub in_phase_shedding: bool,
-    pub frame_flags: u8,
-}
-
-impl Default for SupervisorFlags {
-    fn default() -> Self {
-        SupervisorFlags {
-            in_phase_shedding: false,
-            frame_flags: 0,
-        }
-    }
-}
-
-/// Compression Telemetry: Forensic data for Zen 5 validation
-#[derive(Debug, Clone, Default)]
-pub struct CompressionTelemetry {
-    /// Number of frames shed (occupancy > 200)
-    pub shed_count: u64,
-
-    /// L1D cache conflicts during compression phase (cycles wasted to coherency)
-    pub l1_conflicts: u64,
-
-    /// Occupancy samples (circular buffer, 1000 frames)
-    pub occupancy_history: Vec<u32>,
-
-    /// Cycle cost of last supervisor tick
-    pub last_tick_cycles: u64,
-
-    /// Regime transitions: (regime, tick) log (last 32 entries)
-    pub regime_log: [(u8, u64); 32],
-    pub regime_log_head: usize,
-
-    /// Compression queue overflow count (tiles returned due to queue full)
-    pub queue_overflow_count: u64,
-
-    /// Pop latency in cycles (last operation)
-    pub pop_latency_cycles: u64,
-
-    /// Hysteresis state transitions (enter shedding, exit shedding)
-    pub hysteresis_transitions: u32,
-}
-
-impl CompressionTelemetry {
-    /// Log a regime transition
-    pub fn log_regime(&mut self, regime: u8, tick: u64) {
-        let idx = self.regime_log_head;
-        self.regime_log[idx] = (regime, tick);
-        self.regime_log_head = (idx + 1) % 32;
-    }
-
-    /// Add occupancy sample (maintains circular buffer)
-    pub fn record_occupancy(&mut self, occupancy: usize) {
-        self.occupancy_history.push(occupancy as u32);
-        // Keep last 1000 samples
-        if self.occupancy_history.len() > 1000 {
-            self.occupancy_history.remove(0);
-        }
-    }
-}
-
 /// Stub: Evolution core (placeholder for dvsm_evolve_core)
 /// In real implementation, this computes Z_{t+1} from Z_t
-pub fn dvsm_evolve_core(_state: &mut crate::DVSMState) {
+pub fn dvsm_evolve_core(_state: &mut DVSMState) {
     // Placeholder: Z_t evolution (always runs, independent of compression)
 }
 
@@ -127,7 +65,7 @@ impl CompressionQueue {
 /// - Regime transitions: logged for analysis
 /// - Shed events: marked with FLAG_UNCOMPRESSED
 pub fn supervisor_tick(
-    state: &mut crate::DVSMState,
+    state: &mut DVSMState,
     pool: &TilePool,
     queue: &CompressionQueue,
 ) {
@@ -150,7 +88,6 @@ pub fn supervisor_tick(
         // Currently shedding: only exit if occupancy drops below 150
         if occ < 150 {
             state.supervisor_flags.in_phase_shedding = false;
-            state.telemetry.hysteresis_transitions += 1;
             pool.get_recommended_regime()
         } else {
             // Still shedding
@@ -160,7 +97,6 @@ pub fn supervisor_tick(
         // Not shedding: only enter if occupancy exceeds 200
         if occ > 200 {
             state.supervisor_flags.in_phase_shedding = true;
-            state.telemetry.hysteresis_transitions += 1;
             4
         } else {
             // Normal operation
@@ -169,17 +105,19 @@ pub fn supervisor_tick(
     };
 
     // Log regime transition
-    state.telemetry.log_regime(regime, state.frame_count);
+    state.telemetry.regime_transitions.push((regime, state.frame_count));
 
     // Record occupancy sample
-    state.telemetry.record_occupancy(occ);
+    state.telemetry.occupancy_history.push(occ as u32);
+    if state.telemetry.occupancy_history.len() > 1000 {
+        state.telemetry.occupancy_history.remove(0);
+    }
 
     if regime != 4 {
         // Normal compression: acquire tile and encode
         let pop_start = rdtsc();
         if let Some((idx, tile)) = pool.pop_tile() {
             let pop_elapsed = rdtsc() - pop_start;
-            state.telemetry.pop_latency_cycles = pop_elapsed;
 
             // Populate tile metadata
             tile.metadata_regime = regime;
@@ -195,14 +133,13 @@ pub fn supervisor_tick(
             if let Err(_) = queue.push(idx) {
                 // Queue overflow: return tile to pool for retry next frame
                 pool.push_tile(idx);
-                state.telemetry.queue_overflow_count += 1;
             }
         }
     } else {
         // Phase Shedding: skip compression (mute S_t, save hardware)
         // Z_t still evolves (deterministic), S_t doesn't accumulate residual
-        state.supervisor_flags.frame_flags |= flags::FLAG_UNCOMPRESSED;
-        state.supervisor_flags.frame_flags |= flags::FLAG_PHASE_SHEDDING;
+        state.frame_flags |= flags::FLAG_UNCOMPRESSED;
+        state.frame_flags |= flags::FLAG_PHASE_SHEDDING;
         state.telemetry.shed_count += 1;
     }
 
@@ -214,7 +151,7 @@ pub fn supervisor_tick(
 
 /// Stub: Placeholder encoder (no real compression, just cache-line traffic)
 /// Simulates writing Z-state to tile to measure cache coherency
-fn encode_placeholder(_tile: &mut crate::compression::CompressionTile, _state: &crate::DVSMState) {
+fn encode_placeholder(_tile: &mut crate::compression::CompressionTile, _state: &DVSMState) {
     // Stub: Real implementation in src/compression/saec_math.rs
 }
 
@@ -227,40 +164,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hysteresis_enter_exit() {
-        // Placeholder for integration testing
-        // Real test requires full DVSMState + TilePool setup
-        assert!(true);
+    fn test_rdtsc_monotonic() {
+        let t1 = rdtsc();
+        let t2 = rdtsc();
+        // rdtsc should always increase (or stay same if called back-to-back)
+        assert!(t2 >= t1, "rdtsc should be monotonic");
+    }
+
+    #[test]
+    fn test_dvsm_state_creation() {
+        let state = DVSMState::new();
+        assert_eq!(state.frame_count, 0);
+        assert_eq!(state.sample_count, 0);
+        assert!(!state.supervisor_flags.in_phase_shedding);
     }
 
     #[test]
     fn test_occupancy_recording() {
-        let mut telemetry = CompressionTelemetry::default();
-        telemetry.record_occupancy(50);
-        telemetry.record_occupancy(100);
-        telemetry.record_occupancy(150);
-        assert_eq!(telemetry.occupancy_history.len(), 3);
+        let mut state = DVSMState::new();
+        state.telemetry.occupancy_history.push(50);
+        state.telemetry.occupancy_history.push(100);
+        state.telemetry.occupancy_history.push(150);
+        assert_eq!(state.telemetry.occupancy_history.len(), 3);
     }
 
     #[test]
     fn test_regime_logging() {
-        let mut telemetry = CompressionTelemetry::default();
-        telemetry.log_regime(3, 0);
-        telemetry.log_regime(2, 1);
-        telemetry.log_regime(4, 2);
-        assert_eq!(telemetry.regime_log[0], (3, 0));
-        assert_eq!(telemetry.regime_log[1], (2, 1));
-        assert_eq!(telemetry.regime_log[2], (4, 2));
+        let mut state = DVSMState::new();
+        state.telemetry.regime_transitions.push((3, 0));
+        state.telemetry.regime_transitions.push((2, 1));
+        state.telemetry.regime_transitions.push((4, 2));
+        assert_eq!(state.telemetry.regime_transitions.len(), 3);
+        assert_eq!(state.telemetry.regime_transitions[0], (3, 0));
     }
 
     #[test]
-    fn test_regime_log_wraparound() {
-        let mut telemetry = CompressionTelemetry::default();
-        // Log 40 entries (should wraparound the 32-slot buffer)
-        for i in 0..40 {
-            telemetry.log_regime(i as u8 % 5, i as u64);
-        }
-        // Head should be at position 8 (40 % 32)
-        assert_eq!(telemetry.regime_log_head, 8);
+    fn test_frame_flags() {
+        let mut state = DVSMState::new();
+        state.frame_flags = 0;
+        state.frame_flags |= flags::FLAG_UNCOMPRESSED;
+        assert_eq!(state.frame_flags, flags::FLAG_UNCOMPRESSED);
     }
 }
