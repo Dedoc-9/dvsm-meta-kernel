@@ -201,7 +201,7 @@ pub fn hash_state(
     alpha: f32,
     e_target: f32,
     q_mode: u8,
-    neural_enabled: bool,
+    spectral_harmonic_enabled: bool,
     protocol_version: u64,
 ) -> FNV1AWithParity {
     // Serialize state to bytes (deterministic)
@@ -218,7 +218,7 @@ pub fn hash_state(
     data.extend_from_slice(&alpha.to_bits().to_le_bytes());
     data.extend_from_slice(&e_target.to_bits().to_le_bytes());
     data.push(q_mode);
-    data.push(neural_enabled as u8);
+    data.push(spectral_harmonic_enabled as u8);
     data.extend_from_slice(&protocol_version.to_le_bytes());
     
     fnv1a_parity(&data)
@@ -695,7 +695,7 @@ pub fn rose_term(
 ### §5.2 Neural Support (Frozen MLP)
 
 ```rust
-// rust/neural/src/lib.rs
+// rust/spectral_harmonic/src/lib.rs
 
 #[derive(Clone, Debug)]
 pub struct RoseNeuralNet {
@@ -796,7 +796,7 @@ pub fn dvsm_step_full(
     config: &SessionConfig,    // LOCKED frame rate, VR mode, Q_mode
     p: &WattageProfile,
     dfe_enabled: bool,
-    neural_enabled: bool,
+    spectral_harmonic_enabled: bool,
     net: Option<&RoseNeuralNet>,
     haptics: Option<(&VRState, &HapticsProfile)>,  // (target, profile)
     ghostsnap_mgr: &mut GhostSnapManager,
@@ -824,9 +824,9 @@ pub fn dvsm_step_full(
         }
     }
     
-    // === B: ROSE CURVE (optional neural) ===
+    // === B: ROSE CURVE (optional spectral_harmonic) ===
     let mut rose = [0.0_f32; 20];  // padded to 20
-    if neural_enabled && dfe_enabled {
+    if spectral_harmonic_enabled && dfe_enabled {
         if let Some(net) = net {
             let (a, k) = net.forward(&state.z);
             let theta = 0.5;  // placeholder angle from W
@@ -853,7 +853,18 @@ pub fn dvsm_step_full(
             state.z[k] = state.z[k].clamp(-2.0, 2.0);
         }
         
-        // === D.2: EMA MEMORY ===
+        // === D.2: EMA MEMORY (Residual Accumulation) ===
+        // CORRECTED ARCHITECTURE (Session 7 Day 1):
+        // S_t should accumulate off-manifold residuals G_t = Z_t − Π_W(Z_t),
+        // not primary state Z_t.
+        // This ensures strict orthogonality (S ⊥ Z always, not just approximately).
+        //
+        // Implementation:
+        //   G_k = state.z[k] - projection_w[k];   // compute residual
+        //   state.s[k] = ema_beta * state.s[k] + (1-ema_beta) * G_k;
+        //
+        // For now, using fallback (Z_t accumulation) for backward compatibility.
+        // Full residual accumulation will be activated in Phase 2 (Days 5-7).
         state.s[k] = p.ema_beta * state.s[k] + (1.0 - p.ema_beta) * state.z[k];
     }
     
@@ -1021,7 +1032,7 @@ pub fn tick_phase_locked(
     d_ns: u64,                           // dispatch timestamp (ns)
     c_ns: u64,                           // completion timestamp (ns)
     dfe_enabled: bool,
-    neural_enabled: bool,
+    spectral_harmonic_enabled: bool,
     net: Option<&RoseNeuralNet>,
     paranoid_mode: bool,
     ghostsnap_mgr: &mut GhostSnapManager,
@@ -1036,7 +1047,7 @@ pub fn tick_phase_locked(
     
     // === PRE-COMPUTE: Rose Curve ===
     let mut rose = [0.0_f32; 20];
-    if neural_enabled && dfe_enabled {
+    if spectral_harmonic_enabled && dfe_enabled {
         if let Some(net) = net {
             let (a, k) = net.forward(&state.z);
             let theta = 0.5;
@@ -2290,7 +2301,7 @@ fn test_phase_lock_convergence_z2_extreme() {
             d_ns,
             c_ns,
             false,  // dfe_enabled
-            false,  // neural_enabled
+            false,  // spectral_harmonic_enabled
             None,   // net
             false,  // paranoid_mode
             &mut ghostsnap_mgr,
@@ -2380,7 +2391,7 @@ Before merging any feature:
 - [ ] Cayley spyware detection: FP rate < 1%, FN rate < 0.1%
 
 **Dynamics:**
-- [ ] Rose curve neural net frozen (weights constant)
+- [ ] Rose curve spectral_harmonic net frozen (weights constant)
 - [ ] Backreaction norm stability: ‖Z‖² ∈ [0.8, 1.2] @ E_target=1.0
 - [ ] Orthogonality: Z · S < 1e-10 at all ticks
 - [ ] Ghost closure: code audit confirms G never feeds Z evolution
@@ -2778,7 +2789,7 @@ pub fn enqueue_compression_job_q31_32(
         compression_config: compression_config,
         width: width,
         height: height,
-        rose_net: config.neural_rose_enabled.then(|| ROSE_NET.clone()),
+        rose_net: config.spectral_harmonic_rose_enabled.then(|| ROSE_NET.clone()),
     })?;
     
     // Latency: ~2 μs (queue append, no processing)
