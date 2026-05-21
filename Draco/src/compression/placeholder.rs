@@ -39,8 +39,6 @@ pub fn encode_placeholder(tile: &mut CompressionTile, state: &crate::DVSMState) 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_placeholder_is_deterministic() {
         // Stub test: ensure placeholder function compiles and runs
