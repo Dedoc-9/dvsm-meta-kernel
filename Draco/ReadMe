@@ -1,10 +1,11 @@
-# DVSM Core Equation: Complete Derivation with Axioms, Layers, Derivatives, and Protocol Constraints
+# DVSM Core Equation: Complete Derivation with Axioms, Layers, Derivatives, and Observational Constraints
 
 **Project:** DVSM v3.3 (Deterministic State-Evolution Manifold)  
 **Platform:** Xbox Ally X (Zen 5 Z2 Extreme)  
 **Date:** 2026-05-21  
 **Author:** Daniel J. Dillberg
 **Contact:** BigDilly95@gmail.com
+**Latest:** Form 3 (Causal vs. Observational Operator Classification) + Ghost Closure Formal Proof added
 
 ---
 
@@ -376,6 +377,173 @@ class DVSMSupervisor:
 
 ---
 
+## Form 3: Operator Classification (Causal vs. Observational)
+
+**Purpose:** Formal specification of which derivatives and operators feed Z evolution (causal) vs. which are computed for audit/telemetry only (observational, non-causal).
+
+### Causal Operators (Feed Z_{t+1})
+
+**Strict Definition:** An operator is causal if and only if ∂Z_k(t+1) / ∂(operator output) ≠ 0.
+
+| Layer | Operator | Derivative | Input | Z Feedback | Status |
+|-------|----------|-----------|-------|-----------|--------|
+| L2 | Lie-bracket κ | ∂Z_i/∂κ_{ij} = (Z_i·S_j − Z_j·S_i) | Z, S, κ | ✅ YES | ΔZ^Lie added to Z_{t+1} |
+| L3 | Dissipation λ | ∂Z_i/∂λ = −Z_i | Z, λ | ✅ YES | ΔZ^Diss subtracted from Z_{t+1} |
+| L4 | Backreaction α | ∂Z_i/∂α = −(‖Z‖² − E_target)·Z_i | Z, ‖Z‖², α | ✅ YES | ΔZ^Backr subtracts norm error |
+| L5 | Rose β | ∂Z_i/∂β = a·cos(k·θ)·Z_i | Z, θ, a, k, β | ✅ YES | ΔZ^Rose modulates harmonic |
+| L6 | EMA β_ema | ∂S_i/∂Z_i = (1−β_ema) | Z, S, β_ema | ✅ YES (to S only) | S_{t+1} updated, used in L2 next tick |
+
+**Causal Property (Formal):**
+```
+Z_{t+1} = Z_t + dt·Σ[dz_lie + dz_diss + dz_backr + dz_neural]
+
+where each term depends ONLY on (Z_t, S_t, locked parameters)
+
+Consequence: Same Z_t, S_t → Same Z_{t+1} (deterministic evolution)
+```
+
+---
+
+### Observational-Only Operators (Audit/Telemetry, Zero Z Feedback)
+
+**Strict Definition:** An operator is observational if ∂Z_k(t+1) / ∂(operator output) ≡ 0 for all k, t.
+
+| Component | Computation | Input | Output | Z Feedback | Role | Code Ref |
+|-----------|-----------|-------|--------|-----------|------|----------|
+| **G_t** (Ghost residual) | G_t = Z_t − Π_W(Z_t) | Z, W | Residual vector | ❌ NEVER | Null-space metric | COMPRESSION_CODEC_IMPL.md |
+| **σ_⊥** (Null-space hash) | σ_⊥ = FNV1A(G_t) | G_t | Hash value | ❌ NEVER | Orthogonality audit | DVSM_IMPL.md §8.1:929 |
+| **H_t** (Tautology hash) | H_t = FNV1A_PARITY(μ⊕Z⊕S⊕W⊕κ⊕λ⊕α⊕...) | μ, Z, S, W, params | Hash chain | ❌ NEVER | State binding verification | DVSM_IMPL.md §2.2 |
+| **R_comp** (Compression residual) | R = Z − Proj_W(Z), quantized to i32 | Z, W | Tile payload | ❌ NEVER | Lossy encoding storage | COMPRESSION_CODEC_IMPL.md §5.3 |
+| **φ_err_ema** (Phase error EMA) | φ_err_ema = 0.95·φ_err_ema + 0.05·\|Δphase\| | phase_delta | Diagnostic [0, ∞) | ❌ NEVER (triggers alert only) | Jitter detection | DVSM_SPEC.md §A.5 |
+| **sing_ratio** (Singularity ratio) | = ‖{i : G_i = 0}‖ / dim | G_t | Scalar ∈ [0,1] | ❌ NEVER (triggers regime downgrade only) | Compression regime selector | COMPRESSION_CODEC_IMPL.md |
+| **sat_rate** (Saturation detection) | = ‖{k : \|Z_k\| ≥ 1.8}‖ / dim | Z | Scalar ∈ [0,1] | ❌ NEVER (alert only, no Z correction) | Paranoid mode telemetry | DVSM_SPEC.md §A.5 |
+| **frame_idx** (Frame counter) | ← frame_idx + 1 | (none) | Counter | ❌ NEVER (audit trail only) | Replay checkpoint ID | DVSM_SPEC.md §A.2d |
+| **rollback_count** (Rollback tally) | ← rollback_count + 1 | (suchness_fail) | Counter | ❌ NEVER (forensic only) | Failure diagnostics | DVSM_SPEC.md §A.2d |
+| **safety_triggers** (Fallback tally) | ← safety_triggers + 1 | (norm_error_high) | Counter | ❌ NEVER (forensic only) | Safety valve audit | DVSM_SPEC.md §A.2d |
+
+**Observational Property (Formal):**
+```
+For all observational operators O:
+  
+  ∂Z_k(t+1) / ∂O(...) ≡ 0  ∀ k, t
+  
+  Proof: Z_{t+1} = Z_t + dt·[Lie(Z,S,κ) − λZ − α(...) + Rose(Z)]
+  
+         No term depends on G_t, σ_⊥, H_t, φ_err_ema, sing_ratio, sat_rate, or counters
+         
+         Z_{t+1} is computed BEFORE observational outputs are generated
+         
+         Observational outputs are READ-ONLY: they influence control flow
+         (rollback, regime downgrade, alerts) but NOT Z state directly
+```
+
+---
+
+### Strict Closure (Forbidden vs. Permitted Operations)
+
+**FORBIDDEN (Violates Tautology #3: Ghost Closure):**
+
+```rust
+// ❌ NEVER: Feed ghost residual back to state
+Z_{t+1} += some_coefficient * G_t;   // FORBIDDEN
+
+// ❌ NEVER: Use null-space hash in evolution  
+Z_{t+1} = mix(Z_t, hash(σ_⊥, Z_t)); // FORBIDDEN
+
+// ❌ NEVER: Compress residuals mutate primary state
+Z_corrected = Z_original - compression_loss;  // FORBIDDEN (loss is observational)
+
+// ❌ NEVER: Phase error EMA modifies Z
+Z += 0.01 * phase_error_ema * correction_vector;  // FORBIDDEN
+
+// ❌ NEVER: Saturation detection triggers Z clamping beyond hard clamp
+if saturation_rate > threshold:
+    Z = clamp(Z, adaptive_bounds);   // FORBIDDEN (hard clamp [-2.0, 2.0] only)
+    
+// ❌ NEVER: Treat H_t as differentiable in evolution
+dZ = ∇_Z H_t * learning_rate;        // FORBIDDEN (hash is non-differentiable)
+```
+
+**PERMITTED (Maintains Ghost Closure):**
+
+```rust
+// ✅ ALLOWED: Compute observational metrics for telemetry
+diagnostics.ghost_norm = norm(G_t);
+diagnostics.singularity_ratio = sing_ratio;
+diagnostics.phase_error_ema = φ_err_ema;
+telemetry_buffer.push(diagnostics);
+
+// ✅ ALLOWED: Use observational metrics to trigger discontinuous rollback
+if !suchness_check_passes():
+    Z, S = checkpoint.restore();  // Heaviside jump, no Z gradient
+    
+// ✅ ALLOWED: Norm-squared as input to backreaction (causal)
+backreaction_term = -α * (‖Z‖² - E_target) * Z;  // ✅ fed to Z evolution
+
+// ✅ ALLOWED: EMA memory as input to Lie-bracket (causal)
+lie_bracket = κ_ij * (Z_i * S_j - Z_j * S_i);   // ✅ S fed to next evolution
+
+// ✅ ALLOWED: Compression residuals for loss metrics
+compression_ratio = len(tile_payload) / len(Z_quantized);
+telemetry.record_compression_ratio(compression_ratio);
+
+// ✅ ALLOWED: Regime downgrade based on singularity (discontinuous control)
+if singularity_ratio > 0.92:
+    compression_regime = min(regime - 1, Regime0);  // Downgrade, not Z-feedback
+```
+
+---
+
+### Ghost Closure Verification (Formal Proof)
+
+**Theorem (Ghost Closure):** For all ticks t and all state indices k,
+```
+∂Z_k(t+1) / ∂G_ℓ(t) ≡ 0  and  ∂Z_k(t+1) / ∂σ_⊥(t) ≡ 0  and  ∂Z_k(t+1) / ∂H_t(t) ≡ 0
+```
+
+**Proof:**
+
+Step 1: Z evolution formula (explicit dependence)
+```
+Z_{t+1} = Z_t + dt·(ΔZ^Lie + ΔZ^Diss + ΔZ^Backr + ΔZ^Rose)
+
+where:
+  ΔZ^Lie = Σⱼ κ_{ij}(Z_i·S_j − Z_j·S_i)    [depends on Z, S, κ only]
+  ΔZ^Diss = −λ·Z                             [depends on Z, λ only]
+  ΔZ^Backr = −α(‖Z‖² − E_target)·Z          [depends on Z, α, E_target only]
+  ΔZ^Rose = β·a·cos(k·θ)·Z                  [depends on Z, β, θ only]
+```
+
+Step 2: Ghost residual definition
+```
+G_t = Z_t − Π_W(Z_t)  [derived quantity, not in evolution terms]
+σ_⊥ = FNV1A(G_t)     [hash of derived quantity]
+H_t = FNV1A_PARITY(μ_t ⊕ Z_t ⊕ S_t ⊕ W_t ⊕ params)  [output hash, not input]
+```
+
+Step 3: Substitute into ∂Z_{t+1}/∂G
+```
+∂Z_{t+1}/∂G_ℓ = ∂Z_t/∂G_ℓ + dt·∂(ΔZ^Lie)/∂G_ℓ + dt·∂(ΔZ^Diss)/∂G_ℓ + ...
+              = 0 + dt·0 + dt·0 + ... = 0  [all terms are zero]
+```
+
+Step 4: Substitute into ∂Z_{t+1}/∂σ_⊥
+```
+∂Z_{t+1}/∂σ_⊥ = ∂Z_{t+1}/∂G_ℓ · ∂G_ℓ/∂σ_⊥  [chain rule]
+              = 0 · (undefined) = 0  [hash is non-differentiable, result is zero]
+```
+
+Step 5: Substitute into ∂Z_{t+1}/∂H_t
+```
+∂Z_{t+1}/∂H_t = ∂Z_{t+1}/∂(state) · ∂(state)/∂H_t
+              = (non-zero) · 0  [H_t is output of state, not input]
+              = 0
+```
+
+**Conclusion:** Ghost closure maintained. No gradient flows from G_t, σ_⊥, or H_t into Z evolution. ∎
+
+---
+
 ## Layer Breakdown (Comprehensive Table)
 
 | Layer | Op | Operator Name | Formula | ∂/∂Z_i | Purpose | Fixed-Point | Protocol Lock |
@@ -579,26 +747,39 @@ Corollary: Replay determinism guaranteed. Any change in Z_0, config, or paramete
 ## Summary: Complete Equation Stack
 
 ```
-Causal Evolution (7 Layers):
+Causal Evolution (7 Layers, Form 1 + Form 3):
   Z_{t+1} = Z_t + dt·[Lie_bracket(Z_t, S_t, κ) − λ·Z_t − α(‖Z_t‖²−E)·Z_t + Rose(Z_t)]
   S_{t+1} = β_ema·S_t + (1−β_ema)·Z_t
   
-Tautology Verification (per tick):
+  CAUSAL OPERATORS ONLY: κ, λ, α, β feed Z_{t+1}
+  OBSERVATIONAL-ONLY: G_t, σ_⊥, H_t, φ_err_ema, counters (∂Z/∂ ≡ 0)
+  
+Tautology Verification (per tick, Form 2 pseudocode):
   H_t = FNV1A_PARITY(μ_t ⊕ Z_t ⊕ S_t ⊕ W_t ⊕ κ ⊕ λ ⊕ α ⊕ E ⊕ Q ⊕ freq ⊕ proto)
-  Z_t · S_t < 1e-10  (orthogonality check)
-  Ghost_t = Z_t − Π_W(Z_t) not in Z evolution (code audit)
+        (output hash: H_t ← state, NOT state ← H_t)
+  
+  Z_t · S_t < 1e-10  (orthogonality check, Invariant 2)
+  
+  G_t = Z_t − Π_W(Z_t) NEVER in Z evolution  (Ghost Closure, Invariant 3)
+        Proved via ∂Z_{t+1}/∂G_t ≡ 0 (Form 3 §Ghost Closure Verification)
   
 Protocol Lock (H_session):
   H_session = HASH(Config ⊕ ProtoVersion ⊕ BufferPresence ⊕ Layout-ID)
-  Immutable: frame_rate_hz, κ, λ, α, E_target, dt, Q_mode locked
+  Immutable: frame_rate_hz, κ, λ, α, E_target, dt, Q_mode, protocol_version locked
   
-Stability Guarantee (Lyapunov):
+Stability Guarantee (Lyapunov, Energy-Based):
   dE/dt ≤ 0; ‖Z_t‖ → E_target exponentially
   Convergence timescale: τ ∼ 1/(λ + 2α·E_target)
   
-Determinism Guarantee (Integer Arithmetic):
-  No IEEE 754 floats on state; all Q31.32 fixed-point
-  Same Z_0 → same Z_t ∀ t (to machine precision: i32)
+Determinism Guarantee (Integer Arithmetic, Form 1 Axiom 1):
+  No IEEE 754 floats on state; all Q31.32 fixed-point (beyond-754)
+  Same Z_0, S_0, parameters → same Z_t ∀ t (exact, to i32 precision)
+  Replay determinism: Any Z_0 change → different Z_t (no silent corruption)
+  
+Ghost Closure Guarantee (Form 3, Theorem: ∂Z_{t+1}/∂G_t ≡ 0):
+  Ghost residual G_t is computed but never fed to Z evolution
+  Consequence: Dual-space separation maintained, feedback loops impossible
+  Proof: Explicit substitution of ∂Z/∂G into all evolution terms yields zero
 ```
 
 ---
