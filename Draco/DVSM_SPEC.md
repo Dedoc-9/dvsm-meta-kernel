@@ -1253,6 +1253,87 @@ else if forensic_level = Forensic:
 
 ---
 
+### §A.13 Operational Error Semantics (FFI Contract)
+
+**Purpose:** Define the error codes and fail-fast/non-fatal logic that bridge the formal specification to operational runtime.
+
+**Principle:** Errors are *observed state*, not exceptions. Initialization errors are fatal (fail-fast); runtime errors are non-fatal and logged.
+
+**Layer 1: Initialization Errors (Fail-Fast)**
+
+```
+ERR_MODALITY_MISSING (0x0401)
+  Condition: enable_rf_elf_coupling=true AND rf_elf_buffer=null
+  Severity: FATAL
+  Action: Caller must allocate RfElfRingBuffer, retry init
+  
+ERR_MODALITY_INIT_FAILED (0x0402)
+  Condition: buffer validation failed (size, alignment, etc.)
+  Severity: FATAL
+  Action: Caller must provide valid 256-sample, 64-byte-aligned buffer
+
+ERR_INVALID_BUFFER_SIZE (0x0403)
+  Condition: buffer.capacity() ≠ 256
+  Severity: FATAL
+  Action: Ensure buffer is exactly 256 samples (power-of-2)
+
+ERR_INVALID_CONFIG (0x0404)
+  Condition: Config struct contains invalid values
+  Severity: FATAL
+  Action: Fix frame_rate, sync_tier, coefficients, retry
+```
+
+**Layer 2: Runtime Errors (Non-Fatal, Logged)**
+
+```
+ERR_MODALITY_STALE (0x0501)
+  Condition: ring_buffer.last_poll_ns + threshold > now_ns
+  Severity: NON-FATAL
+  Supervisor Behavior: Skip RF/ELF coupling, continue frame
+  Telemetry: modality_stale_count incremented
+  Dashboard Alert: "RF/ELF producer thread may be hung"
+
+ERR_MODALITY_CORRUPTED (0x0502)
+  Condition: integrity hash mismatch on sample
+  Severity: NON-FATAL
+  Supervisor Behavior: Skip coupling, log, continue
+  Telemetry: modality_corrupted_count incremented
+  Root Cause: Torn read (rare), producer thread synchronization issue
+
+ERR_MODALITY_OVERFLOW (0x0503)
+  Condition: ring buffer full, sample dropped
+  Severity: NON-FATAL
+  Supervisor Behavior: Skip coupling, log drop, continue
+  Telemetry: modality_overflow_count incremented
+  Analysis: Producer faster than consumer (growing overflow_count indicates buffer undersized)
+```
+
+**Immutability Guarantee:**
+
+```
+H_session = HASH(Config ⊕ Version ⊕ BufferPresence)
+
+If enable_rf_elf=true:
+  BufferPresence = HASH(buffer_ptr) in H_session
+  
+If enable_rf_elf=false:
+  BufferPresence = 0x00 in H_session
+  
+Therefore: Sessions with/without RF/ELF are cryptographically distinct.
+A "Core-Only" session CANNOT accidentally ingest RF data (H_session proves it).
+```
+
+**Error Contract (See FFI_ERROR_CODES.md for complete specification)**
+
+All error codes are defined in the FFI layer with:
+1. Numeric encoding (fail-fast vs. non-fatal buckets)
+2. Preconditions and semantics
+3. Caller responsibility
+4. Telemetry impact
+5. Recovery patterns
+
+---
+
 ## §B ARCHITECTURAL DESIGN
 
 ### §B.1 Operator Pipeline (Strictly Sequential)
