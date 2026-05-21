@@ -66,7 +66,7 @@ impl CompressionQueue {
 /// - Shed events: marked with FLAG_UNCOMPRESSED
 pub fn supervisor_tick(
     state: &mut DVSMState,
-    pool: &TilePool,
+    pool: &mut TilePool,
     queue: &CompressionQueue,
 ) {
     let start_cycles = rdtsc();
@@ -115,9 +115,8 @@ pub fn supervisor_tick(
 
     if regime != 4 {
         // Normal compression: acquire tile and encode
-        let pop_start = rdtsc();
+        let _pop_start = rdtsc();
         if let Some((idx, tile)) = pool.pop_tile() {
-            let pop_elapsed = rdtsc() - pop_start;
 
             // Populate tile metadata
             tile.metadata_regime = regime;
