@@ -9,6 +9,12 @@ This document specifies the Rust reference implementation of the State-Aware Ent
 
 **DVSM maintains "beyond 754" semantics**: all state is discretized to fixed-point integers (Q31, Q16, Q64.64), never stored as IEEE 754 floats. This ensures determinism across platforms and eliminates NaN/Inf/subnormal edge cases. The compression codec must respect this constraint.
 
+**Architectural Alignment (Session 7 Day 1 Correction):**
+Residuals G_t computed by this codec feed into off-manifold memory S_t via:
+  S_{t+1} = β·S_t + (1−β)·G_t
+This ensures S_t accumulates only null-space components, maintaining strict orthogonality Z_t ⊥ S_t.
+The compression residual computation and EMA residual accumulation must use the same projection operator Π_W.
+
 **Four Implementation Guards (Non-Negotiable):**
 1. **Beyond-754 Discretization**: All residuals computed in fixed-point (i32), never f32
 2. **ABA Prevention**: 64-bit atomic (index + generation counter) for lock-free Free-List
