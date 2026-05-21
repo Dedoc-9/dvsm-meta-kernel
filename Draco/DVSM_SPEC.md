@@ -1311,16 +1311,59 @@ ERR_MODALITY_OVERFLOW (0x0503)
 **Immutability Guarantee:**
 
 ```
-H_session = HASH(Config ⊕ Version ⊕ BufferPresence)
+H_session = HASH(Config ⊕ Protocol_Version ⊕ BufferPresence ⊕ Layout-ID)
+
+Where:
+  Config = SessionConfig struct (immutable per session)
+  Protocol_Version = protocol_version field (e.g., 0x0302 for v3.2)
+  BufferPresence = presence/absence of external RF/ELF ring buffer
+  Layout-ID = 0x8F3E1A9C (64-byte RfElfSample struct hash)
 
 If enable_rf_elf=true:
-  BufferPresence = HASH(buffer_ptr) in H_session
+  BufferPresence = HASH(buffer_ptr) ⊕ Layout-ID in H_session
   
 If enable_rf_elf=false:
   BufferPresence = 0x00 in H_session
+  Layout-ID is NOT included in hash computation
   
 Therefore: Sessions with/without RF/ELF are cryptographically distinct.
 A "Core-Only" session CANNOT accidentally ingest RF data (H_session proves it).
+Struct layout changes (field additions, offset shifts) invalidate Layout-ID → H_session diverges.
+```
+
+**Layout-ID Binding (RfElfSample Struct Closure):**
+
+```
+Layout-ID = 0x8F3E1A9C encodes the 64-byte RfElfSample struct definition:
+
+Offset  Field               Type    Size  Category
+──────────────────────────────────────────────────────
+0       timestamp_ns        u64     8     Data
+8       rf_power_dbm        f32     4     Data
+12      elf_frequency_hz    f32     4     Data
+16      bio_feature_flags   u32     4     Data
+20      sample_counter      u32     4     Data
+24      queue_occupancy     u32     4     Data
+28      hash_sample         u32     4     Data
+32      bio_hr_bpm          u16     2     Bio-Diagnostics (reserved, v3.4+)
+34      bio_spo2_pct        u16     2     Bio-Diagnostics (reserved, v3.4+)
+36      bio_temp_c          f32     4     Bio-Diagnostics (reserved, v3.4+)
+40      bio_ecg_mv          f32     4     Bio-Signals (reserved, v3.4+)
+44      bio_resp_rate       u16     2     Bio-Signals (reserved, v3.4+)
+46      rf_gain_db          f32     4     RF-Metadata (reserved, v3.4+)
+50      elf_phase_rad       f32     4     ELF-Metadata (reserved, v3.4+)
+54      elf_snr_db          f32     4     ELF-Metadata (reserved, v3.4+)
+58      future_padding      u8[2]   2     Safety (reserved, v3.5+)
+60      layout_guard        u32     4     Invariant (MUST = 0x00000000)
+
+Total: 64 bytes (cache-line aligned, L1 boundary)
+
+Struct Immutability Rule:
+  - Size must remain 64 bytes
+  - Field offsets are fixed (no reordering)
+  - layout_guard (offset 60–63) is a sentinel: must be zero at all times
+  - If struct changes (new version), Layout-ID recomputed → H_session diverges
+  - Old sessions remain valid under old Layout-ID; new sessions use new Layout-ID
 ```
 
 **Error Contract (See FFI_ERROR_CODES.md for complete specification)**
