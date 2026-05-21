@@ -24,7 +24,7 @@ File: `user_settings.json` (portable, editable by users)
     "frame_generation_enabled": true,
     "vrs_enabled": true,
     "vrs_tile_size": 8,
-    "neural_rose_enabled": false,
+    "spectral_harmonic_rose_enabled": false,
     "wattage_profile": "ALLY_X_Z2_BALANCED",
     "ghostsnap_max_checkpoints": 1000
   },
@@ -70,7 +70,7 @@ typedef struct {
     uint8_t   paranoid_mode;               // Bool: tanh soft-clip
     uint8_t   frame_gen_enabled;           // Bool: interpolate/extrapolate
     uint8_t   vrs_enabled;                 // Bool: variable-rate shading
-    uint8_t   neural_rose_enabled;         // Bool: neural network Rose curve
+    uint8_t   spectral_harmonic_rose_enabled;         // Bool: neural network Rose curve
     uint8_t   q_mode;                      // 1=Q31, 2=Q16, 3=Q64.64
     uint8_t   hard_clamp_enabled;          // Bool: [-2.0, 2.0] hard clamp
     uint8_t   __pad3;
@@ -238,7 +238,7 @@ pub fn load_user_settings_json(path: &str) -> Result<DVSMUserSettings, String> {
     settings.vrs_enabled = config["runtime_settings"]["vrs_enabled"]
         .as_bool()
         .unwrap_or(true) as u8;
-    settings.neural_rose_enabled = config["runtime_settings"]["neural_rose_enabled"]
+    settings.spectral_harmonic_rose_enabled = config["runtime_settings"]["spectral_harmonic_rose_enabled"]
         .as_bool()
         .unwrap_or(false) as u8;
     
@@ -504,7 +504,7 @@ class DVSMControlPanel {
             ImGui::Checkbox("Paranoid Mode (Soft-Clip)", (bool*)&display_settings.paranoid_mode);
             ImGui::Checkbox("Frame Generation Enabled", (bool*)&display_settings.frame_gen_enabled);
             ImGui::Checkbox("VRS Enabled", (bool*)&display_settings.vrs_enabled);
-            ImGui::Checkbox("Neural Rose Enabled", (bool*)&display_settings.neural_rose_enabled);
+            ImGui::Checkbox("Neural Rose Enabled", (bool*)&display_settings.spectral_harmonic_rose_enabled);
             
             ImGui::Separator();
             ImGui::Text("Kill Switches");
@@ -576,7 +576,7 @@ pub fn save_settings_to_json(settings: &DVSMUserSettings, path: &str) -> Result<
             "paranoid_mode": settings.paranoid_mode != 0,
             "frame_generation_enabled": settings.frame_gen_enabled != 0,
             "vrs_enabled": settings.vrs_enabled != 0,
-            "neural_rose_enabled": settings.neural_rose_enabled != 0,
+            "spectral_harmonic_rose_enabled": settings.spectral_harmonic_rose_enabled != 0,
             "wattage_profile": format_wattage_profile(settings.wattage_profile_id),
         },
         "advanced_tuning": {
