@@ -9,26 +9,29 @@
 
 ```
 σ_t = (μ_t, Z_t, S_t, W_t, κ, λ, α, E_target, Q_mode, frame_rate_hz, 
-       vr_enabled, neural_enabled, protocol_version)
+       vr_enabled, spectral_harmonic_enabled, protocol_version)
 
 Immutable (protocol-frozen, session-locked):
-  κ ∈ R^{n×n}                  antisymmetric Lie-bracket operator
+  κ ∈ R^{n×n}                  antisymmetric Lie-bracket operator (manifold-residual coupling)
+                               Couples on-manifold Z with off-manifold residual memory S
+                               κ_{ij} = −κ_{ji}  (antisymmetry preserves norm on tangent space)
   λ ∈ R⁺                       dissipation coefficient (base)
   α ∈ R⁺                       backreaction strength (base)
   E_target ∈ R⁺                target norm (typically 1.0)
   Q_mode ∈ {Q31, Q16, Q64.64, custom}  fixed-point mode
   frame_rate_hz ∈ {60, 120, 240}      HARD FIX (immutable for session)
   vr_enabled ∈ {bool}          3D/VR spatial state toggle
-  neural_enabled ∈ {bool}      Rose curve + neural support toggle
+  spectral_harmonic_enabled ∈ {bool}      Rose curve + neural support toggle
   protocol_version ∈ u64       immutable version tag
 
 Mutable (state-evolved):
   μ_t                          input commands (observed, causal)
-  Z_t ∈ R^n                    primary state (Lie-bracket evolved)
+  Z_t ∈ R^n                    primary state (on-manifold evolution)
     - n=16 standard (scalar state)
     - n=20 with VR (spatial+haptics)
-  S_t ∈ R^n                    EMA memory (causal, irreversible)
-  W_t ∈ St(n,r)                Stiefel manifold basis (QR-orthonormal)
+  S_t ∈ R^n                    off-manifold residual memory (EMA of null-space components)
+                               S_{t+1} = β·S_t + (1−β)·G_t where G_t = Z_t − Π_W(Z_t)
+  W_t ∈ St(n,r)                Stiefel manifold basis (QR-orthonormal, tangent space)
 
 Session-computed (derived):
   dt = 1.0 / frame_rate_hz     time step (immutable after init)
@@ -142,7 +145,36 @@ else if deployment_mode = "neural" or "ml":
 
 ---
 
-### §A.2c Temporal Phase-Lock Loop (Z2 Extreme Non-Linear PLL)
+### §A.2c Orthogonality Invariant (Dual-Space Separation, Bounded)
+
+**Invariant:** Z_t · S_t remains bounded by EMA decay rate (soft orthogonality)
+
+```
+|Z_t · S_t| < ε_orth_bound
+
+where ε_orth_bound = (1 − β_ema) · max(‖G_τ‖ for τ ≤ t)
+                   ≈ (1 − β_ema) · ‖G_0‖  (exponentially decaying)
+
+For β_ema = 0.92, ‖G_0‖ = 0.1:
+  ε_orth_bound ≈ 0.008
+
+Interpretation:
+  S_t accumulates only recent null-space residuals via EMA.
+  Older residuals fade exponentially (time constant ~12 frames @ 120Hz).
+  Orthogonality is bounded (soft) rather than exact (avoids orthogonalization cost).
+  
+Mathematical Basis:
+  Z_t · S_t = Z_t · [β·S_{t-1} + (1−β)·G_t]
+           = β·(Z_t · S_{t-1}) + (1−β)·(Z_t · G_t)
+  
+  Since G_t ⊥ Z_t by projection (Z_t · G_t = 0),
+  and ‖S_{t-1}‖ decays via EMA,
+  the compound dot product is bounded by exponential decay.
+```
+
+---
+
+### §A.2d Temporal Phase-Lock Loop (Z2 Extreme Non-Linear PLL)
 
 **Purpose:** Exploit Z2's 0.19% GPU occupancy via phase-locked state prediction anchored to GPU completion timestamps. Transforms reactive integrator into predictive state engine via DDR-mimicry.
 
@@ -219,7 +251,7 @@ H_t = FNV1A_PARITY(
     ⊕ Q_mode 
     ⊕ frame_rate_hz        ← NOMINAL dt, NOT τ_meas
     ⊕ vr_enabled
-    ⊕ neural_enabled
+    ⊕ spectral_harmonic_enabled
     ⊕ protocol_version
 )
 
@@ -288,7 +320,7 @@ pub struct DVSMManifoldStateV31 {
     sync_tier:            u8,        // 1=Proportional, 2=Gudermannian
     q_format:             u8,        // 0=Q31.32, 1=Q64.64
     vr_enabled:           u8,        // 0 or 1
-    neural_enabled:       u8,        // 0 or 1
+    spectral_harmonic_enabled:       u8,        // 0 or 1
     _reserved_header:     [u8; 4],   // Future use
     
     // === IMMUTABLE BACKREACTION COEFFICIENTS (Q31.32) ===
@@ -347,7 +379,7 @@ Offset (bytes)   Field                        Type        Size    Notes
 8                sync_tier                    u8          1       1 or 2
 9                q_format                     u8          1       0 or 1
 10               vr_enabled                   u8          1
-11               neural_enabled               u8          1
+11               spectral_harmonic_enabled               u8          1
 12               _reserved_header             [u8; 4]     4
 16               alpha_base                   q31_32_t    8       Q31.32
 24               kappa_sync                   q31_32_t    8       Q31.32
@@ -372,7 +404,7 @@ typedef struct {
     uint8_t sync_tier;
     uint8_t q_format;
     uint8_t vr_enabled;
-    uint8_t neural_enabled;
+    uint8_t spectral_harmonic_enabled;
     uint8_t _reserved_header[4];
     
     int64_t alpha_base;    // Q31.32
@@ -529,7 +561,7 @@ H_t = FNV1A_PARITY(
     ⊕ Q_mode 
     ⊕ frame_rate_hz
     ⊕ vr_enabled
-    ⊕ neural_enabled
+    ⊕ spectral_harmonic_enabled
     ⊕ protocol_version
 )
 
@@ -596,7 +628,7 @@ Rose curve: r(θ) = a · cos(k·θ)  OR  r(θ) = a · sin(k·θ)
 In Z-space (Stiefel basis W provides angle parametrization):
 
   Rose_k(Z, W_neural) = {
-    0                      if neural_enabled = false
+    0                      if spectral_harmonic_enabled = false
     β · a_learned · cos(k·θ_learned) · Z_k / (‖Z_k‖ + ε)   if enabled
   }
 
@@ -1377,6 +1409,84 @@ All error codes are defined in the FFI layer with:
 
 ---
 
+### §A.14 Causality Type Classification (Formal Operator Separation)
+
+**Purpose:** Rigorously partition operators by their causal role: continuous evolution, discontinuous control, or observational only.
+
+**Type 1: Continuous Causal Operators**
+
+```
+Definition: ∂Z_{t+1}/∂O ≠ 0 AND derivative is Lipschitz-continuous
+
+Examples:
+  κ (Lie bracket):      ∂Z/∂κ = (Z·S − S·Z), continuous in κ
+  λ (Dissipation):      ∂Z/∂λ = −Z, linear in λ
+  α (Backreaction):     ∂Z/∂α = −(‖Z‖² − E)·Z, continuous in α
+  β (Spectral Harmonic): ∂Z/∂β = a·cos(k·θ)·Z, Lipschitz in β
+
+Property: Small operator change → small state change (robust)
+Status: Forms the core Z_{t+1} evolution (L2–L5 layers)
+```
+
+**Type 2: Discontinuous Supervisory Control**
+
+```
+Definition: ∂Z_{t+1}/∂O is discontinuous (often Heaviside step or undefined)
+
+Examples:
+  Rollback:         suchness_fail → Z := checkpoint  (jump discontinuity)
+  Regime downgrade: sing_ratio > 0.92 → regime := regime−1  (step function)
+  Phase shedding:   budget_exceeded → skip_backreaction  (binary gate)
+
+Property: Operator change causes discrete state jump (not smooth)
+Mathematical form: Heaviside step H(x − x₀) or delta function
+Status: Emergency control flow (not linear, not differentiable)
+```
+
+**Type 3: Observational Operators (Zero Causality)**
+
+```
+Definition: ∂Z_{t+1}/∂O ≡ 0 (no effect on Z evolution)
+
+Examples:
+  H_t (Hash):        Tautology verification, not Z input
+  G_t (Ghost):       Null-space residual, never fed to Z evolution
+  Diagnostics:       Frame counter, rollback count, phase error EMA
+  Telemetry:         Compression ratio, saturation rate, jitter metrics
+
+Property: Computed for audit/logging/control decisions
+          but does NOT influence Z state directly
+Status: Formal separation prevents hidden coupling
+```
+
+**Causality Matrix:**
+
+```
+Operator      Type  Smoothness      Feedback           Reversibility
+────────────────────────────────────────────────────────────────────
+κ (Lie)       1     C^∞             ∂Z/∂κ ≠ 0         Reversible
+λ (Damp)      1     Linear          ∂Z/∂λ ≠ 0         Reversible
+α (Backr)     1     C^∞             ∂Z/∂α ≠ 0         Reversible
+β (Harmonic)  1     C^∞             ∂Z/∂β ≠ 0         Reversible
+Rollback      2     Discontinuous   Heaviside step    Irreversible
+Regime shift  2     Step function   Binary gate       Irreversible
+H_t (Hash)    3     N/A             Z_unchanged       Read-only
+G_t (Ghost)   3     N/A             Z_unchanged       Read-only
+```
+
+**Formal Consequence (Ghost Closure):**
+
+```
+For all observational operators O:
+  ∂Z_k(t+1) / ∂O(...) ≡ 0  ∀ k, t
+
+Because: Z_{t+1} = Z_t + dt·[κ(...) + λ(...) + α(...) + β(...)]
+         No observational operator appears in this sum.
+         Therefore, no gradient flows from O into Z evolution.
+```
+
+---
+
 ## §B ARCHITECTURAL DESIGN
 
 ### §B.1 Operator Pipeline (Strictly Sequential)
@@ -1577,7 +1687,7 @@ Three modes:
 ### §C.2 Rose Curve Logic (Optional, Neural-Gated)
 
 ```
-if neural_enabled:
+if spectral_harmonic_enabled:
   (a, k) = NeuralNet(Z, S, ‖Z‖²)  [frozen MLP weights]
   Rose_k += a · cos(k·θ) · Z_k / (‖Z_k‖ + ε)
 else:
@@ -1832,7 +1942,7 @@ Paranoid mode (optional, 2x cost):
 
 ## References
 
-- Protocol-frozen parameters: κ, λ, α, E_target, Q_mode, neural_enabled, protocol_version
+- Protocol-frozen parameters: κ, λ, α, E_target, Q_mode, spectral_harmonic_enabled, protocol_version
 - Mutable state: μ, Z, S, W
 - Immutable contract: H_t binding, Z·S orthogonality, G ghost closure
 - Tautology: Suchness (all three properties simultaneously)
