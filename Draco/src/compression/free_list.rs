@@ -147,7 +147,7 @@ impl LockFreeFreeList {
     ///
     /// **No generation bump here:** Generation increments happen on pop().
     /// This ensures that generation tracks "how many times this tile has been recycled."
-    pub fn push(&self, idx: usize) {
+    pub fn push(&mut self, idx: usize) {
         assert!(idx < self.capacity, "Index out of bounds: {} >= {}", idx, self.capacity);
 
         loop {
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_pop_push_lifo() {
-        let list = LockFreeFreeList::new(4);
+        let mut list = LockFreeFreeList::new(4);
 
         // Pop all 4 tiles
         let t0 = list.pop().expect("pop 0");
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_deterministic_sequence() {
-        let list = LockFreeFreeList::new(8);
+        let mut list = LockFreeFreeList::new(8);
 
         // Deterministic access pattern: pop, push, pop, pop, push, ...
         let mut ops = Vec::new();
@@ -262,7 +262,8 @@ mod tests {
 
     #[test]
     fn test_aba_prevention_stress() {
-        let list = Arc::new(LockFreeFreeList::new(16));
+        use std::sync::Mutex;
+        let list = Arc::new(Mutex::new(LockFreeFreeList::new(16)));
 
         // Spawn two threads: one pops/pushes rapidly, one does verification
         let list_clone = Arc::clone(&list);
@@ -270,34 +271,46 @@ mod tests {
         let handle = thread::spawn(move || {
             let mut indices = Vec::new();
             // Pop some tiles
-            for _ in 0..8 {
-                if let Some(idx) = list_clone.pop() {
-                    indices.push(idx);
+            {
+                let mut list_guard = list_clone.lock().unwrap();
+                for _ in 0..8 {
+                    if let Some(idx) = list_guard.pop() {
+                        indices.push(idx);
+                    }
                 }
             }
             // Verify we got 8 distinct indices
             assert_eq!(indices.len(), 8);
             // Push them back
-            for idx in indices {
-                list_clone.push(idx);
+            {
+                let mut list_guard = list_clone.lock().unwrap();
+                for idx in indices {
+                    list_guard.push(idx);
+                }
             }
         });
 
         // Main thread also pops/pushes
         let mut indices = Vec::new();
-        for _ in 0..4 {
-            if let Some(idx) = list.pop() {
-                indices.push(idx);
+        {
+            let mut list_guard = list.lock().unwrap();
+            for _ in 0..4 {
+                if let Some(idx) = list_guard.pop() {
+                    indices.push(idx);
+                }
             }
         }
 
         handle.join().unwrap();
 
         // Verify all tiles are still accessible
-        for idx in indices {
-            list.push(idx);
+        {
+            let mut list_guard = list.lock().unwrap();
+            for idx in indices {
+                list_guard.push(idx);
+            }
+            assert_eq!(list_guard.pop(), Some(0)); // Should still work
         }
-        assert_eq!(list.pop(), Some(0)); // Should still work
     }
 
     #[test]
@@ -320,18 +333,26 @@ mod tests {
 
     #[test]
     fn test_generation_wrapping() {
-        let list = Arc::new(LockFreeFreeList::new(1));
+        use std::sync::Mutex;
+        let list = Arc::new(Mutex::new(LockFreeFreeList::new(1)));
 
-        let t = list.pop().unwrap();
+        let t = {
+            let mut list_guard = list.lock().unwrap();
+            list_guard.pop().unwrap()
+        };
 
         // Simulate many recycles (generation wraps around u32::MAX)
         for _i in 0..1000 {
-            list.push(t);
-            let _ = list.pop();
+            let mut list_guard = list.lock().unwrap();
+            list_guard.push(t);
+            let _ = list_guard.pop();
         }
 
         // List should still be functional despite generation wrapping
-        let final_t = list.pop().unwrap();
+        let final_t = {
+            let mut list_guard = list.lock().unwrap();
+            list_guard.pop().unwrap()
+        };
         assert_eq!(final_t, t);
     }
 
