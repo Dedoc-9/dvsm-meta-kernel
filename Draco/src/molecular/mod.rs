@@ -18,8 +18,10 @@
 /// - CRC32 informational only (non-fatal on mismatch)
 
 pub mod torsion_injection;
+pub mod allosteric_kernel;
 
 pub use torsion_injection::{inject_torsion_array, crc32_checksum};
+pub use allosteric_kernel::apply_allosteric_coupling;
 
 // ============================================================================
 // TORSION ARRAY FFI CONTRACT (740 bytes, Layout-ID binding)
