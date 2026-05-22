@@ -1,0 +1,24 @@
+[package]
+name = "dvsm-v3"
+version = "3.3.0-phase-i3"
+edition = "2021"
+
+[lib]
+name = "dvsm_v3"
+path = "src/lib.rs"
+
+[[test]]
+name = "baseline_test"
+path = "src/tests/baseline_test.rs"
+
+[[test]]
+name = "test_day8_integration"
+path = "src/tests/test_day8_integration.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
