@@ -20,12 +20,14 @@ pub mod dvsm_state;
 pub mod supervisor_loop;
 pub mod compression;
 pub mod rf_elf;
+pub mod molecular;
 
 // Re-export core types for ergonomics
 pub use dvsm_state::{DVSMState, SupervisorFlags, CompressionTelemetry};
 pub use supervisor_loop::{supervisor_tick, rdtsc};
 pub use compression::{FreeListHead, LockFreeFreeList, encode_saec, encode_residuals_huffman};
 pub use rf_elf::{RfElfSample, RfElfBuffer, RfElfError, LAYOUT_ID_RF_ELF, MAX_STALE_US};
+pub use molecular::{TorsionArray, inject_torsion_array, crc32_checksum};
 
 /// Crate version (Phase I.3 baseline)
 pub const CRATE_VERSION: &str = "3.3.0-phase-i3";
