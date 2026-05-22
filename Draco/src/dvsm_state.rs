@@ -15,6 +15,7 @@
 /// **Phase I.4 (GhostSnap):** Deferred to Phase 2. No ghostsnap fields here.
 
 use std::default::Default;
+use crate::rf_elf::RfElfSample;
 
 /// Supervisor control flags (stateful hysteresis)
 #[derive(Debug, Clone, Copy, Default)]
@@ -45,6 +46,18 @@ pub struct CompressionTelemetry {
     /// Regime transitions log: (regime_id, frame_count)
     /// Enables forensic replay: which frames used which regime?
     pub regime_transitions: Vec<(u8, u64)>,
+
+    // ====================================================================
+    // RF/ELF MODALITY TELEMETRY (Phase I.0.5)
+    // ====================================================================
+    /// Count of RF/ELF samples detected as stale (age > 8333 μs)
+    pub rf_elf_stale_count: u64,
+
+    /// Count of frames where no RF/ELF sample was available
+    pub rf_elf_empty_frames: u64,
+
+    /// Count of RF/ELF buffer overflow events (producer too fast)
+    pub rf_elf_overflow_count: u64,
 }
 
 impl Default for CompressionTelemetry {
@@ -55,6 +68,9 @@ impl Default for CompressionTelemetry {
             last_tick_cycles: 0,
             occupancy_history: Vec::with_capacity(1000),
             regime_transitions: Vec::with_capacity(32),
+            rf_elf_stale_count: 0,
+            rf_elf_empty_frames: 0,
+            rf_elf_overflow_count: 0,
         }
     }
 }
@@ -94,6 +110,10 @@ pub struct DVSMState {
     /// Frame flags: FLAG_UNCOMPRESSED, FLAG_PHASE_SHEDDING, etc.
     pub frame_flags: u8,
 
+    /// Current frame's timestamp in microseconds (for RF/ELF stale detection)
+    /// Updated at the start of each supervisor tick
+    pub current_timestamp_us: u64,
+
     // ====================================================================
     // CONTROL & MONITORING
     // ====================================================================
@@ -112,6 +132,16 @@ pub struct DVSMState {
     /// Set at session_init, immutable throughout session lifetime
     /// Each column W_k is normalized (||W_k|| = 1)
     pub w_basis: [[f32; 269]; 8],
+
+    // ====================================================================
+    // RF/ELF EXTERNAL MODALITY (Phase I.0.5)
+    // ====================================================================
+    /// Last valid RF/ELF sample from external producer (via try_pop)
+    /// Used for Z_t coupling in Phase 2 (currently stored, not yet used)
+    pub rf_elf_sample: RfElfSample,
+
+    /// Whether the last RF/ELF sample is valid and fresh (age <= MAX_STALE_US)
+    pub rf_elf_valid: bool,
 }
 
 impl DVSMState {
@@ -123,9 +153,12 @@ impl DVSMState {
             sample_count: 0,
             frame_count: 0,
             frame_flags: 0,
+            current_timestamp_us: 0,
             supervisor_flags: SupervisorFlags::default(),
             telemetry: CompressionTelemetry::default(),
             w_basis: [[0.0; 269]; 8],
+            rf_elf_sample: RfElfSample::new(),
+            rf_elf_valid: false,
         }
     }
 
