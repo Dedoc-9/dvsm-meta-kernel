@@ -23,7 +23,8 @@ pub mod rf_elf;
 pub mod molecular;
 
 // Re-export core types for ergonomics
-pub use dvsm_state::{DVSMState, SupervisorFlags, CompressionTelemetry};
+pub use dvsm_sta
+te::{DVSMState, SupervisorFlags, CompressionTelemetry};
 pub use supervisor_loop::{supervisor_tick, rdtsc};
 pub use compression::{FreeListHead, LockFreeFreeList, encode_saec, encode_residuals_huffman};
 pub use rf_elf::{RfElfSample, RfElfBuffer, RfElfError, LAYOUT_ID_RF_ELF, MAX_STALE_US};
