@@ -58,6 +58,15 @@ pub struct CompressionTelemetry {
 
     /// Count of RF/ELF buffer overflow events (producer too fast)
     pub rf_elf_overflow_count: u64,
+
+    // ====================================================================
+    // MOLECULAR MODALITY TELEMETRY (Phase V3.4)
+    // ====================================================================
+    /// Count of successful torsion array injections
+    pub molecular_injections: u64,
+
+    /// Count of CRC32 checksum mismatches (informational, non-fatal)
+    pub checksum_warnings: u64,
 }
 
 impl Default for CompressionTelemetry {
@@ -71,6 +80,8 @@ impl Default for CompressionTelemetry {
             rf_elf_stale_count: 0,
             rf_elf_empty_frames: 0,
             rf_elf_overflow_count: 0,
+            molecular_injections: 0,
+            checksum_warnings: 0,
         }
     }
 }
@@ -142,6 +153,15 @@ pub struct DVSMState {
 
     /// Whether the last RF/ELF sample is valid and fresh (age <= MAX_STALE_US)
     pub rf_elf_valid: bool,
+
+    // ====================================================================
+    // MOLECULAR MODALITY (Phase V3.4)
+    // ====================================================================
+    /// Whether the last torsion array injection was successful
+    pub molecular_coordinates_valid: bool,
+
+    /// Timestamp of the last successful torsion array injection (microseconds)
+    pub molecular_timestamp_us: u64,
 }
 
 impl DVSMState {
@@ -159,6 +179,8 @@ impl DVSMState {
             w_basis: [[0.0; 269]; 8],
             rf_elf_sample: RfElfSample::new(),
             rf_elf_valid: false,
+            molecular_coordinates_valid: false,
+            molecular_timestamp_us: 0,
         }
     }
 
