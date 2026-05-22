@@ -32,7 +32,7 @@ mod baseline_tests {
         // Warm-up phase: 100 ticks to stabilize Zen 5 clock gates & CPU scheduling
         // (Modern CPUs have complex clock gating; we need stable measurement)
         for _ in 0..100 {
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
         }
 
         // Reset telemetry for clean measurement
@@ -41,7 +41,7 @@ mod baseline_tests {
         // Measurement phase: 1000 supervisor ticks (8.33ms at 120Hz)
         let start_l1 = state.telemetry.l1_conflicts;
         for _ in 0..1000 {
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
         }
         let end_l1 = state.telemetry.l1_conflicts;
 
@@ -76,7 +76,7 @@ mod baseline_tests {
 
         // Single tick to measure cycle cost
         let start_cycles = rdtsc();
-        supervisor_tick(&mut state, &mut pool, &queue);
+        supervisor_tick(&mut state, &mut pool, &queue, None);
         let end_cycles = rdtsc();
 
         let cycles = end_cycles.saturating_sub(start_cycles);
@@ -105,7 +105,7 @@ mod baseline_tests {
 
         // Run 1000 ticks
         for _ in 0..1000 {
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
         }
 
         // Occupancy history should be populated (1000 samples max, then circular)
@@ -142,7 +142,7 @@ mod baseline_tests {
         // Measure 100 ticks
         for _ in 0..100 {
             let start = rdtsc();
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
             let end = rdtsc();
             tick_costs.push(end.saturating_sub(start));
         }
@@ -205,11 +205,11 @@ mod baseline_tests {
 
         // Warm-up phase: 100 frames to stabilize
         for _ in 0..100 {
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
         }
 
         // Measurement phase: 1000 frames with full profiling
-        for frame in 0..1000 {
+        for _frame in 0..1000 {
             // Execute SAEC encoder
             let occupancy = pool.get_occupancy();
             let last_regime = regime_log.last().copied().unwrap_or(0);
@@ -233,7 +233,7 @@ mod baseline_tests {
             }
 
             // Evolve state for next frame
-            supervisor_tick(&mut state, &mut pool, &queue);
+            supervisor_tick(&mut state, &mut pool, &queue, None);
         }
 
         // ANALYSIS: Compute Level 2 metrics
@@ -279,5 +279,161 @@ mod baseline_tests {
             "LEVEL 2 WARNING: Mean singularity {:.4} < 0.90 → Potential regime degradation",
             mean_singularity
         );
+    }
+
+    // ========================================================================
+    // DAY 4 INTEGRATION TESTS (Track A + Track C Convergence)
+    // ========================================================================
+
+    use std::collections::VecDeque;
+
+    /// Mock RF/ELF Producer (Test Ring Buffer)
+    struct MockRfElfBuffer {
+        samples: VecDeque<dvsm_v3::RfElfSample>,
+        layout_id_val: u32,
+        inject_stale: bool,
+    }
+
+    impl MockRfElfBuffer {
+        fn new() -> Self {
+            MockRfElfBuffer {
+                samples: VecDeque::with_capacity(256),
+                layout_id_val: dvsm_v3::LAYOUT_ID_RF_ELF,
+                inject_stale: false,
+            }
+        }
+
+        fn push_sample(&mut self, sample: dvsm_v3::RfElfSample) -> Result<(), dvsm_v3::RfElfError> {
+            if self.samples.len() >= 256 {
+                return Err(dvsm_v3::RfElfError::BufferOverflow);
+            }
+            self.samples.push_back(sample);
+            Ok(())
+        }
+
+        fn force_stale(&mut self, enabled: bool) {
+            self.inject_stale = enabled;
+        }
+
+        fn sample_count(&self) -> usize {
+            self.samples.len()
+        }
+    }
+
+    impl dvsm_v3::RfElfBuffer for MockRfElfBuffer {
+        fn try_pop(&mut self) -> Result<dvsm_v3::RfElfSample, dvsm_v3::RfElfError> {
+            if self.inject_stale {
+                let mut sample = dvsm_v3::RfElfSample::new();
+                sample.timestamp_us = 0;
+                return Ok(sample);
+            }
+            match self.samples.pop_front() {
+                Some(sample) => Ok(sample),
+                None => Err(dvsm_v3::RfElfError::Empty),
+            }
+        }
+
+        fn write_position(&self) -> u64 { 0 }
+        fn read_position(&self) -> u64 { 0 }
+        fn layout_id(&self) -> u32 { self.layout_id_val }
+    }
+
+    #[test]
+    fn test_rf_elf_stale_detection_fallback() {
+        let mut state = DVSMState::new();
+        let mut pool = TilePool::new();
+        let queue = CompressionQueue;
+        let mut buffer = MockRfElfBuffer::new();
+
+        // Enable stale sample injection: mock will return timestamp_us=0 every try_pop()
+        // This ensures we can detect stale across multiple frames without consuming
+        buffer.force_stale(true);
+
+        // Frame 1: frame_count 0→1, current_timestamp_us = 1 * 8333 = 8333
+        // Sample: timestamp_us = 0, age_us = 8333 - 0 = 8333 (NOT > 8333, so NOT stale)
+        supervisor_tick(&mut state, &mut pool, &queue, Some(&mut buffer));
+        assert_eq!(state.telemetry.rf_elf_stale_count, 0, "Frame 1: age=8333 should NOT be stale");
+        assert_eq!(state.frame_count, 1);
+
+        // Frame 2: frame_count 1→2, current_timestamp_us = 2 * 8333 = 16666
+        // Sample: timestamp_us = 0, age_us = 16666 - 0 = 16666 (> 8333, so IS stale)
+        supervisor_tick(&mut state, &mut pool, &queue, Some(&mut buffer));
+        assert_eq!(state.telemetry.rf_elf_stale_count, 1, "Frame 2: age=16666 SHOULD be stale");
+        assert_eq!(state.frame_count, 2, "Frame count should increment");
+        println!("✅ Stale Detection: PASS");
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_MODALITY_CORRUPTED")]
+    fn test_rf_elf_layout_id_mismatch_panic() {
+        let mut state = DVSMState::new();
+        let mut pool = TilePool::new();
+        let queue = CompressionQueue;
+        let mut buffer = MockRfElfBuffer::new();
+
+        buffer.layout_id_val = 0xDEADBEEF;
+        supervisor_tick(&mut state, &mut pool, &queue, Some(&mut buffer));
+    }
+
+    #[test]
+    fn test_rf_elf_empty_buffer_handling() {
+        let mut state = DVSMState::new();
+        let mut pool = TilePool::new();
+        let queue = CompressionQueue;
+        let mut buffer = MockRfElfBuffer::new();
+
+        let empty_count_before = state.telemetry.rf_elf_empty_frames;
+        supervisor_tick(&mut state, &mut pool, &queue, Some(&mut buffer));
+
+        let empty_count_after = state.telemetry.rf_elf_empty_frames;
+        assert_eq!(empty_count_after, empty_count_before + 1, "Empty frame count should increment");
+        println!("✅ Empty Buffer Handling: PASS");
+    }
+
+    #[test]
+    fn test_day4_full_pipeline_convergence() {
+        let mut state = DVSMState::new();
+        let mut pool = TilePool::new();
+        let queue = CompressionQueue;
+        let mut buffer = MockRfElfBuffer::new();
+
+        println!("\n========== DAY 4 FULL PIPELINE CONVERGENCE TEST ==========");
+        println!("Running 100 frames with Track A (Huffman) + Track C (RF/ELF) active\n");
+
+        let mut max_cycles_per_frame = 0u64;
+
+        for frame in 0..100 {
+            if frame % 10 == 0 {
+                let mut sample = dvsm_v3::RfElfSample::new();
+                sample.timestamp_us = state.current_timestamp_us;
+                sample.rf_phase = (frame as f32).sin();
+                let _ = buffer.push_sample(sample);
+            }
+
+            supervisor_tick(&mut state, &mut pool, &queue, Some(&mut buffer));
+
+            let tick_cycles = state.telemetry.last_tick_cycles;
+            max_cycles_per_frame = max_cycles_per_frame.max(tick_cycles);
+
+            if (frame + 1) % 25 == 0 {
+                println!("Frame {}: Cycles/frame={}", frame + 1, tick_cycles);
+            }
+        }
+
+        println!("\n========== CONVERGENCE TEST RESULTS ==========");
+        println!("Max cycles/frame: {}", max_cycles_per_frame);
+        println!("L1D conflicts: {}", state.telemetry.l1_conflicts);
+        println!("Phase shedding events: {}", state.telemetry.shed_count);
+        println!("RF telemetry: stale={}, empty={}, overflow={}",
+            state.telemetry.rf_elf_stale_count,
+            state.telemetry.rf_elf_empty_frames,
+            state.telemetry.rf_elf_overflow_count
+        );
+
+        assert!(max_cycles_per_frame < 300_000, "Frame budget exceeded: {}", max_cycles_per_frame);
+        assert!(state.telemetry.l1_conflicts < 100, "L1D conflicts too high: {}", state.telemetry.l1_conflicts);
+        assert_eq!(state.frame_count, 100, "Frame count mismatch");
+
+        println!("✅ FULL PIPELINE CONVERGENCE: PASS\n");
     }
 }
