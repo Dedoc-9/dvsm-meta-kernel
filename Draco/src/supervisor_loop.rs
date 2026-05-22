@@ -11,7 +11,7 @@
 
 use crate::dvsm_state::DVSMState;
 use crate::compression::{TilePool, encode_saec};
-use crate::rf_elf::{RfElfBuffer, RfElfError, RfElfSample, LAYOUT_ID_RF_ELF, MAX_STALE_US};
+use crate::rf_elf::{RfElfBuffer, RfElfError, LAYOUT_ID_RF_ELF, MAX_STALE_US};
 
 /// Cycle-accurate timing (x86-64 RDTSC instruction)
 /// On Zen 5, this is deterministic and serialized
@@ -79,6 +79,9 @@ pub fn supervisor_tick(
 ) {
     let start_cycles = rdtsc();
 
+    // Advance frame counter
+    state.advance_frame();
+
     // Update current frame timestamp (for RF/ELF stale detection)
     // In production, this would read an external clock (e.g., CLOCK_MONOTONIC)
     // For now, use frame count as proxy (120 Hz → 8.33 ms per frame = 8333 μs)
@@ -104,7 +107,7 @@ pub fn supervisor_tick(
             Ok(sample) => {
 
                 // Check staleness (non-fatal)
-                let age_us = state.metadata.current_timestamp_us.saturating_sub(sample.timestamp_us);
+                let age_us = state.current_timestamp_us.saturating_sub(sample.timestamp_us);
                 if age_us > MAX_STALE_US {
                     // Sample is stale (> 1 frame at 120 Hz)
                     state.telemetry.rf_elf_stale_count += 1;
