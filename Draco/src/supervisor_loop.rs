@@ -10,7 +10,7 @@
 /// - Frame marking enables downstream protocol integrity
 
 use crate::dvsm_state::DVSMState;
-use crate::compression::TilePool;
+use crate::compression::{TilePool, encode_saec};
 
 /// Cycle-accurate timing (x86-64 RDTSC instruction)
 /// On Zen 5, this is deterministic and serialized
@@ -83,36 +83,49 @@ pub fn supervisor_tick(
     // Read current pool occupancy
     let occ = pool.get_occupancy();
 
-    // Hysteresis: Two-threshold state machine
-    let regime = if state.supervisor_flags.in_phase_shedding {
-        // Currently shedding: only exit if occupancy drops below 150
-        if occ < 150 {
-            state.supervisor_flags.in_phase_shedding = false;
-            pool.get_recommended_regime()
-        } else {
-            // Still shedding
-            4
-        }
-    } else {
-        // Not shedding: only enter if occupancy exceeds 200
-        if occ > 200 {
-            state.supervisor_flags.in_phase_shedding = true;
-            4
-        } else {
-            // Normal operation
-            pool.get_recommended_regime()
-        }
-    };
-
-    // Log regime transition
-    state.telemetry.regime_transitions.push((regime, state.frame_count));
-
-    // Record occupancy sample
+    // Record occupancy sample (for forensics and adaptive thresholding)
     state.telemetry.occupancy_history.push(occ as u32);
     if state.telemetry.occupancy_history.len() > 1000 {
         state.telemetry.occupancy_history.remove(0);
     }
 
+    // ========================================================================
+    // SAEC Regime Selection: Compute residuals, detect singularity, select regime
+    // ========================================================================
+    // Store the last regime for hysteresis in select_regime
+    let last_regime = state
+        .telemetry
+        .regime_transitions
+        .last()
+        .map(|(r, _)| *r)
+        .unwrap_or(0);
+
+    // Call SAEC encoder pipeline
+    let saec_result = encode_saec(state, occ, last_regime);
+
+    let regime = match saec_result {
+        Ok(output) => {
+            // SAEC succeeded: use the selected regime and store metrics
+            state.telemetry.regime_transitions.push((output.regime, state.frame_count));
+
+            // Store singularity ratio for telemetry (future S_t accumulation)
+            // For now, we log it; in Phase 2, this feeds the EMA
+            let _singularity_ratio = output.singularity_ratio;
+
+            output.regime
+        }
+        Err(_) => {
+            // Safety gate triggered: manifold unstable under high pressure
+            // Force Phase Shedding (Regime 4)
+            state.telemetry.regime_transitions.push((4, state.frame_count));
+            state.supervisor_flags.in_phase_shedding = true;
+            4
+        }
+    };
+
+    // ========================================================================
+    // Compression Dispatch (or Phase Shedding)
+    // ========================================================================
     if regime != 4 {
         // Normal compression: acquire tile and encode
         let _pop_start = rdtsc();
