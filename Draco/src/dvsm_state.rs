@@ -67,6 +67,18 @@ pub struct CompressionTelemetry {
 
     /// Count of CRC32 checksum mismatches (informational, non-fatal)
     pub checksum_warnings: u64,
+
+    // ====================================================================
+    // L5 ALLOSTERIC KERNEL TELEMETRY (Phase V3.4)
+    // ====================================================================
+    /// Cumulative cycles spent in L5 spectral resonance computation
+    pub l5_resonance_cycles: u64,
+
+    /// Count of successful allosteric coupling applications
+    pub allosteric_activations: u64,
+
+    /// Count of frames with strong activation (α > 0.5)
+    pub strong_activation_frames: u64,
 }
 
 impl Default for CompressionTelemetry {
@@ -82,6 +94,9 @@ impl Default for CompressionTelemetry {
             rf_elf_overflow_count: 0,
             molecular_injections: 0,
             checksum_warnings: 0,
+            l5_resonance_cycles: 0,
+            allosteric_activations: 0,
+            strong_activation_frames: 0,
         }
     }
 }
@@ -162,6 +177,13 @@ pub struct DVSMState {
 
     /// Timestamp of the last successful torsion array injection (microseconds)
     pub molecular_timestamp_us: u64,
+
+    // ====================================================================
+    // L5 ALLOSTERIC STATE (Phase V3.4)
+    // ====================================================================
+    /// Current allosteric coefficient (α)
+    /// Range: [0, 1], computed from ΔG scaling
+    pub alpha_allosteric: f32,
 }
 
 impl DVSMState {
@@ -181,6 +203,7 @@ impl DVSMState {
             rf_elf_valid: false,
             molecular_coordinates_valid: false,
             molecular_timestamp_us: 0,
+            alpha_allosteric: 0.0,
         }
     }
 
