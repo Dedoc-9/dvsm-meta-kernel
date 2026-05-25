@@ -333,3 +333,116 @@ Return codes:
  -2:   Processing error (rate limit, validation failure)
  -3:   Null pointer / invalid handle
 */
+
+// =============================================================================
+// GUDERMANNIAN FFI (FEATURE-GATED: gudermannian-projection)
+// =============================================================================
+
+#[cfg(feature = "gudermannian-projection")]
+use crate::gudermannian::GudermannianProjector;
+
+/// Create Gudermannian projector (feature: gudermannian-projection)
+#[cfg(feature = "gudermannian-projection")]
+#[no_mangle]
+pub extern "C" fn telemetry_create_projector(
+    mu_max: i128,
+    enabled: u8,
+) -> *mut GudermannianProjector {
+    let projector = Box::new(GudermannianProjector::new(mu_max, enabled != 0));
+    Box::into_raw(projector)
+}
+
+/// Destroy Gudermannian projector (feature: gudermannian-projection)
+#[cfg(feature = "gudermannian-projection")]
+#[no_mangle]
+pub extern "C" fn telemetry_destroy_projector(
+    projector: *mut GudermannianProjector,
+) {
+    if !projector.is_null() {
+        unsafe { Box::from_raw(projector); }
+    }
+}
+
+/// Project Z observables via Gudermannian (feature: gudermannian-projection)
+#[cfg(feature = "gudermannian-projection")]
+#[no_mangle]
+pub extern "C" fn telemetry_project_gudermannian(
+    projector: *mut GudermannianProjector,
+    z: *mut i128,
+    dim: u32,
+) -> c_int {
+    if projector.is_null() || z.is_null() {
+        return -3;
+    }
+
+    unsafe {
+        let proj = &mut *projector;
+        let z_slice = core::slice::from_raw_parts_mut(z, dim as usize);
+
+        let mut z_array = [0i128; 16];
+        if dim as usize <= 16 {
+            z_array[..dim as usize].copy_from_slice(z_slice);
+        }
+
+        proj.project_vector(&mut z_array);
+        z_slice.copy_from_slice(&z_array[..dim as usize]);
+    }
+    0
+}
+
+/// Invert Gudermannian projection (feature: gudermannian-projection)
+#[cfg(feature = "gudermannian-projection")]
+#[no_mangle]
+pub extern "C" fn telemetry_invert_gudermannian(
+    projector: *const GudermannianProjector,
+    z: i128,
+) -> i128 {
+    if projector.is_null() {
+        return z;
+    }
+    unsafe { (*projector).invert(z) }
+}
+
+// =============================================================================
+// BYZANTINE FFI (FEATURE-GATED: byzantine-hardening)
+// =============================================================================
+
+#[cfg(feature = "byzantine-hardening")]
+use crate::byzantine::{MerkleDAG, PBFTLiteConsensus, AuditRecord, AuditZone, HashProtocolVersion};
+
+/// Create Merkle DAG (feature: byzantine-hardening)
+#[cfg(feature = "byzantine-hardening")]
+#[no_mangle]
+pub extern "C" fn telemetry_create_merkle_dag() -> *mut MerkleDAG {
+    let dag = Box::new(MerkleDAG::new());
+    Box::into_raw(dag)
+}
+
+/// Destroy Merkle DAG (feature: byzantine-hardening)
+#[cfg(feature = "byzantine-hardening")]
+#[no_mangle]
+pub extern "C" fn telemetry_destroy_merkle_dag(dag: *mut MerkleDAG) {
+    if !dag.is_null() {
+        unsafe { Box::from_raw(dag); }
+    }
+}
+
+/// Create PBFT-lite consensus (feature: byzantine-hardening)
+#[cfg(feature = "byzantine-hardening")]
+#[no_mangle]
+pub extern "C" fn telemetry_create_consensus(
+    node_id: u8,
+    total_nodes: u8,
+) -> *mut PBFTLiteConsensus {
+    let consensus = Box::new(PBFTLiteConsensus::new(node_id, total_nodes));
+    Box::into_raw(consensus)
+}
+
+/// Destroy PBFT-lite consensus (feature: byzantine-hardening)
+#[cfg(feature = "byzantine-hardening")]
+#[no_mangle]
+pub extern "C" fn telemetry_destroy_consensus(consensus: *mut PBFTLiteConsensus) {
+    if !consensus.is_null() {
+        unsafe { Box::from_raw(consensus); }
+    }
+}
