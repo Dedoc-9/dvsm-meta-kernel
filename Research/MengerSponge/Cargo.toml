@@ -1,0 +1,38 @@
+[package]
+name = "system-telemetry-minimal"
+version = "1.0.0"
+edition = "2021"
+authors = ["Telemetry Core Team"]
+description = "Generic, deterministic, portable system monitoring with Menger Sponge fractalization and Q64.64 fixed-point arithmetic"
+license = "MIT"
+
+[features]
+default = []
+# Optional: enable Gudermannian conformal mapping (pioneering research feature)
+gudermannian-projection = []
+# Optional: enable Byzantine hardening (Merkle DAG, PBFT-lite, replay validation)
+byzantine-hardening = []
+# Full suite: all optional features enabled
+full = ["gudermannian-projection", "byzantine-hardening"]
+
+[dependencies]
+sha2 = "0.10"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+name = "system_telemetry_minimal"
+
+[[example]]
+name = "telemetry_baseline"
+path = "examples/baseline.rs"
+
+[[example]]
+name = "telemetry_with_gd"
+path = "examples/with_gudermannian.rs"
+required-features = ["gudermannian-projection"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = false
