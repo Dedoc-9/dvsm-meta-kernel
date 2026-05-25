@@ -345,3 +345,150 @@ mod tests {
         assert!(time_d2 <= time_d0 * 2, "Menger overhead too high");
     }
 }
+
+// =============================================================================
+// FEATURE-GATED TESTS: GUDERMANNIAN PROJECTION
+// =============================================================================
+
+#[cfg(all(test, feature = "gudermannian-projection"))]
+mod tests_gudermannian {
+    use crate::gudermannian::*;
+
+    #[test]
+    fn test_gd_invertibility() {
+        let test_values = [-50i128, -10i128, 0i128, 10i128, 50i128];
+
+        for &x in &test_values {
+            let y = gd_q64(x);
+            let x_recovered = gd_inv_q64(y);
+            let error = (x - x_recovered).abs();
+
+            assert!(error < 100, "Invertibility error too large: {}", error);
+        }
+    }
+
+    #[test]
+    fn test_gd_conformality() {
+        let x = 10i128 << 64;
+        let error = verify_conformality(x, x + 1);
+
+        assert!(error < 1000, "Conformality error: {}", error);
+    }
+
+    #[test]
+    fn test_gudermannian_projector() {
+        let mut proj = GudermannianProjector::new(100 << 64, true);
+        let mut z = [50i128 << 64; 16];
+
+        proj.project_vector(&mut z);
+
+        assert!(proj.enabled);
+        assert_eq!(proj.frame_count, 1);
+        assert!(z[0] > 0);
+    }
+
+    #[test]
+    fn test_gd_smooth_saturation() {
+        let z1 = gd_q64(10i128 << 64);
+        let z2 = gd_q64(11i128 << 64);
+        let z3 = gd_q64(12i128 << 64);
+
+        let diff1 = (z2 - z1).abs();
+        let diff2 = (z3 - z2).abs();
+
+        assert!(diff2 <= diff1, "Saturation not smooth");
+    }
+
+    #[test]
+    fn test_gd_range_bounded() {
+        const PI_HALF: i128 = 0x1921FB544442D000;
+
+        for x in [-100i128, -10, 0, 10, 100].iter() {
+            let y = gd_q64(*x << 64);
+            assert!(y > -PI_HALF, "gd({}) below −π/2", x);
+            assert!(y < PI_HALF, "gd({}) above π/2", x);
+        }
+    }
+}
+
+// =============================================================================
+// FEATURE-GATED TESTS: BYZANTINE HARDENING
+// =============================================================================
+
+#[cfg(all(test, feature = "byzantine-hardening"))]
+mod tests_byzantine {
+    use crate::byzantine::*;
+
+    #[test]
+    fn test_merkle_dag_append() {
+        let mut dag = MerkleDAG::new();
+        let record = AuditRecord::from_snapshot(
+            0, [42u8; 32], [0u8; 32], 1_000_000,
+            0, AuditZone::Compute,
+            HashProtocolVersion::V2Byzantine, 2,
+        );
+
+        let root = dag.append(0, record).unwrap();
+        assert_ne!(root, [0u8; 32]);
+        assert_eq!(dag.total_frames, 1);
+    }
+
+    #[test]
+    fn test_pbft_consensus_quorum() {
+        let mut cons = PBFTLiteConsensus::new(0, 7);
+        let root = [1u8; 32];
+
+        for _ in 0..5 {
+            cons.propose(root).ok();
+        }
+
+        assert!(cons.has_consensus(root));
+        assert_eq!(cons.consensus_root, root);
+    }
+
+    #[test]
+    fn test_pbft_tolerates_byzantine() {
+        let mut cons = PBFTLiteConsensus::new(0, 7);
+        let honest_root = [1u8; 32];
+        let byzantine_root = [255u8; 32];
+
+        for _ in 0..5 {
+            cons.propose(honest_root).ok();
+        }
+        cons.inject_byzantine(byzantine_root).ok();
+        cons.inject_byzantine(byzantine_root).ok();
+
+        assert!(cons.has_consensus(honest_root));
+        assert!(!cons.has_consensus(byzantine_root));
+    }
+
+    #[test]
+    fn test_audit_record_commitment() {
+        let record = AuditRecord::from_snapshot(
+            42, [1u8; 32], [2u8; 32], 1_000_000,
+            5, AuditZone::AuditCommit,
+            HashProtocolVersion::V2Byzantine, 2,
+        );
+
+        let commit = record.commitment();
+        assert_ne!(commit, [0u8; 32]);
+        assert_eq!(record.frame_seq, 42);
+        assert_eq!(record.shard_id, 5);
+    }
+
+    #[test]
+    fn test_merkle_dag_global_consistency() {
+        let mut dag = MerkleDAG::new();
+
+        for shard in 0..64 {
+            let record = AuditRecord::from_snapshot(
+                shard as u64, [shard as u8; 32], [0u8; 32], 1_000_000,
+                shard as u8, AuditZone::Compute,
+                HashProtocolVersion::V2Byzantine, 2,
+            );
+            dag.append(shard as u8, record).ok();
+        }
+
+        assert!(dag.verify_global_consistency());
+    }
+}
