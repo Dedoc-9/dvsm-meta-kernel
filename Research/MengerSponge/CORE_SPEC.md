@@ -400,6 +400,51 @@ CIRCULAR BUFFER (≤6 MB)
     ↓
 OUTPUT: (μ, Z, H, timestamp)
 ```
+## VI-B: Gudermannian Observable Projection (Optional, Pioneering)
+
+### Definition
+Z = gd(μ) = 2·arctan(tanh(μ/2))
+Maps ℝ → (−π/2, π/2) smoothly, invertibly
+
+### Key Properties
+- **Derivative**: gd'(x) = sech(x) ∈ (0,1]
+- **Inverse**: gd⁻¹(z) = arcsinh(tan(z))
+- **Determinism**: Q64.64 arithmetic, bit-exact cross-platform
+- **Conformality**: Angles preserved (conformal mapping)
+
+### Why (vs Hard Clipping)
+| Feature | Hard Clipping | Gudermannian |
+|---------|---------------|--------------|
+| Smooth | No (discontinuous @ Z_max) | Yes |
+| Invertible | No (information lost) | Yes (recover μ) |
+| Differentiable | No (step @ boundary) | Yes (sech smooth) |
+| Energy conserving | Yes | Yes |
+| Computational | Cheap (~5 cycles) | Moderate (~140 cycles) |
+
+### Applications
+- Phase-space geometry (curvature, stability)
+- Bioscience (allostery, protein folding)
+- Cross-system synchronization (aligned Z space)
+- Attractor detection (basin topology)
+
+### Use Flag
+
+#[cfg(feature = "gudermannian-projection")]
+pub use gudermannian::*;
+
+### Example
+```rust
+let mut projector = GudermannianProjector::new(
+    100,  // μ_max (0-100% sensor range)
+    true, // enabled
+);
+let z = projector.project(μ);  // Smooth projection
+let μ_recovered = projector.invert(z);  // Invertible
+```
+
+### Validation
+- T1-T8: Invertibility, conformality, determinism, bioscience
+- Hash still commits to gd-projected Z (protocol_v bump not needed)
 
 ---
 
