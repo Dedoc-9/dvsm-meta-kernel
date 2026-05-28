@@ -1,5 +1,5 @@
 // Telemetry Reduction Demonstration Executable
-// Shows 98% reduction capability via interactive UI
+// Shows % reduction capability via interactive UI
 // Non-critical demo: compares system-telemetry-minimal vs industry standards
 //
 // Run: cargo run --release --example telemetry_reduction_demo
@@ -126,8 +126,8 @@ fn calculate_metrics(num_frames: u64, menger_depth: u8) -> ReductionStats {
     let reduction_elk = 1.0 - (total_data_system_tel as f64 / total_data_elk as f64);
 
     // Annual cost at 10K nodes, 1000 fps, 24h retention
-    let frames_per_day = 1000 * 86400;  // 1000 fps
-    let days_per_year = 365;
+    let frames_per_day: u64 = 1000 * 86400u64;  // 1000 fps
+    let days_per_year: u64 = 365u64;
     let total_frames_year = frames_per_day * days_per_year;
     let nodes = 10000;
 
