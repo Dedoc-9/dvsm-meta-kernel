@@ -1,0 +1,6 @@
+[[bin]]
+name = "telemetry_reduction_demo"
+path = "demo_main.rs"
+
+[dependencies]
+sha2 = "0.10"
